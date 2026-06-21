@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, ExternalLink, ShieldCheck, ShieldAlert, AlertTriangle, Info, Flag } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -27,7 +27,7 @@ import { PostHeader } from "./PostHeader";
 import { MentionText } from "./MentionText";
 import { VoicePlayer } from "@/components/media/VoicePlayer";
 import { Mic } from "lucide-react";
-import { getAvatarImageUrl } from "@/lib/mediaUtils";
+import { getAvatarImageUrl, getCardImageUrl } from "@/lib/mediaUtils";
 
 // Media Components
 import { MediaGallery } from "@/components/media/MediaGallery";
@@ -90,6 +90,14 @@ export const FeedCard = ({
   const toggleReaction = useToggleReaction();
   const deletePost = useDeletePost();
   const { data: quotedPost } = useQuotedPost(post.quoted_post_id);
+  const downscaledMedia = useMemo(() => {
+    if (!post.media) return [];
+    return post.media.map(item => ({
+      ...item,
+      url: getCardImageUrl(item.url, 1200, 75),
+      thumbnail_url: item.thumbnail_url ? getCardImageUrl(item.thumbnail_url, 1200, 75) : undefined
+    }));
+  }, [post.media]);
   const [selectedMediaIndex, setSelectedMediaIndex] = useState<number | null>(null);
   const createThread = useCreateThread();
   const sendMessage = useSendMessage();
@@ -1073,7 +1081,7 @@ export const FeedCard = ({
             {/* Media Gallery */}
             {post.media && post.media.length > 0 && (
               <MediaGallery
-                media={post.media}
+                media={downscaledMedia}
                 onClick={(_, index) => {
                   setSelectedMediaIndex(index);
                 }}

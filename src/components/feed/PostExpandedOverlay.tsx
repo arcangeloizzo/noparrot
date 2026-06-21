@@ -1,4 +1,7 @@
+import { useMemo } from 'react';
 import { X } from 'lucide-react';
+import { getCardImageUrl } from '@/lib/mediaUtils';
+
 import { Post } from '@/hooks/usePosts';
 import { cn, getDisplayUsername } from '@/lib/utils';
 import { MentionText } from './MentionText';
@@ -11,6 +14,15 @@ interface PostExpandedOverlayProps {
 }
 
 export const PostExpandedOverlay = ({ post, onClose }: PostExpandedOverlayProps) => {
+  const downscaledMedia = useMemo(() => {
+    if (!post.media) return [];
+    return post.media.map(item => ({
+      ...item,
+      url: getCardImageUrl(item.url, 1200, 75),
+      thumbnail_url: item.thumbnail_url ? getCardImageUrl(item.thumbnail_url, 1200, 75) : undefined
+    }));
+  }, [post.media]);
+
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -86,7 +98,7 @@ export const PostExpandedOverlay = ({ post, onClose }: PostExpandedOverlayProps)
 
           {post.media && post.media.length > 0 && (
             <div className="mb-4">
-              <MediaGallery media={post.media} />
+              <MediaGallery media={downscaledMedia} />
             </div>
           )}
 

@@ -6,7 +6,8 @@ import { it } from "date-fns/locale";
 import { useArticlePreview } from "@/hooks/useArticlePreview";
 import { VoicePlayer } from "@/components/media/VoicePlayer";
 import { SpotifyPodcastCompactCard } from "./SpotifyPodcastCompactCard";
-import { getAvatarImageUrl } from "@/lib/mediaUtils";
+import { getAvatarImageUrl, getCardImageUrl } from "@/lib/mediaUtils";
+
 
 
 interface QuotedPostEmbedProps {
@@ -324,7 +325,7 @@ const SocialEmbed: React.FC<{ post: any; articlePreview: any; platform: string }
   const postContent = post.content;
   const previewTitle = articlePreview?.title || post.shared_title || '';
   const previewText = articlePreview?.description || '';
-  const imageUrl = articlePreview?.image || post.preview_img || (post.media?.[0]?.url);
+  const imageUrl = getCardImageUrl(articlePreview?.image || post.preview_img || (post.media?.[0]?.url), 1200, 75);
 
   const getPlatformDetails = () => {
     if (platform === 'linkedin') {
@@ -416,7 +417,7 @@ const ArticleEmbed: React.FC<{ post: any; articlePreview: any }> = ({ post, arti
   const hostname = getHostnameFromUrl(post.shared_url || articlePreview?.url);
   const articleTitle = articlePreview?.title || post.shared_title || 'Articolo';
   const articleDescription = articlePreview?.description || '';
-  const imageUrl = articlePreview?.image || post.preview_img || (post.media?.[0]?.url);
+  const imageUrl = getCardImageUrl(articlePreview?.image || post.preview_img || (post.media?.[0]?.url), 1200, 75);
   const postTitle = post.title;
   const postContent = post.content;
 
@@ -493,7 +494,7 @@ const ArticleEmbed: React.FC<{ post: any; articlePreview: any }> = ({ post, arti
 };
 
 const StandardEmbed: React.FC<{ post: any }> = ({ post }) => {
-  const imageUrl = post.media?.[0]?.url || post.preview_img;
+  const imageUrl = getCardImageUrl(post.media?.[0]?.url || post.preview_img, 1200, 75);
   const description = post.content || '';
 
   return (
