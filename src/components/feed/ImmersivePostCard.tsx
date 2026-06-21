@@ -471,13 +471,18 @@ const ImmersivePostCardInner = ({
   const hasMountedAdmin = useRef(false);
   const hasMountedReactionPicker = useRef(false);
   const hasMountedChallenge = useRef(false);
+  const retriedPreviewUrl = useRef<string | null>(null);
 
   // Trigger refetch for missing preview images on active cards
   // This helps recover from temporary extraction failures
   useEffect(() => {
+    // Skip se abbiamo già ritentato questa URL
+    if (retriedPreviewUrl.current === urlToPreview) return;
+
     if (isNearActive && !isPreviewLoading && urlToPreview && !articlePreview?.image && !post.preview_img) {
       // Only invalidate if we have a URL but no image after loading
       const timeout = setTimeout(() => {
+        retriedPreviewUrl.current = urlToPreview;  // Marca PRIMA dell'invalidate
         queryClient.invalidateQueries({ queryKey: ['article-preview', urlToPreview] });
       }, 2000); // Wait 2s before retrying to avoid rapid-fire requests
       return () => clearTimeout(timeout);
