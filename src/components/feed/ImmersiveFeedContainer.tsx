@@ -125,9 +125,15 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
     return cb;
   };
 
-  // Setup observer whenever length changes
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+
+  const onActiveIndexChangeRef = useRef(onActiveIndexChange);
+  onActiveIndexChangeRef.current = onActiveIndexChange;
+
+  // Setup observer once at mount
   useEffect(() => {
-    if (!containerRef.current || items.length <= 1) return;
+    if (!containerRef.current) return;
 
     const callback = (entries: IntersectionObserverEntry[]) => {
       entries.forEach(entry => {
@@ -149,10 +155,10 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
       });
 
       if (activeItemId) {
-        const activeIdx = items.findIndex(item => item.id === activeItemId);
+        const activeIdx = itemsRef.current.findIndex(item => item.id === activeItemId);
         if (activeIdx !== -1 && activeIdx !== lastReportedIndex.current) {
           lastReportedIndex.current = activeIdx;
-          onActiveIndexChange?.(activeIdx);
+          onActiveIndexChangeRef.current?.(activeIdx);
         }
       }
     };
@@ -176,7 +182,7 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
       entryRatioMap.current.clear();
       cardRefsMap.current.clear();
     };
-  }, [items.length, onActiveIndexChange]);
+  }, []);
 
   // Clean-up elements map when items are removed
   useEffect(() => {
