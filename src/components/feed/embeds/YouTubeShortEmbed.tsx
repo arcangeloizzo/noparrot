@@ -30,9 +30,13 @@ interface YouTubeShortEmbedProps {
   // Callbacks
   onOpenFullText: (mode: "description" | "transcript") => void;
   registerRef: (id: string) => (node: HTMLElement | null) => void;
+  onMediaTap?: (index: number) => void;
   
   // Refs
+  titleRef?: React.RefObject<any> | ((node: any) => void);
   bodyRef?: React.RefObject<any> | ((node: any) => void);
+  bodyTextRef?: React.RefObject<any> | React.MutableRefObject<any> | ((node: any) => void);
+  mediaRef?: React.RefObject<any> | ((node: any) => void);
   captionTextRef?: React.RefObject<any> | React.MutableRefObject<any> | ((node: any) => void);
   slotBottomRef?: React.RefObject<any> | ((node: any) => void);
 }
@@ -53,7 +57,11 @@ const YouTubeShortEmbedInner = ({
   flexiblesStatus,
   onOpenFullText,
   registerRef,
+  onMediaTap,
+  titleRef,
   bodyRef,
+  bodyTextRef,
+  mediaRef,
   captionTextRef,
   slotBottomRef,
 }: YouTubeShortEmbedProps) => {
@@ -238,6 +246,10 @@ const YouTubeShortEmbedInner = ({
 
       {/* Chip Espandi alto-dx */}
       <div
+        onClick={(e) => {
+          e.stopPropagation();
+          onMediaTap?.(0);
+        }}
         style={{
           position: "absolute",
           top: isMiniLayout ? 8 : 12,
@@ -251,7 +263,8 @@ const YouTubeShortEmbedInner = ({
           justifyContent: "center",
           color: "white",
           fontSize: isMiniLayout ? 13 : 14,
-          pointerEvents: "none",
+          cursor: "pointer",
+          pointerEvents: "auto",
           zIndex: 2,
         }}
       >
@@ -294,7 +307,7 @@ const YouTubeShortEmbedInner = ({
             as="h2"
             text={postTitle}
             maxLines={3}
-            ref={registerRef("essential-title")}
+            ref={titleRef || registerRef("essential-title")}
             className="uppercase mb-2 flex-shrink-0 self-start text-left"
             style={{
               fontFamily: "Impact, sans-serif",
@@ -310,7 +323,7 @@ const YouTubeShortEmbedInner = ({
             as="h2"
             text={decodeHTMLEntities(articlePreview?.title || sharedTitle || "YouTube Short")}
             maxLines={3}
-            ref={registerRef("essential-title")}
+            ref={titleRef || registerRef("essential-title")}
             className="text-xl font-bold text-immersive-foreground leading-tight mt-1 mb-2 flex-shrink-0 self-start text-left"
           />
         )}
@@ -318,7 +331,16 @@ const YouTubeShortEmbedInner = ({
         {/* User Comment NoParrot */}
         {postContent && postContent.trim().length > 0 && (
           <p
-            ref={bodyRef}
+            ref={(el) => {
+              if (bodyRef) {
+                if (typeof bodyRef === "function") bodyRef(el);
+                else (bodyRef as any).current = el;
+              }
+              if (bodyTextRef) {
+                if (typeof bodyTextRef === "function") bodyTextRef(el);
+                else (bodyTextRef as any).current = el;
+              }
+            }}
             className="self-start text-sm text-white/90 leading-relaxed mb-3 text-left flex-shrink-0 w-full"
             style={{
               display: "-webkit-box",
@@ -364,6 +386,10 @@ const YouTubeShortEmbedInner = ({
         <div
           ref={(node) => {
             registerRef("flexible-image")(node);
+            if (mediaRef) {
+              if (typeof mediaRef === "function") mediaRef(node);
+              else (mediaRef as any).current = node;
+            }
           }}
           className="flex-shrink-0 mb-3 self-start"
           style={{ height: "36px" }}
@@ -383,7 +409,11 @@ const YouTubeShortEmbedInner = ({
 
         {/* CTA */}
         {!useStackLayout && sharedUrl && (
-          <div className="slot-bottom w-full mt-auto px-0" ref={slotBottomRef}>
+          <div 
+            className="slot-bottom w-full mt-auto px-0" 
+            style={{ marginTop: emergencyScroll ? 0 : undefined }}
+            ref={slotBottomRef}
+          >
             <CardExternalCTA
               platform="youtube"
               url={sharedUrl}
@@ -411,7 +441,7 @@ const YouTubeShortEmbedInner = ({
             as="h2"
             text={postTitle}
             maxLines={3}
-            ref={registerRef("essential-title")}
+            ref={titleRef || registerRef("essential-title")}
             className="uppercase mb-2 flex-shrink-0 self-start text-left"
             style={{
               fontFamily: "Impact, sans-serif",
@@ -427,7 +457,7 @@ const YouTubeShortEmbedInner = ({
             as="h2"
             text={decodeHTMLEntities(articlePreview?.title || sharedTitle || "YouTube Short")}
             maxLines={3}
-            ref={registerRef("essential-title")}
+            ref={titleRef || registerRef("essential-title")}
             className="text-xl font-bold text-immersive-foreground leading-tight mt-1 mb-2 flex-shrink-0 self-start text-left"
           />
         )}
@@ -435,7 +465,16 @@ const YouTubeShortEmbedInner = ({
         {/* User Comment NoParrot */}
         {postContent && postContent.trim().length > 0 && (
           <p
-            ref={bodyRef}
+            ref={(el) => {
+              if (bodyRef) {
+                if (typeof bodyRef === "function") bodyRef(el);
+                else (bodyRef as any).current = el;
+              }
+              if (bodyTextRef) {
+                if (typeof bodyTextRef === "function") bodyTextRef(el);
+                else (bodyTextRef as any).current = el;
+              }
+            }}
             className="self-start text-sm text-white/90 leading-relaxed mb-3 text-left flex-shrink-0 w-full"
             style={{
               display: "-webkit-box",
@@ -480,13 +519,21 @@ const YouTubeShortEmbedInner = ({
         <div
           ref={(node) => {
             registerRef("flexible-image")(node);
+            if (mediaRef) {
+              if (typeof mediaRef === "function") mediaRef(node);
+              else (mediaRef as any).current = node;
+            }
           }}
           style={{ height: 0, overflow: "hidden" }}
         />
 
         {/* CTA */}
         {!useStackLayout && sharedUrl && (
-          <div className="slot-bottom w-full mt-auto px-0" ref={slotBottomRef}>
+          <div 
+            className="slot-bottom w-full mt-auto px-0" 
+            style={{ marginTop: emergencyScroll ? 0 : undefined }}
+            ref={slotBottomRef}
+          >
             <CardExternalCTA
               platform="youtube"
               url={sharedUrl}
@@ -514,7 +561,7 @@ const YouTubeShortEmbedInner = ({
             as="h2"
             text={postTitle}
             maxLines={3}
-            ref={registerRef("essential-title")}
+            ref={titleRef || registerRef("essential-title")}
             className="uppercase mb-2 flex-shrink-0 self-start text-left"
             style={{
               fontFamily: "Impact, sans-serif",
@@ -530,16 +577,28 @@ const YouTubeShortEmbedInner = ({
             as="h2"
             text={decodeHTMLEntities(articlePreview?.title || sharedTitle || "YouTube Short")}
             maxLines={3}
-            ref={registerRef("essential-title")}
+            ref={titleRef || registerRef("essential-title")}
             className="text-xl font-bold text-immersive-foreground leading-tight mt-1 mb-2 flex-shrink-0 self-start text-left"
           />
         )}
 
-        <div className="vstage-row w-full flex-1 min-h-0 flex gap-4">
+        <div 
+          className="vstage-row w-full flex gap-4"
+          style={{ minHeight: 176, flexShrink: 0 }}
+        >
           <div className="v-col flex-1 min-w-0 flex flex-col">
             {postContent && postContent.trim().length > 0 && (
               <p
-                ref={bodyRef}
+                ref={(el) => {
+                  if (bodyRef) {
+                    if (typeof bodyRef === "function") bodyRef(el);
+                    else (bodyRef as any).current = el;
+                  }
+                  if (bodyTextRef) {
+                    if (typeof bodyTextRef === "function") bodyTextRef(el);
+                    else (bodyTextRef as any).current = el;
+                  }
+                }}
                 className="self-start text-sm text-white/90 leading-relaxed mb-3 text-left flex-shrink-0 w-full"
                 style={{
                   display: "-webkit-box",
@@ -584,6 +643,10 @@ const YouTubeShortEmbedInner = ({
           <div
             ref={(node) => {
               registerRef("flexible-image")(node);
+              if (mediaRef) {
+                if (typeof mediaRef === "function") mediaRef(node);
+                else (mediaRef as any).current = node;
+              }
             }}
             className="flex-shrink-0"
             style={{ alignSelf: "flex-start" }}
@@ -591,7 +654,7 @@ const YouTubeShortEmbedInner = ({
             <MediaFrame
               media={mediaForFrame}
               variant="mini"
-              onTap={() => setIsPlaying(true)}
+              onTap={() => onMediaTap?.(0)}
               onLoad={handleImageLoad}
               onError={handleImageError}
             >
@@ -602,7 +665,11 @@ const YouTubeShortEmbedInner = ({
 
         {/* CTA */}
         {!useStackLayout && sharedUrl && (
-          <div className="slot-bottom w-full mt-auto px-0" ref={slotBottomRef}>
+          <div 
+            className="slot-bottom w-full mt-auto px-0" 
+            style={{ marginTop: emergencyScroll ? 0 : undefined }}
+            ref={slotBottomRef}
+          >
             <CardExternalCTA
               platform="youtube"
               url={sharedUrl}
@@ -629,7 +696,7 @@ const YouTubeShortEmbedInner = ({
           as="h2"
           text={postTitle}
           maxLines={3}
-          ref={registerRef("essential-title")}
+          ref={titleRef || registerRef("essential-title")}
           className="uppercase mb-2 flex-shrink-0 self-start text-left"
           style={{
             fontFamily: "Impact, sans-serif",
@@ -645,7 +712,7 @@ const YouTubeShortEmbedInner = ({
           as="h2"
           text={decodeHTMLEntities(articlePreview?.title || sharedTitle || "YouTube Short")}
           maxLines={3}
-          ref={registerRef("essential-title")}
+          ref={titleRef || registerRef("essential-title")}
           className="text-xl font-bold text-immersive-foreground leading-tight mt-1 mb-2 flex-shrink-0 self-start text-left"
         />
       )}
@@ -653,7 +720,16 @@ const YouTubeShortEmbedInner = ({
       {/* User Comment NoParrot */}
       {postContent && postContent.trim().length > 0 && (
         <p
-          ref={bodyRef}
+          ref={(el) => {
+            if (bodyRef) {
+              if (typeof bodyRef === "function") bodyRef(el);
+              else (bodyRef as any).current = el;
+            }
+            if (bodyTextRef) {
+              if (typeof bodyTextRef === "function") bodyTextRef(el);
+              else (bodyTextRef as any).current = el;
+            }
+          }}
           className="self-start text-sm text-white/90 leading-relaxed mb-3 text-left flex-shrink-0 w-full"
           style={{
             display: "-webkit-box",
@@ -699,6 +775,10 @@ const YouTubeShortEmbedInner = ({
       <div
         ref={(node) => {
           registerRef("flexible-image")(node);
+          if (mediaRef) {
+            if (typeof mediaRef === "function") mediaRef(node);
+            else (mediaRef as any).current = node;
+          }
         }}
         className="w-full flex-shrink-0 mb-3"
       >
@@ -715,7 +795,11 @@ const YouTubeShortEmbedInner = ({
 
       {/* CTA */}
       {!useStackLayout && sharedUrl && (
-        <div className="slot-bottom w-full mt-auto px-0" ref={slotBottomRef}>
+        <div 
+          className="slot-bottom w-full mt-auto px-0" 
+          style={{ marginTop: emergencyScroll ? 0 : undefined }}
+          ref={slotBottomRef}
+        >
           <CardExternalCTA
             platform="youtube"
             url={sharedUrl}
@@ -744,6 +828,7 @@ export const YouTubeShortEmbed = memo(YouTubeShortEmbedInner, (prevProps, nextPr
     prevProps.articlePreview?.description === nextProps.articlePreview?.description &&
     prevProps.articlePreview?.image === nextProps.articlePreview?.image &&
     prevProps.articlePreview?.platform === nextProps.articlePreview?.platform &&
+    prevProps.onMediaTap === nextProps.onMediaTap &&
     prevProps.flexiblesStatus?.["flexible-image"]?.step ===
       nextProps.flexiblesStatus?.["flexible-image"]?.step &&
     prevProps.flexiblesStatus?.["flexible-image"]?.height ===

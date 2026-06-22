@@ -174,6 +174,11 @@ export function useDynamicCardLayout({
       }
       if (currentAvailableHeight <= 0) return;
 
+      const GAPS_FIXED = 12 + 12 + 14 + 16;  // gap margins (§T2)
+      const SAFETY = 16;                     // safety margin (§S7)
+      const LINE_HEIGHT = 21.7;              // static design system line height (14px * 1.55)
+
+
       if (import.meta.env.DEV) {
         if (essentials.length === 0 && flexibles.length === 0) {
           return;
@@ -438,7 +443,10 @@ export function useDynamicCardLayout({
       }
 
       // FASE C: Emergency Scroll
-      const emergencyScroll = H_tot > currentAvailableHeight;
+      // Include minimum body text height (3 lines) and gaps/safety margins to accurately detect viewport overflow
+      const minBodyHeight = bodyRef.current ? (3 * LINE_HEIGHT) : 0;
+      const emergencyScroll = (H_tot + minBodyHeight + GAPS_FIXED + SAFETY) > currentAvailableHeight;
+
 
       // Determina se mostrare la CTA "Approfondisci"
       let showDrawerCta = false;
@@ -494,9 +502,6 @@ export function useDynamicCardLayout({
       const mediaHeight     = mediaRef.current?.offsetHeight ?? 0;
       const slotBottomHeight = slotBottomRef.current?.offsetHeight ?? 0;
 
-      const GAPS_FIXED = 12 + 12 + 14 + 16;  // gap margins (§T2)
-      const SAFETY = 16;                     // safety margin (§S7)
-
       const availableForBody = midClientHeight
         - titleHeight
         - subBarHeight
@@ -506,11 +511,9 @@ export function useDynamicCardLayout({
         - SAFETY;
 
       const bodyEl = bodyRef.current;
-      // Costante statica del design system (fontSize 14px * lineHeight 1.55)
-      // che corrisponde a text-[14px] e lineHeight: 1.55 inline in ImmersivePostCard.tsx
-      const LINE_HEIGHT = 21.7;
       const computedLineClamp = Math.max(3, Math.floor(availableForBody / LINE_HEIGHT));
       setBodyLineClamp(prev => prev !== computedLineClamp ? computedLineClamp : prev);
+
 
       const bodyFullHeight = bodyEl?.scrollHeight ?? 0;
       const bodyClampedHeight = computedLineClamp * LINE_HEIGHT;

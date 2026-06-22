@@ -48,6 +48,7 @@ interface FullTextModalProps {
   transcriptContent?: string;  // contenuto trascrizione (separato da content)
   durationSeconds?: number;    // optional audio duration in seconds
   imageUrl?: string;           // NUOVA: URL dell'immagine allegata
+  youtubeVideoId?: string;     // NEW: YouTube video ID for playable embed
 }
 
 const FullTextModalInner = ({
@@ -68,6 +69,7 @@ const FullTextModalInner = ({
   transcriptContent,
   durationSeconds,
   imageUrl,
+  youtubeVideoId,
 }: FullTextModalProps) => {
   const isCaption = variant === 'caption';
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -276,6 +278,20 @@ const FullTextModalInner = ({
               audioUrl={audioUrl}
               durationSeconds={durationSeconds || 0}
               hideTranscriptButton={true}
+            />
+          </div>
+        )}
+
+        {/* Playable YouTube Video Embed */}
+        {youtubeVideoId && (
+          <div className="mb-4 aspect-video w-full rounded-lg overflow-hidden border border-white/10">
+            <iframe
+              src={`https://www.youtube.com/embed/${youtubeVideoId}?autoplay=0&rel=0`}
+              className="w-full h-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
+              title="YouTube video"
             />
           </div>
         )}

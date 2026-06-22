@@ -157,7 +157,11 @@ const InstagramReelEmbedInner = ({
 
       {/* Unified Card External CTA inside slot-bottom */}
       {!useStackLayout && sharedUrl && (
-        <div className="slot-bottom w-full px-4" ref={slotBottomRef}>
+        <div 
+          className="slot-bottom w-full px-4" 
+          style={{ marginTop: emergencyScroll ? 0 : undefined }}
+          ref={slotBottomRef}
+        >
           <CardExternalCTA
             platform="instagram"
             url={sharedUrl}

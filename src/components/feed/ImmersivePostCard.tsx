@@ -106,7 +106,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCreateThread } from "@/hooks/useMessageThreads";
 import { useSendMessage } from "@/hooks/useMessages";
 import { getWordCount, getPostFullText, getTestModeWithSource, getQuestionCountWithoutSource, getQuestionCountForIntentReshare } from "@/lib/gate-utils";
-import { getMediaLayout, countPostWords, normalizeMedia, calculateMediaLayout, generateAmbientUrl, getAvatarImageUrl, getCardImageUrl } from "@/lib/mediaUtils";
+import { getMediaLayout, countPostWords, normalizeMedia, calculateMediaLayout, generateAmbientUrl, getAvatarImageUrl, getCardImageUrl, extractYoutubeVideoId } from "@/lib/mediaUtils";
 import { useDoubleTap } from "@/hooks/useDoubleTap";
 import { useReshareContextStack } from "@/hooks/useReshareContextStack";
 import { useOriginalSource } from "@/hooks/useOriginalSource";
@@ -1788,7 +1788,7 @@ const ImmersivePostCardInner = ({
       if (!shouldUseBlurredBg) {
         arr.push({
           id: 'flexible-image',
-          compressionSteps: ['full', 'pill', 'hidden'] as CompressionStep[],
+          compressionSteps: ['full'] as CompressionStep[],
           minReadabilityHeight: 100,
           fallbackHeight: 200
         });
@@ -1900,7 +1900,7 @@ const ImmersivePostCardInner = ({
     slotBottomRef,
     subBarRef
   } = useDynamicCardLayout({
-    availableHeight: (isInstagramReel || isYoutube || isYoutubeShort || isLinkedIn || isTwitter) 
+    availableHeight: (isInstagramReel || isYoutube || isLinkedIn || isTwitter) 
       ? availableHeight - 75 
       : availableHeight,
     essentials: essentialsConfig,
@@ -3069,7 +3069,16 @@ const ImmersivePostCardInner = ({
                   flexiblesStatus={flexiblesStatus}
                   onOpenFullText={openFullTextDrawer}
                   registerRef={registerRef}
+                  onMediaTap={(index) => setSelectedMediaIndex(index)}
+                  titleRef={(node) => {
+                    registerRef('essential-title')(node);
+                    if (titleRef) {
+                      (titleRef as any).current = node;
+                    }
+                  }}
                   bodyRef={bodyRef}
+                  bodyTextRef={bodyTextRef}
+                  mediaRef={mediaRef}
                   captionTextRef={captionTextRef}
                   slotBottomRef={slotBottomRef}
                 />
@@ -3582,6 +3591,7 @@ const ImmersivePostCardInner = ({
           }
           durationSeconds={activeVoicePost?.duration_seconds || 0}
           imageUrl={post.media?.[0]?.url || post.preview_img || undefined}
+          youtubeVideoId={isYoutubeShort && post.shared_url ? extractYoutubeVideoId(post.shared_url) || undefined : undefined}
           author={{
             name: post.author.full_name || post.author.username,
             username: post.author.username,

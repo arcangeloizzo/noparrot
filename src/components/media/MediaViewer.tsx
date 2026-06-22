@@ -38,6 +38,28 @@ interface MediaViewerProps {
   minimal?: boolean;
 }
 
+const extractVideoIdFromUrl = (url: string): string | null => {
+  if (url.includes('img.youtube.com/vi/')) {
+    const parts = url.split('img.youtube.com/vi/');
+    if (parts.length > 1) {
+      return parts[1].split('/')[0];
+    }
+  }
+  try {
+    const urlObj = new URL(url);
+    if (urlObj.hostname.includes("youtu.be")) {
+      return urlObj.pathname.slice(1).split("?")[0];
+    }
+    if (urlObj.hostname.includes("youtube.com")) {
+      if (urlObj.pathname.startsWith("/shorts/")) {
+        return urlObj.pathname.split("/shorts/")[1].split("?")[0];
+      }
+      return urlObj.searchParams.get("v");
+    }
+  } catch {}
+  return null;
+};
+
 export const MediaViewer = ({ media, initialIndex = 0, onClose, postActions, postTitle, minimal = false }: MediaViewerProps) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [showComments, setShowComments] = useState(false);
@@ -81,6 +103,7 @@ export const MediaViewer = ({ media, initialIndex = 0, onClose, postActions, pos
   }, []);
   
   const currentMedia = media[currentIndex];
+  const isYoutube = currentMedia && (currentMedia.url.includes('youtube.com') || currentMedia.url.includes('youtu.be') || currentMedia.url.includes('img.youtube.com/vi/'));
   const { data: reactions } = useMediaReactions(currentMedia.id);
   const toggleReaction = useToggleMediaReaction();
   const isMultiple = media.length > 1;
@@ -311,7 +334,21 @@ export const MediaViewer = ({ media, initialIndex = 0, onClose, postActions, pos
           ) : (
             /* Single media: zoom support */
             <div className="flex-1 flex items-center justify-center relative">
-              {currentMedia.type === 'image' ? (
+              {isYoutube ? (
+                <div 
+                  className="w-[90%] md:w-[450px] aspect-[9/16] max-h-[80vh] rounded-lg overflow-hidden border border-white/10 flex items-center justify-center bg-black/40"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <iframe
+                    src={`https://www.youtube.com/embed/${extractVideoIdFromUrl(currentMedia.url)}?autoplay=1&rel=0`}
+                    className="w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
+                    title="YouTube video"
+                  />
+                </div>
+              ) : currentMedia.type === 'image' ? (
                 <TransformWrapper
                   ref={transformRef}
                   initialScale={1}
