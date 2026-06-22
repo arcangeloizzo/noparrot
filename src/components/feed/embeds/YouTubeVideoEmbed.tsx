@@ -4,6 +4,7 @@ import { MentionText } from "../MentionText";
 import { CardExternalCTA } from "../CardExternalCTA";
 import { cn, decodeHTMLEntities } from "@/lib/utils";
 import { Play, ExternalLink } from "lucide-react";
+import { extractYoutubeVideoId } from "@/lib/mediaUtils";
 
 interface YouTubeVideoEmbedProps {
   postId: string;
@@ -35,23 +36,7 @@ interface YouTubeVideoEmbedProps {
   slotBottomRef?: React.RefObject<any> | ((node: any) => void);
 }
 
-const extractYoutubeVideoId = (url: string): string | null => {
-  try {
-    const urlObj = new URL(url);
-    if (urlObj.hostname.includes("youtu.be")) {
-      return urlObj.pathname.slice(1).split("?")[0];
-    }
-    if (urlObj.hostname.includes("youtube.com")) {
-      if (urlObj.pathname.startsWith("/shorts/")) {
-        return urlObj.pathname.split("/shorts/")[1].split("?")[0];
-      }
-      return urlObj.searchParams.get("v");
-    }
-    return null;
-  } catch {
-    return null;
-  }
-};
+
 
 const YouTubeVideoEmbedInner = ({
   postId,

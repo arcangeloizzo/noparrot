@@ -25,6 +25,8 @@ interface MediaFrameProps {
   className?: string;
   /** Stage variant flag: aggiunge frame--stage per ombra più pronunciata */
   isStage?: boolean;
+  onLoad?: (e: React.SyntheticEvent<HTMLImageElement, Event>) => void;
+  onError?: (e: React.SyntheticEvent<HTMLImageElement, Event>) => void;
 }
 
 /**
@@ -47,6 +49,8 @@ function MediaFrameImpl({
   children,
   className,
   isStage = false,
+  onLoad,
+  onError,
 }: MediaFrameProps) {
   const variantStyle = getVariantStyle(variant, media.ratio);
 
@@ -73,6 +77,8 @@ function MediaFrameImpl({
         height={(media as any).height || undefined}
         loading="lazy"
         decoding="async"
+        onLoad={onLoad}
+        onError={onError}
         style={{
           width: '100%',
           height: '100%',
@@ -103,6 +109,8 @@ export const MediaFrame = memo(MediaFrameImpl, (prev, next) => (
   prev.className === next.className &&
   prev.onTap === next.onTap &&
   prev.children === next.children &&
+  prev.onLoad === next.onLoad &&
+  prev.onError === next.onError &&
   prev.media.src === next.media.src &&
   prev.media.ratio === next.media.ratio &&
   prev.media.orientation === next.media.orientation &&

@@ -1420,7 +1420,7 @@ const ImmersivePostCardInner = ({
   // sotto-blocchi B (MediaFrame) + C (rendering single image) + E (VerticalStage).
   // Per ora: solo Reel/Short mantengono background-bleed; upload utente torna a
   // renderizzare il foreground come prima del blocco AmbientLayer generalizzato.
-  const shouldUseBlurredBg = isInstagramReel || isYoutubeShort;
+  const shouldUseBlurredBg = isInstagramReel;
 
   const backgroundImageUrl = hasUserMedia 
     ? post.media[0].url
@@ -1784,7 +1784,16 @@ const ImmersivePostCardInner = ({
       return config;
     }
     if (isYoutubeShort) {
-      return [];
+      const arr: FlexibleElementConfig[] = [];
+      if (!shouldUseBlurredBg) {
+        arr.push({
+          id: 'flexible-image',
+          compressionSteps: ['full', 'pill', 'hidden'] as CompressionStep[],
+          minReadabilityHeight: 100,
+          fallbackHeight: 200
+        });
+      }
+      return arr;
     }
     if (isSpotifyEpisode || isSpotifyTrack || isYoutube || isGenericArticle) {
       return [];
@@ -1864,7 +1873,7 @@ const ImmersivePostCardInner = ({
       const hasAttachedImage = post.media && post.media.length > 0;
       return (hasAttachedImage && !shouldUseBlurredBg) ? ['flexible-image'] : [];
     }
-    if (isInstagramReel) {
+    if (isInstagramReel || isYoutubeShort) {
       return !shouldUseBlurredBg ? ['flexible-image'] : [];
     }
     return [];
@@ -3046,6 +3055,8 @@ const ImmersivePostCardInner = ({
               ) : hasLink && isYoutubeShort ? (
                 <YouTubeShortEmbed
                   isNearActive={isNearActive}
+                  isActive={isActive}
+                  normalizedMedias={normalizedMedias}
                   articlePreview={articlePreview}
                   postTitle={post.title || undefined}
                   postContent={post.content || undefined}

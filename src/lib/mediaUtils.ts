@@ -115,9 +115,54 @@ export function countPostWords(title?: string | null, body?: string | null): num
 }
 
 /**
+ * Helper to extract YouTube video ID from a URL (supports shorts and standard videos).
+ */
+export const extractYoutubeVideoId = (url: string): string | null => {
+  try {
+    const urlObj = new URL(url);
+    if (urlObj.hostname.includes("youtu.be")) {
+      return urlObj.pathname.slice(1).split("?")[0];
+    }
+    if (urlObj.hostname.includes("youtube.com")) {
+      if (urlObj.pathname.startsWith("/shorts/")) {
+        return urlObj.pathname.split("/shorts/")[1].split("?")[0];
+      }
+      return urlObj.searchParams.get("v");
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+/**
  * Normalizza le sorgenti media DB in una struct UnifiedMedia[] (Scope ridotto a user_upload e link_preview)
  */
 export function normalizeMedia(post: Post, articlePreview?: any): UnifiedMedia[] {
+  // 0. Detect YouTube Short
+  const isYoutubeShort = !!(
+    post.shared_url && 
+    post.shared_url.includes('/shorts/') && 
+    (post.shared_url.includes('youtube.com') || post.shared_url.includes('youtu.be'))
+  );
+
+  if (isYoutubeShort && post.shared_url) {
+    const videoId = extractYoutubeVideoId(post.shared_url);
+    if (videoId) {
+      const src = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+      return [{
+        src,
+        ambientSrc: src,
+        ratio: '9:16',
+        orientation: 'portrait',
+        kind: 'video',
+        source: 'link_preview',
+        width: 1080,
+        height: 1920
+      }];
+    }
+  }
+
   // 1. Branch Upload Utente
   if (post.media && post.media.length > 0) {
     return post.media.map(item => {
