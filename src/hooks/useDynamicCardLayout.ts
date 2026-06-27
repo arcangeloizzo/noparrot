@@ -265,7 +265,8 @@ export function useDynamicCardLayout({
         for (const id in flexStatuses) {
           total += flexStatuses[id].height;
         }
-        return total;
+        const slotBottomHeight = slotBottomRef.current?.offsetHeight ?? 0;
+        return total + slotBottomHeight;
       };
 
       let H_tot = calculateTotalHeight(essentialHeights, currentFlexStatus);
