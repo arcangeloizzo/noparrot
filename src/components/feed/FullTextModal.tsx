@@ -297,7 +297,7 @@ const FullTextModalInner = ({
         )}
 
         {/* Attached Image */}
-        {imageUrl && (
+        {imageUrl && !youtubeVideoId && (
           <div className="mb-4">
             <img
               src={imageUrl}

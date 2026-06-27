@@ -409,11 +409,7 @@ const YouTubeShortEmbedInner = ({
 
         {/* CTA */}
         {!useStackLayout && sharedUrl && (
-          <div 
-            className="slot-bottom w-full mt-auto px-0" 
-            style={{ marginTop: emergencyScroll ? 0 : undefined }}
-            ref={slotBottomRef}
-          >
+          <div className="slot-bottom w-full mt-auto px-0" ref={slotBottomRef}>
             <CardExternalCTA
               platform="youtube"
               url={sharedUrl}
@@ -529,11 +525,7 @@ const YouTubeShortEmbedInner = ({
 
         {/* CTA */}
         {!useStackLayout && sharedUrl && (
-          <div 
-            className="slot-bottom w-full mt-auto px-0" 
-            style={{ marginTop: emergencyScroll ? 0 : undefined }}
-            ref={slotBottomRef}
-          >
+          <div className="slot-bottom w-full mt-auto px-0" ref={slotBottomRef}>
             <CardExternalCTA
               platform="youtube"
               url={sharedUrl}
@@ -665,11 +657,7 @@ const YouTubeShortEmbedInner = ({
 
         {/* CTA */}
         {!useStackLayout && sharedUrl && (
-          <div 
-            className="slot-bottom w-full mt-auto px-0" 
-            style={{ marginTop: emergencyScroll ? 0 : undefined }}
-            ref={slotBottomRef}
-          >
+          <div className="slot-bottom w-full mt-auto px-0" ref={slotBottomRef}>
             <CardExternalCTA
               platform="youtube"
               url={sharedUrl}
@@ -795,11 +783,7 @@ const YouTubeShortEmbedInner = ({
 
       {/* CTA */}
       {!useStackLayout && sharedUrl && (
-        <div 
-          className="slot-bottom w-full mt-auto px-0" 
-          style={{ marginTop: emergencyScroll ? 0 : undefined }}
-          ref={slotBottomRef}
-        >
+        <div className="slot-bottom w-full mt-auto px-0" ref={slotBottomRef}>
           <CardExternalCTA
             platform="youtube"
             url={sharedUrl}
