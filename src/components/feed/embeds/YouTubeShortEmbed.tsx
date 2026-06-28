@@ -577,7 +577,7 @@ const YouTubeShortEmbedInner = ({
 
         <div 
           className="vstage-row w-full flex gap-4"
-          style={{ minHeight: 176, flexShrink: 0 }}
+          style={{ minHeight: 192, flexShrink: 0 }}
         >
           <div className="v-col flex-1 min-w-0 flex flex-col">
             {postContent && postContent.trim().length > 0 && (
@@ -631,6 +631,18 @@ const YouTubeShortEmbedInner = ({
                 </button>
               </div>
             )}
+
+            {/* CTA inside v-col, aligned to the left under the text */}
+            {!useStackLayout && sharedUrl && (
+              <div className="slot-bottom w-full mt-auto px-0" ref={slotBottomRef}>
+                <CardExternalCTA
+                  platform="youtube"
+                  url={sharedUrl}
+                  mode="flow"
+                  ref={registerRef("essential-external-cta")}
+                />
+              </div>
+            )}
           </div>
 
           <div
@@ -655,18 +667,6 @@ const YouTubeShortEmbedInner = ({
             </MediaFrame>
           </div>
         </div>
-
-        {/* CTA */}
-        {!useStackLayout && sharedUrl && (
-          <div className="slot-bottom w-full mt-auto px-0" ref={slotBottomRef}>
-            <CardExternalCTA
-              platform="youtube"
-              url={sharedUrl}
-              mode="flow"
-              ref={registerRef("essential-external-cta")}
-            />
-          </div>
-        )}
       </div>
     );
   }
