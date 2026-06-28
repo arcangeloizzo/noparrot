@@ -608,7 +608,7 @@ const YouTubeShortEmbedInner = ({
               <p
                 ref={captionTextRef}
                 className={cn(
-                  "self-start text-sm text-white/80 leading-relaxed mb-3 text-left flex-shrink-0 w-full",
+                  "self-start text-xs text-white/60 leading-relaxed mb-3 text-left flex-shrink-0 w-full",
                   flexiblesStatus["flexible-text"]?.step === "compact"
                     ? "line-clamp-2"
                     : "line-clamp-4"
@@ -629,18 +629,6 @@ const YouTubeShortEmbedInner = ({
                 >
                   Approfondisci
                 </button>
-              </div>
-            )}
-
-            {/* CTA inside v-col, aligned to the left under the text */}
-            {!useStackLayout && sharedUrl && (
-              <div className="slot-bottom w-full mt-auto px-0" ref={slotBottomRef}>
-                <CardExternalCTA
-                  platform="youtube"
-                  url={sharedUrl}
-                  mode="flow"
-                  ref={registerRef("essential-external-cta")}
-                />
               </div>
             )}
           </div>
@@ -667,6 +655,18 @@ const YouTubeShortEmbedInner = ({
             </MediaFrame>
           </div>
         </div>
+
+        {/* CTA */}
+        {!useStackLayout && sharedUrl && (
+          <div className="slot-bottom w-full mt-auto px-0" ref={slotBottomRef}>
+            <CardExternalCTA
+              platform="youtube"
+              url={sharedUrl}
+              mode="flow"
+              ref={registerRef("essential-external-cta")}
+            />
+          </div>
+        )}
       </div>
     );
   }

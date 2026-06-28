@@ -1780,6 +1780,12 @@ const ImmersivePostCardInner = ({
     }
     if (isYoutubeShort) {
       const arr: FlexibleElementConfig[] = [];
+      arr.push({
+        id: 'flexible-text',
+        compressionSteps: ['full', 'compact', 'hidden'] as CompressionStep[],
+        minReadabilityHeight: 40,
+        fallbackHeight: 80
+      });
       if (!shouldUseBlurredBg) {
         arr.push({
           id: 'flexible-image',
@@ -1868,7 +1874,14 @@ const ImmersivePostCardInner = ({
       const hasAttachedImage = post.media && post.media.length > 0;
       return (hasAttachedImage && !shouldUseBlurredBg) ? ['flexible-image'] : [];
     }
-    if (isInstagramReel || isYoutubeShort) {
+    if (isYoutubeShort) {
+      const priority = ['flexible-text'];
+      if (!shouldUseBlurredBg) {
+        priority.push('flexible-image');
+      }
+      return priority;
+    }
+    if (isInstagramReel) {
       return !shouldUseBlurredBg ? ['flexible-image'] : [];
     }
     return [];
