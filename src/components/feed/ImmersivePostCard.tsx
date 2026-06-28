@@ -1653,8 +1653,7 @@ const ImmersivePostCardInner = ({
     }
     if (isYoutubeShort) {
       return [
-        { id: 'essential-title' },
-        { id: 'essential-external-cta' }
+        { id: 'essential-title' }
       ];
     }
     if (isYoutube) {
@@ -1666,8 +1665,7 @@ const ImmersivePostCardInner = ({
             { id: 'full', height: 200 },
             { id: 'compact', height: 80 }
           ]
-        },
-        { id: 'essential-external-cta' }
+        }
       ];
     }
     if (isGenericArticle) {
@@ -1685,8 +1683,7 @@ const ImmersivePostCardInner = ({
     }
     if (isInstagramReel) {
       return [
-        { id: 'essential-title' },
-        { id: 'essential-external-cta' }
+        { id: 'essential-title' }
       ];
     }
     if (isStandardPost || isIntentPost) {
@@ -1725,8 +1722,7 @@ const ImmersivePostCardInner = ({
             { id: 'compact', height: 170 },
             { id: 'pill', height: 50 }
           ]
-        },
-        { id: 'essential-external-cta' }
+        }
       ];
     }
     if (isTwitter) {
@@ -1739,8 +1735,7 @@ const ImmersivePostCardInner = ({
             { id: 'compact', height: 130 },
             { id: 'pill', height: 50 }
           ]
-        },
-        { id: 'essential-external-cta' }
+        }
       ];
     }
     return [];
@@ -1788,7 +1783,7 @@ const ImmersivePostCardInner = ({
       if (!shouldUseBlurredBg) {
         arr.push({
           id: 'flexible-image',
-          compressionSteps: ['full', 'pill', 'hidden'] as CompressionStep[],
+          compressionSteps: ['full', 'mini', 'pill', 'hidden'] as CompressionStep[],
           minReadabilityHeight: 100,
           fallbackHeight: 200
         });

@@ -1,6 +1,6 @@
 import { useState, useLayoutEffect, useEffect, useRef, useCallback } from 'react';
 
-export type CompressionStep = 'full' | 'clamped' | 'pill' | 'compact' | 'hidden';
+export type CompressionStep = 'full' | 'mini' | 'clamped' | 'pill' | 'compact' | 'hidden';
 
 export interface EssentialElementState {
   id: string;
@@ -59,6 +59,7 @@ export interface CardLayoutResult {
 }
 
 const PILL_HEIGHT = 36; // Altezza fissa di sistema per le pillole
+const MINI_HEIGHT = 176; // altezza del media in modalità mini affiancato
 
 interface CachedLayout {
   status: 'measured';
@@ -324,6 +325,8 @@ export function useDynamicCardLayout({
               let calculatedHeight = 0;
               if (nextStep === 'pill') {
                 calculatedHeight = PILL_HEIGHT;
+              } else if (nextStep === 'mini') {
+                calculatedHeight = MINI_HEIGHT;
               } else if (nextStep === 'hidden') {
                 calculatedHeight = 0;
               } else if (nextStep === 'clamped' || nextStep === 'compact') {
@@ -401,8 +404,8 @@ export function useDynamicCardLayout({
             const flexStatus = currentFlexStatus[flexId];
             if (!flexStatus) continue;
 
-            if (flexStatus.step !== 'clamped' && flexStatus.step !== 'compact') {
-              continue; // solo flessibili in stato clamped o compact vengono espansi
+            if (flexStatus.step !== 'clamped' && flexStatus.step !== 'compact' && flexStatus.step !== 'mini') {
+              continue; // solo flessibili in stato clamped, compact o mini vengono espansi
             }
 
             const flexible = flexibles.find(f => f.id === flexId);

@@ -128,10 +128,11 @@ const YouTubeShortEmbedInner = ({
   // Deciding layout using standard photo mechanism (wordCount threshold in calculateMediaLayout)
   const layout = mediaForFrame ? calculateMediaLayout(mediaForFrame, wordCount) : 'tall';
   const isMiniLayout = layout === "mini";
-
   const imageStep = flexiblesStatus?.["flexible-image"]?.step || "full";
-  const playButtonSize = isMiniLayout ? 42 : 58;
-  const playIconSize = isMiniLayout ? 16 : 24;
+  const shouldRenderMini = isMiniLayout || imageStep === "mini";
+
+  const playButtonSize = shouldRenderMini ? 42 : 58;
+  const playIconSize = shouldRenderMini ? 16 : 24;
 
   const mediaOverlay = !isPlaying ? (
     <>
@@ -193,13 +194,13 @@ const YouTubeShortEmbedInner = ({
       <div
         style={{
           position: "absolute",
-          top: isMiniLayout ? 8 : 12,
-          left: isMiniLayout ? 8 : 12,
+          top: shouldRenderMini ? 8 : 12,
+          left: shouldRenderMini ? 8 : 12,
           background: "rgba(0,0,0,0.6)",
           padding: "3px 8px",
           borderRadius: 12,
           color: "white",
-          fontSize: isMiniLayout ? 10 : 11,
+          fontSize: shouldRenderMini ? 10 : 11,
           fontWeight: "bold",
           fontFamily: "Inter, sans-serif",
           display: "flex",
@@ -209,7 +210,7 @@ const YouTubeShortEmbedInner = ({
           zIndex: 2,
         }}
       >
-        <span style={{ fontSize: isMiniLayout ? 8 : 10 }}>▶</span> SHORTS · 0:17
+        <span style={{ fontSize: shouldRenderMini ? 8 : 10 }}>▶</span> SHORTS · 0:17
       </div>
 
       {/* Play Overlay Glass */}
@@ -239,7 +240,7 @@ const YouTubeShortEmbedInner = ({
           style={{ 
             width: playIconSize, 
             height: playIconSize,
-            marginLeft: isMiniLayout ? 1.5 : 2
+            marginLeft: shouldRenderMini ? 1.5 : 2
           }} 
         />
       </div>
@@ -252,17 +253,17 @@ const YouTubeShortEmbedInner = ({
         }}
         style={{
           position: "absolute",
-          top: isMiniLayout ? 8 : 12,
-          right: isMiniLayout ? 8 : 12,
-          width: isMiniLayout ? 26 : 30,
-          height: isMiniLayout ? 26 : 30,
-          borderRadius: isMiniLayout ? 13 : 15,
+          top: shouldRenderMini ? 8 : 12,
+          right: shouldRenderMini ? 8 : 12,
+          width: shouldRenderMini ? 26 : 30,
+          height: shouldRenderMini ? 26 : 30,
+          borderRadius: shouldRenderMini ? 13 : 15,
           background: "rgba(0,0,0,0.45)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           color: "white",
-          fontSize: isMiniLayout ? 13 : 14,
+          fontSize: shouldRenderMini ? 13 : 14,
           cursor: "pointer",
           pointerEvents: "auto",
           zIndex: 2,
@@ -538,8 +539,8 @@ const YouTubeShortEmbedInner = ({
     );
   }
 
-  // Render when isMiniLayout (side-by-side)
-  if (isMiniLayout) {
+  // Render when shouldRenderMini (side-by-side)
+  if (shouldRenderMini) {
     return (
       <div
         className={cn(
