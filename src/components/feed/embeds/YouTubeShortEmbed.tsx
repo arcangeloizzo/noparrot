@@ -631,6 +631,18 @@ const YouTubeShortEmbedInner = ({
                 </button>
               </div>
             )}
+
+            {/* CTA inside v-col, aligned to the left under the text */}
+            {!useStackLayout && sharedUrl && (
+              <div className="slot-bottom w-full mt-auto px-0" ref={slotBottomRef}>
+                <CardExternalCTA
+                  platform="youtube"
+                  url={sharedUrl}
+                  mode="flow"
+                  ref={registerRef("essential-external-cta")}
+                />
+              </div>
+            )}
           </div>
 
           <div
@@ -655,18 +667,6 @@ const YouTubeShortEmbedInner = ({
             </MediaFrame>
           </div>
         </div>
-
-        {/* CTA */}
-        {!useStackLayout && sharedUrl && (
-          <div className="slot-bottom w-full mt-auto px-0" ref={slotBottomRef}>
-            <CardExternalCTA
-              platform="youtube"
-              url={sharedUrl}
-              mode="flow"
-              ref={registerRef("essential-external-cta")}
-            />
-          </div>
-        )}
       </div>
     );
   }
