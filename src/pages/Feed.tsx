@@ -26,7 +26,7 @@ import { perfStore, isEmailAllowed } from "@/lib/perfStore";
 import { PostCardSkeleton, EditorialSlideSkeleton } from "@/components/feed/skeletons";
 import { prefetchArticlePreviews } from "@/hooks/useArticlePreview";
 import { useAdminRole } from "@/hooks/useAdminRole";
-import { getCardImageUrl } from "@/lib/mediaUtils";
+import { getCardImageUrl, extractYoutubeVideoId } from "@/lib/mediaUtils";
 
 // Helper to get optimized Supabase image URL for prefetch
 const getOptimizedImageUrl = (src: string | undefined): string | undefined => {
@@ -120,11 +120,41 @@ export const Feed = () => {
     // Use atomic sync utility
     syncActiveIndex(index);
 
-    // Prefetch next card's optimized image using ref
-    const nextItem = mixedFeedRef.current[index + 1];
-    if (nextItem?.type === 'post' && nextItem.data.preview_img) {
+    // Prefetch and asynchronously pre-decode images for the next 2 posts
+    const prefetchImageForPost = (post: any) => {
+      if (!post) return;
+      let rawUrl: string | null = null;
+      if (post.post_type === 'youtube_short') {
+        if (post.article_preview?.image) {
+          rawUrl = post.article_preview.image;
+        } else if (post.preview_img) {
+          rawUrl = post.preview_img;
+        } else if (post.shared_url) {
+          const videoId = extractYoutubeVideoId(post.shared_url);
+          if (videoId) {
+            rawUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+          }
+        }
+      } else {
+        rawUrl = post.preview_img || post.article_preview?.image || post.media?.[0]?.url || null;
+      }
+
+      if (!rawUrl) return;
+      const optimizedUrl = getOptimizedImageUrl(rawUrl) || rawUrl;
       const img = new Image();
-      img.src = getOptimizedImageUrl(nextItem.data.preview_img) || nextItem.data.preview_img;
+      img.onload = () => {
+        img.decode().catch(() => {});
+      };
+      img.src = optimizedUrl;
+    };
+
+    const nextItem1 = mixedFeedRef.current[index + 1];
+    if (nextItem1?.type === 'post') {
+      prefetchImageForPost(nextItem1.data);
+    }
+    const nextItem2 = mixedFeedRef.current[index + 2];
+    if (nextItem2?.type === 'post') {
+      prefetchImageForPost(nextItem2.data);
     }
 
     // Trigger perf tracking for scroll action
