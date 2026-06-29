@@ -1420,7 +1420,7 @@ const ImmersivePostCardInner = ({
   // sotto-blocchi B (MediaFrame) + C (rendering single image) + E (VerticalStage).
   // Per ora: solo Reel/Short mantengono background-bleed; upload utente torna a
   // renderizzare il foreground come prima del blocco AmbientLayer generalizzato.
-  const shouldUseBlurredBg = isInstagramReel;
+  const shouldUseBlurredBg = false;
 
   const backgroundImageUrl = hasUserMedia 
     ? post.media[0].url
@@ -1841,16 +1841,22 @@ const ImmersivePostCardInner = ({
       return [];
     }
     if (isInstagramReel) {
-      const config: FlexibleElementConfig[] = [];
+      const arr: FlexibleElementConfig[] = [];
+      arr.push({
+        id: 'flexible-text',
+        compressionSteps: ['full', 'compact', 'hidden'] as CompressionStep[],
+        minReadabilityHeight: 40,
+        fallbackHeight: 80
+      });
       if (!shouldUseBlurredBg) {
-        config.push({
+        arr.push({
           id: 'flexible-image',
-          compressionSteps: ['full', 'compact', 'hidden'] as CompressionStep[],
-          minReadabilityHeight: 45,
+          compressionSteps: ['full', 'mini', 'pill', 'hidden'] as CompressionStep[],
+          minReadabilityHeight: 100,
           fallbackHeight: 200
         });
       }
-      return config;
+      return arr;
     }
     if (isIntentPost) {
       return [];
@@ -1882,7 +1888,11 @@ const ImmersivePostCardInner = ({
       return priority;
     }
     if (isInstagramReel) {
-      return !shouldUseBlurredBg ? ['flexible-image'] : [];
+      const priority = ['flexible-text'];
+      if (!shouldUseBlurredBg) {
+        priority.push('flexible-image');
+      }
+      return priority;
     }
     return [];
   }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isYoutubeShort, isGenericArticle, isStandardPost, isInstagramReel, isIntentPost, isVoicePost, isChallengePost, isLinkedIn, isTwitter, hasImage, post.media, shouldUseBlurredBg, useStackLayout]);
@@ -3198,6 +3208,17 @@ const ImmersivePostCardInner = ({
                 />
               ) : isInstagramReel ? (
                 <InstagramReelEmbed
+                  isNearActive={isNearActive}
+                  isActive={isActive}
+                  normalizedMedias={normalizedMedias}
+                  onMediaTap={(index) => setSelectedMediaIndex(index)}
+                  titleRef={(node) => {
+                    registerRef('essential-title')(node);
+                    if (titleRef) {
+                      (titleRef as any).current = node;
+                    }
+                  }}
+                  mediaRef={mediaRef}
                   postTitle={post.title}
                   postContent={post.content}
                   sharedUrl={post.shared_url}
