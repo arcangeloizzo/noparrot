@@ -1014,19 +1014,17 @@ export const useEditPost = () => {
     mutationFn: async ({ postId, title, content }: { postId: string; title?: string; content: string }) => {
       if (!user) throw new Error('Devi essere loggato');
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('posts')
         .update({ title, content })
         .eq('id', postId)
-        .eq('author_id', user.id)
-        .select()
-        .single();
+        .eq('author_id', user.id);
 
       if (error) {
         console.error('[useEditPost] update error:', error);
         throw error;
       }
-      return data;
+      return null;
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
