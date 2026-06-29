@@ -3392,6 +3392,7 @@ const ImmersivePostCardInner = ({
                 addBreadcrumb('quiz_closed', { via: 'cancelled' });
                 setShowQuiz(false);
                 setQuizData(null);
+                setShowAnalysisOverlay(false);
                 setGateStep('idle');
               }}
             />

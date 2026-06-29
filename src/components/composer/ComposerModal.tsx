@@ -2713,6 +2713,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
                   addBreadcrumb('quiz_cancel_during');
                   addBreadcrumb('quiz_closed', { via: 'cancelled' });
                   forceUnlockBodyScroll(); // Ensure scroll is released
+                  setShowAnalysisOverlay(false);
                   setShowQuiz(false);
                   setQuizData(null);
                   setQuizPassed(false);
