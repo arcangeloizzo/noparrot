@@ -1918,7 +1918,7 @@ const ImmersivePostCardInner = ({
     slotBottomRef,
     subBarRef
   } = useDynamicCardLayout({
-    availableHeight: (isInstagramReel || isYoutube || isLinkedIn || isTwitter) 
+    availableHeight: (isYoutube || isLinkedIn || isTwitter) 
       ? availableHeight - 75 
       : availableHeight,
     essentials: essentialsConfig,
