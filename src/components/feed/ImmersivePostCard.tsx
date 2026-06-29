@@ -1851,7 +1851,7 @@ const ImmersivePostCardInner = ({
       if (!shouldUseBlurredBg) {
         arr.push({
           id: 'flexible-image',
-          compressionSteps: ['full', 'mini', 'pill', 'hidden'] as CompressionStep[],
+          compressionSteps: ['full', 'mini'] as CompressionStep[],
           minReadabilityHeight: 100,
           fallbackHeight: 200
         });
