@@ -205,25 +205,30 @@ const InstagramReelEmbedInner = ({
         </div>
 
         {/* MediaWrapper: remains stable in DOM layout to prevent image unmounting and reloading */}
-        {hasValidMedia && mediaForFrame && (
-          <div
-            ref={(node) => {
-              registerRef("flexible-image")(node);
-              if (mediaRef) {
-                if (typeof mediaRef === "function") mediaRef(node);
-                else (mediaRef as any).current = node;
-              }
-            }}
-            className={cn("flex-shrink-0", shouldRenderMini ? "" : "w-full mb-3")}
-            style={shouldRenderMini ? { alignSelf: "flex-start" } : undefined}
-          >
+        <div
+          ref={(node) => {
+            registerRef("flexible-image")(node);
+            if (mediaRef) {
+              if (typeof mediaRef === "function") mediaRef(node);
+              else (mediaRef as any).current = node;
+            }
+          }}
+          className={cn(
+            "flex-shrink-0",
+            hasValidMedia 
+              ? (shouldRenderMini ? "" : "w-full mb-3") 
+              : "h-0 w-0 overflow-hidden"
+          )}
+          style={hasValidMedia && shouldRenderMini ? { alignSelf: "flex-start" } : undefined}
+        >
+          {hasValidMedia && mediaForFrame && (
             <MediaFrame
               media={mediaForFrame}
               variant={shouldRenderMini ? "mini" : "tall"}
               onTap={() => onMediaTap?.(0)}
             />
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* CTA below the content wrapper (only for tall layout) */}
