@@ -148,7 +148,10 @@ export function AmbientLayer({
             backgroundPosition: 'center',
             filter,
             opacity,
-            transform: 'scale(1.12)',
+            transform: 'scale(1.12) translateZ(0)',
+            willChange: 'transform',
+            WebkitBackfaceVisibility: 'hidden',
+            backfaceVisibility: 'hidden',
           }}
         />
         {/* Scrim overlay for contrast */}
