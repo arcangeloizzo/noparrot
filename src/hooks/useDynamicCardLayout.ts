@@ -167,6 +167,8 @@ export function useDynamicCardLayout({
     }
 
     const computeLayout = () => {
+      const GAPS_FIXED = 12 + 12 + 14 + 16;  // gap margins (§T2)
+      const SAFETY = 16;                     // safety margin (§S7)
       let currentAvailableHeight = availableHeight;
       if (badgeRef.current) {
         currentAvailableHeight -= (badgeRef.current.offsetHeight + 12);
@@ -327,7 +329,19 @@ export function useDynamicCardLayout({
               if (nextStep === 'pill') {
                 calculatedHeight = PILL_HEIGHT;
               } else if (nextStep === 'mini') {
-                calculatedHeight = MINI_HEIGHT;
+                const isChallenge = flexible.id === 'flexible-image' && flexible.minReadabilityHeight === 90;
+                if (isChallenge) {
+                  const titleHeight = titleRef.current?.offsetHeight ?? 0;
+                  const subBarHeight = subBarRef.current?.offsetHeight ?? 0;
+                  const slotBottomHeight = slotBottomRef.current?.offsetHeight ?? 0;
+                  const residuo = currentAvailableHeight - titleHeight - subBarHeight - slotBottomHeight - GAPS_FIXED - SAFETY;
+
+                  const tetto = Math.min(240, 0.31 * window.innerHeight);
+                  const pavimento = 90;
+                  calculatedHeight = Math.max(pavimento, Math.min(tetto, residuo));
+                } else {
+                  calculatedHeight = MINI_HEIGHT;
+                }
               } else if (nextStep === 'hidden') {
                 calculatedHeight = 0;
               } else if (nextStep === 'clamped' || nextStep === 'compact') {
@@ -498,14 +512,11 @@ export function useDynamicCardLayout({
       const subBarHeight    = subBarRef.current?.offsetHeight ?? 0;
       const mediaHeight     = mediaRef.current?.offsetHeight ?? 0;
       const slotBottomHeight = slotBottomRef.current?.offsetHeight ?? 0;
-
-      const GAPS_FIXED = 12 + 12 + 14 + 16;  // gap margins (§T2)
-      const SAFETY = 16;                     // safety margin (§S7)
-
+      const isSideBySide = currentFlexStatus['flexible-image']?.step === 'mini';
       const availableForBody = midClientHeight
         - titleHeight
         - subBarHeight
-        - mediaHeight
+        - (isSideBySide ? 0 : mediaHeight)
         - slotBottomHeight
         - GAPS_FIXED
         - SAFETY;

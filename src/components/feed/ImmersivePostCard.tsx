@@ -1688,17 +1688,19 @@ const ImmersivePostCardInner = ({
     }
     if (isStandardPost || isIntentPost) {
       return [
-        { id: 'essential-title' }
+        { id: 'essential-title' },
+        { id: 'essential-description' }
       ];
     }
     if (isVoicePost) {
       return [
         { id: 'essential-title' },
+        { id: 'essential-description' },
         {
           id: 'essential-voice-player',
           states: [
-            { id: 'standard', height: 260 },
-            { id: 'compact', height: 80 }
+            { id: 'standard', height: 160 },
+            { id: 'compact', height: 36 }
           ]
         }
       ];
@@ -1707,6 +1709,7 @@ const ImmersivePostCardInner = ({
       const isAuthor = user?.id === post.author.id;
       return [
         { id: 'essential-title' },
+        { id: 'essential-description' },
         { id: 'essential-challenge-player' },
         { id: 'essential-polarization' },
         ...(!isAuthor ? [{ id: 'essential-cta-accept' }] : [])
@@ -1802,11 +1805,13 @@ const ImmersivePostCardInner = ({
     if (isStandardPost) {
       const arr: FlexibleElementConfig[] = [];
       if (hasImage && !shouldUseBlurredBg) {
+        const firstMedia = post.media?.[0];
+        const isLandscape = firstMedia ? (firstMedia.width > firstMedia.height) : false;
         arr.push({
           id: 'flexible-image',
-          compressionSteps: ['full', 'pill', 'hidden'] as CompressionStep[],
-          minReadabilityHeight: 100,
-          fallbackHeight: 200
+          compressionSteps: ['full', 'mini'] as CompressionStep[],
+          minReadabilityHeight: 90,
+          fallbackHeight: isLandscape ? 200 : 320
         });
       }
       return arr;
@@ -1817,9 +1822,9 @@ const ImmersivePostCardInner = ({
       if (hasAttachedImage && !shouldUseBlurredBg) {
         arr.push({
           id: 'flexible-image',
-          compressionSteps: ['full', 'pill', 'hidden'] as CompressionStep[],
-          minReadabilityHeight: 100,
-          fallbackHeight: 200
+          compressionSteps: ['full', 'mini'] as CompressionStep[],
+          minReadabilityHeight: 90,
+          fallbackHeight: 240
         });
       }
       return arr;
@@ -1830,9 +1835,9 @@ const ImmersivePostCardInner = ({
       if (hasAttachedImage && !shouldUseBlurredBg) {
         arr.push({
           id: 'flexible-image',
-          compressionSteps: ['full', 'pill', 'hidden'] as CompressionStep[],
-          minReadabilityHeight: 100,
-          fallbackHeight: 200
+          compressionSteps: ['full', 'mini'] as CompressionStep[],
+          minReadabilityHeight: 90,
+          fallbackHeight: 240
         });
       }
       return arr;
@@ -1926,7 +1931,7 @@ const ImmersivePostCardInner = ({
     compressionPriority: priorityConfig,
     postId: post.id,
     enabled: isNearActive,
-    cacheKeyExtra: `${post.title || ''}_${post.content || ''}_${post.media?.length || 0}_${articlePreview?.image || ''}`
+    cacheKeyExtra: `v22_${post.title || ''}_${post.content || ''}_${post.media?.length || 0}_${articlePreview?.image || ''}`
   });
 
   const tweetEmbedStep = useStackLayout 
@@ -2445,7 +2450,7 @@ const ImmersivePostCardInner = ({
               {!useStackLayout && isVoicePost && activeVoicePost && (
                 <VoiceCastBody
                   postId={post.id}
-                  emergencyScroll={emergencyScroll || false}
+                  emergencyScroll={false}
                   voiceTitle={voiceTitle}
                   voiceContent={voiceContent || ''}
                   bodyLineClamp={bodyLineClamp}
@@ -2475,380 +2480,324 @@ const ImmersivePostCardInner = ({
                 />
               )}
 
-              {/* Challenge Post Body inline layout */}
-              {!useStackLayout && isChallengePost && activeVoicePost && post.challenge && (
-                <div 
-                  className={cn(
-                    "w-full flex flex-col pt-2 pb-16 flex-1 min-h-0 justify-start",
-                    emergencyScroll && "overflow-y-auto"
-                  )}
-                >
-                  {/* Header Essenziale: Badge + Title */}
-                  <div ref={registerRef('essential-title')} className="w-full flex flex-col flex-shrink-0">
+              {!useStackLayout && isChallengePost && activeVoicePost && post.challenge && (() => {
+                const challengeMediaForFrame = (post.media && post.media[0]) ? {
+                  src: isVideoMedia ? (downscaledPostMedia[0]?.thumbnail_url || downscaledMediaUrl) : (downscaledPostMedia[0]?.url || downscaledMediaUrl),
+                  ratio: post.media[0].ratio || undefined,
+                  orientation: post.media[0].orientation || undefined,
+                  kind: isVideoMedia ? "video" as const : "image" as const,
+                } : null;
 
+                const challengeHasValidMedia = !!challengeMediaForFrame?.src;
+                const challengeShouldRenderMini = challengeHasValidMedia;
+                const isSmallScreen = typeof window !== 'undefined' ? window.innerHeight < 700 : false;
 
-                    {/* Title se esiste */}
-                    {challengeTitle && challengeTitle.trim().length > 0 && (
-                      <ClampedTitle
-                        as="h2"
-                        text={challengeTitle}
-                        maxLines={3}
-                        className="uppercase mb-3 flex-shrink-0"
-                        style={{
-                          fontFamily: 'Impact, sans-serif',
-                          fontSize: 'clamp(30px, 8vw, 42px)',
-                          lineHeight: 0.92,
-                          letterSpacing: '-0.02em',
-                          color: '#FFFFFF',
-                          textAlign: 'left',
-                        }}
-                      />
+                return (
+                  <div 
+                    className={cn(
+                      "w-full flex flex-col pt-2 pb-16 flex-1 min-h-0 justify-start"
                     )}
-                  </div>
+                  >
+                    {/* Header Essenziale: Badge + Title */}
+                    <div ref={registerRef('essential-title')} className="w-full flex flex-col flex-shrink-0">
+                      {/* Title se esiste */}
+                      {challengeTitle && challengeTitle.trim().length > 0 && (
+                        <ClampedTitle
+                          as="h2"
+                          text={challengeTitle}
+                          maxLines={3}
+                          className="uppercase mb-3 flex-shrink-0"
+                          style={{
+                            fontFamily: 'Impact, sans-serif',
+                            fontSize: isSmallScreen ? 'clamp(22px, 6vw, 28px)' : 'clamp(30px, 8vw, 42px)',
+                            lineHeight: 0.92,
+                            letterSpacing: '-0.02em',
+                            color: '#FFFFFF',
+                            textAlign: 'left',
+                          }}
+                        />
+                      )}
+                    </div>
 
-                  {/* Description flessibile se esiste */}
-                  {challengeContent && challengeContent.trim().length > 0 && (
-                    <div 
-                      ref={(el) => {
-                        (bodyRef as any).current = el;
-                        bodyTextRef.current = el;
-                      }} 
-                      className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
-                      style={{ 
-                        fontFamily: 'Inter, sans-serif', 
-                        lineHeight: 1.55,
-                        display: '-webkit-box',
-                        WebkitLineClamp: bodyLineClamp,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden'
-                      }}
+                    {/* Content wrapper: row for mini layout, column for tall layout */}
+                    <div
+                      className={cn(challengeShouldRenderMini ? "vstage-row w-full flex gap-4" : "w-full flex flex-col")}
+                      style={{ flex: '0 0 auto', marginTop: 0 }}
                     >
-                      <MentionText content={challengeContent} />
-                    </div>
-                  )}
+                      <div className={cn(challengeShouldRenderMini ? "v-col flex-1 min-w-0 flex flex-col" : "w-full flex flex-col")}>
+                        {/* Description flessibile se esiste */}
+                        {challengeContent && challengeContent.trim().length > 0 && (
+                          <div 
+                            ref={(el) => {
+                              registerRef("essential-description")(el);
+                              (bodyRef as any).current = el;
+                              bodyTextRef.current = el;
+                            }} 
+                            className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
+                            style={{ 
+                              fontFamily: 'Inter, sans-serif', 
+                              lineHeight: 1.55,
+                              display: '-webkit-box',
+                              WebkitLineClamp: bodyLineClamp,
+                              WebkitBoxOrient: 'vertical',
+                              overflow: 'hidden'
+                            }}
+                          >
+                            <MentionText content={challengeContent} />
+                          </div>
+                        )}
 
-                  {/* Approfondisci subito dopo description (se non c'è description, dopo title) */}
-                  {shouldShowApprofondisci && (
-                    <div className="flex-shrink-0 mt-2 mb-3">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
-                        className="text-sm text-primary font-semibold hover:underline block"
-                      >
-                        Approfondisci
-                      </button>
-                    </div>
-                  )}
+                        {/* Approfondisci subito dopo description (se non c'è description, dopo title) */}
+                        {shouldShowApprofondisci && (
+                          <div className="flex-shrink-0 mt-2 mb-3 text-left">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
+                              className="text-sm text-primary font-semibold hover:underline block"
+                            >
+                              Approfondisci
+                            </button>
+                          </div>
+                        )}
+                      </div>
 
-                  {/* Image/Media flessibile */}
-                  {hasMedia && post.media && post.media.length > 0 && !shouldUseBlurredBg && (
-                    <>
-                      {flexiblesStatus['flexible-image']?.step === 'full' && (
-                        <div 
+                      {/* Colonna destra (media), SOLO se challengeShouldRenderMini */}
+                      {challengeShouldRenderMini && challengeMediaForFrame && (
+                        <div
                           ref={(node) => {
                             registerRef('flexible-image')(node);
                             (mediaRef as any).current = node;
                           }}
-                          className="relative flex-shrink-0 w-full flex items-center justify-center overflow-hidden mb-3 rounded-xl border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.3)] cursor-pointer"
-                          style={{ height: `${flexiblesStatus['flexible-image'].height}px` }}
-                          onClick={post.media.length === 1 ? (e) => {
-                            e.stopPropagation();
-                            setSelectedMediaIndex(0);
-                          } : undefined}
+                          className="flex-shrink-0"
+                          style={{ 
+                            alignSelf: "flex-start",
+                            maxHeight: flexiblesStatus['flexible-image']?.height ? `${flexiblesStatus['flexible-image']?.height}px` : undefined
+                          }}
                         >
-                          {downscaledPostMedia.length === 1 ? (
-                            isVideoMedia ? (
-                              <div className="relative w-full h-full flex items-center justify-center">
-                                <img
-                                  src={downscaledPostMedia[0]?.thumbnail_url || downscaledMediaUrl}
-                                  alt=""
-                                  width={(post.media?.[0] as any)?.width || 1080}
-                                  height={(post.media?.[0] as any)?.height || 1080}
-                                  loading="lazy"
-                                  decoding="async"
-                                  className="w-full h-full object-contain"
+                          <MediaFrame
+                            media={challengeMediaForFrame}
+                            variant="mini"
+                            miniMinHeight={90}
+                            height={flexiblesStatus['flexible-image']?.height}
+                            onTap={() => setSelectedMediaIndex(0)}
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Player, polarization, CTAs inside slot-bottom */}
+                    <div className="slot-bottom" style={{ marginTop: isSmallScreen ? '8px' : '16px', flex: '0 0 auto' }} ref={slotBottomRef}>
+                      {/* Player audio compact (essential-challenge-player) */}
+                      <div ref={registerRef('essential-challenge-player')} className="w-full mt-auto flex-shrink-0">
+                        {isActive ? (
+                          <VoicePlayer 
+                            compact 
+                            audioUrl={activeVoicePost?.audio_url || ''}
+                            durationSeconds={activeVoicePost?.duration_seconds || 0}
+                            transcript={activeVoicePost?.transcript}
+                            transcriptStatus={activeVoicePost?.transcript_status as any}
+                            accentColor="#E41E52"
+                            onShowTranscript={() => openFullTextDrawer('transcript')}
+                          />
+                        ) : (
+                          <div className="w-full h-[36px] rounded-lg bg-white/5 border border-white/10 animate-pulse flex items-center justify-center text-[10px] text-white/30">
+                            Caricamento player vocale...
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Polarization bar (essential-polarization) */}
+                      <div ref={registerRef('essential-polarization')} className={cn("px-1 flex-shrink-0", isSmallScreen ? "mt-2" : "mt-4")} style={{ height: isSmallScreen ? '48px' : '80px' }}>
+                        <div className="flex items-end justify-between mb-1" style={{ fontFamily: 'JetBrains Mono', fontSize: '10px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                          <span style={{ color: '#0A7AFF' }}>
+                            A FAVORE ({Math.round(((post.challenge.votes_for || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%)
+                          </span>
+                          <span style={{ color: '#FFD464' }}>
+                            CONTRO ({Math.round(((post.challenge.votes_against || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%)
+                          </span>
+                        </div>
+                        <div className="flex overflow-hidden" style={{ height: isSmallScreen ? '6px' : '8px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)' }}>
+                          <div style={{ width: `${Math.round(((post.challenge.votes_for || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%`, background: 'linear-gradient(90deg, #0A7AFF, #3D9AFF)', borderRadius: '4px 0 0 4px' }} />
+                          <div style={{ width: `${Math.round(((post.challenge.votes_against || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%`, background: 'linear-gradient(90deg, #F5C842, #FFD464)', borderRadius: '0 4px 4px 0' }} />
+                        </div>
+                        
+                        {/* Challenge Responses Button */}
+                        {challengeResponses.length > 0 && (
+                          <div className={cn("flex justify-center", isSmallScreen ? "mt-1" : "mt-2")}>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setChallengeDrawerOpen(true);
+                              }}
+                              className="flex items-center justify-center gap-1.5 py-1 px-4 rounded-full text-xs font-semibold text-slate-300 hover:text-white transition-all hover:bg-white/5"
+                            >
+                              <Zap className="w-3 h-3 text-[#E41E52]" />
+                              Vedi {challengeResponses.length} rispost{challengeResponses.length === 1 ? 'a' : 'e'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* CTA "Accetta la sfida" (essential-cta-accept) */}
+                      {(() => {
+                        const isExpired = post.challenge?.status === 'expired' || post.challenge?.status === 'closed' || new Date(post.challenge?.expires_at || '') < new Date();
+                        const isAuthor = user?.id === post.author.id;
+                        const hasResponded = challengeResponses.some(r => r.user_id === user?.id);
+                        const isDisabled = isExpired || hasResponded;
+
+                        return !isAuthor ? (
+                          <button
+                            ref={registerRef('essential-cta-accept')}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (isDisabled) return;
+                              // Trigger challenge respond flow
+                              const handleRespond = async () => {
+                                const transcriptText = activeVoicePost?.transcript || post.content;
+                                const wordCount = getWordCount(transcriptText);
+                                const questionCount = getQuestionCountWithoutSource(wordCount);
+                                if (questionCount === 0) {
+                                  setShowChallengeFlow(true);
+                                  return;
+                                }
+                                setShowAnalysisOverlay(true);
+                                try {
+                                  const result = await generateQA({
+                                    contentId: post.id,
+                                    title: post.author.full_name || post.author.username,
+                                    summary: transcriptText,
+                                    userText: transcriptText || '',
+                                    questionCount,
+                                  });
+                                  setShowAnalysisOverlay(false);
+                                  if (result.insufficient_context) {
+                                    toast.info("Trascrizione non sufficiente per il test.");
+                                    setShowChallengeFlow(true);
+                                    return;
+                                  }
+                                  if (!result || result.error || !result.questions?.length) {
+                                    toast.error(result?.error || "Errore generico");
+                                    return;
+                                  }
+                                  setQuizData({ qaId: result.qaId, questions: result.questions, sourceUrl: `post://${post.id}`, onChallengeRespond: true });
+                                  setShowQuiz(true);
+                                } catch {
+                                  setShowAnalysisOverlay(false);
+                                  toast.error("Errore generico");
+                                }
+                              };
+                              handleRespond();
+                            }}
+                            disabled={isDisabled}
+                            className={cn(
+                              "relative w-full rounded-full font-bold text-sm tracking-wide overflow-hidden transition-all flex-shrink-0 flex items-center justify-center",
+                              isSmallScreen ? "mt-1.5" : "mt-2",
+                              isDisabled ? "opacity-50 cursor-not-allowed" : "hover:scale-[1.02] active:scale-[0.98]"
+                            )}
+                            style={{
+                              height: isSmallScreen ? '36px' : '48px',
+                              background: isDisabled ? 'rgba(255,255,255,0.05)' : 'linear-gradient(135deg, #E41E52, #FF6B35)',
+                              color: isDisabled ? 'rgba(255,255,255,0.3)' : 'white',
+                              border: isDisabled ? '1px solid rgba(255,255,255,0.1)' : 'none',
+                            }}
+                          >
+                            {!isDisabled && (
+                              <span className="absolute inset-0" style={{
+                                background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%)',
+                                backgroundSize: '200% 100%',
+                                animation: 'shimmer 2.5s ease-in-out infinite',
+                              }} />
+                            )}
+                            <span className="relative z-10">
+                              {hasResponded ? '✓ Hai già risposto' : isExpired ? '⚡ Sfida chiusa' : '⚡ Accetta la sfida'}
+                            </span>
+                          </button>
+                        ) : null;
+                      })()}
+                    </div>
+
+                    {/* Response Drawer */}
+                    <Drawer open={challengeDrawerOpen} onOpenChange={setChallengeDrawerOpen}>
+                      <DrawerContent className="max-h-[85vh]">
+                        <DrawerHeader>
+                          <DrawerTitle className="flex items-center justify-center gap-2">
+                            <Zap className="w-5 h-5" style={{ color: '#E41E52' }} />
+                            {challengeResponses.length} rispost{challengeResponses.length === 1 ? 'a' : 'e'} alla challenge
+                          </DrawerTitle>
+                        </DrawerHeader>
+                        <ScrollArea className="flex-1 overflow-auto px-4 pb-6" style={{ maxHeight: 'calc(85vh - 80px)' }}>
+                          <div className="space-y-3">
+                            {challengeResponses.map((resp) => (
+                              <div
+                                key={resp.id}
+                                className="rounded-xl p-4"
+                                style={{
+                                  background: 'hsl(var(--muted) / 0.5)',
+                                  border: '1px solid hsl(var(--border))',
+                                }}
+                              >
+                                <div className="flex items-center gap-3 mb-3">
+                                  <Avatar className="w-8 h-8 border border-white/10">
+                                    <AvatarImage src={getAvatarImageUrl(resp.user?.avatar_url)} />
+                                    <AvatarFallback>{resp.user?.username?.slice(0, 2).toUpperCase()}</AvatarFallback>
+                                  </Avatar>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-bold text-slate-200 truncate">
+                                      {resp.user?.full_name || resp.user?.username}
+                                    </p>
+                                    <p className="text-[10px] text-slate-400">
+                                      {new Date(resp.created_at).toLocaleDateString()}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <VoicePlayer
+                                  audioUrl={resp.voice_post.audio_url}
+                                  durationSeconds={resp.voice_post.duration_seconds}
+                                  waveformData={resp.voice_post.waveform_data}
+                                  transcript={resp.voice_post.transcript}
+                                  transcriptStatus={resp.voice_post.transcript_status as any}
+                                  accentColor="#E41E52"
                                 />
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                  <div className="bg-white p-3 rounded-full shadow-lg">
-                                    <Play className="w-5 h-5 text-black fill-black ml-0.5" />
+
+                                <div className="mt-3 flex items-center justify-between border-t border-white/5 pt-3">
+                                  <div className="flex items-center gap-1.5">
+                                    <button
+                                      onClick={() => {
+                                        const userVote = challengeVotes.find(v => v.user_id === user?.id);
+                                        const isMyVote = userVote?.challenge_response_id === resp.id;
+                                        if (isMyVote) {
+                                          deleteVoteMutation.mutate(userVote.id);
+                                        } else {
+                                          voteMutation.mutate({ responseId: resp.id });
+                                        }
+                                      }}
+                                      className={cn(
+                                        "h-7 px-3 rounded-full text-xs font-semibold flex items-center gap-1 transition-all active:scale-[0.97] group",
+                                        userVote?.challenge_response_id === resp.id
+                                          ? "bg-muted text-muted-foreground cursor-not-allowed"
+                                          : "bg-muted hover:bg-accent text-foreground"
+                                      )}
+                                    >
+                                      {userVote?.challenge_response_id === resp.id ? (
+                                        <span className="flex items-center gap-1">
+                                          <span className="group-hover:hidden">✓ Votato</span>
+                                          <span className="hidden group-hover:inline">✗ Rimuovi voto</span>
+                                        </span>
+                                      ) : (
+                                        '🏆 Miglior argomento'
+                                      )}
+                                    </button>
                                   </div>
                                 </div>
                               </div>
-                            ) : (
-                              <img
-                                src={downscaledMediaUrl}
-                                alt=""
-                                width={(post.media?.[0] as any)?.width || 1080}
-                                height={(post.media?.[0] as any)?.height || 1080}
-                                loading="lazy"
-                                decoding="async"
-                                className="w-full h-full object-contain"
-                              />
-                            )
-                          ) : (
-                            <MediaGallery
-                              media={downscaledPostMedia}
-                              onClick={(_, index) => setSelectedMediaIndex(index)}
-                              initialIndex={carouselIndex}
-                              onIndexChange={setCarouselIndex}
-                              className="h-full w-full object-contain"
-                              isActive={isActive}
-                            />
-                          )}
-                        </div>
-                      )}
-                      
-                      {flexiblesStatus['flexible-image']?.step === 'pill' && (
-                        <div 
-                          ref={(node) => {
-                            registerRef('flexible-image')(node);
-                            (mediaRef as any).current = node;
-                          }}
-                          className="flex-shrink-0 mb-3" 
-                          style={{ height: '36px' }}
-                        >
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedMediaIndex(0);
-                            }}
-                            className="inline-flex h-9 items-center gap-1.5 bg-white/10 hover:bg-white/20 border border-white/10 px-4 rounded-full text-white text-xs font-bold"
-                          >
-                            <span>📎 Vedi {isVideoMedia ? 'video' : 'immagine'}</span>
-                          </button>
-                        </div>
-                      )}
-
-                      {flexiblesStatus['flexible-image']?.step === 'hidden' && (
-                        <div 
-                          ref={(node) => {
-                            registerRef('flexible-image')(node);
-                            (mediaRef as any).current = node;
-                          }}
-                          style={{ height: 0, overflow: 'hidden' }} 
-                        />
-                      )}
-                    </>
-                  )}
-
-                  {/* Player, polarization, CTAs inside slot-bottom */}
-                  <div className="slot-bottom" ref={slotBottomRef}>
-                    {/* Player audio compact (essential-challenge-player) */}
-                    <div ref={registerRef('essential-challenge-player')} className="w-full mt-auto flex-shrink-0">
-                      {isActive ? (
-                        <VoicePlayer 
-                          compact 
-                          audioUrl={activeVoicePost?.audio_url || ''}
-                          durationSeconds={activeVoicePost?.duration_seconds || 0}
-                          transcript={activeVoicePost?.transcript}
-                          transcriptStatus={activeVoicePost?.transcript_status as any}
-                          accentColor="#E41E52"
-                          onShowTranscript={() => openFullTextDrawer('transcript')}
-                        />
-                      ) : (
-                        <div className="w-full h-[36px] rounded-lg bg-white/5 border border-white/10 animate-pulse flex items-center justify-center text-[10px] text-white/30">
-                          Caricamento player vocale...
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Polarization bar (essential-polarization) */}
-                    <div ref={registerRef('essential-polarization')} className="mt-4 px-1 flex-shrink-0" style={{ height: '80px' }}>
-                      <div className="flex items-end justify-between mb-1.5" style={{ fontFamily: 'JetBrains Mono', fontSize: '10px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                        <span style={{ color: '#0A7AFF' }}>
-                          A FAVORE ({Math.round(((post.challenge.votes_for || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%)
-                        </span>
-                        <span style={{ color: '#FFD464' }}>
-                          CONTRO ({Math.round(((post.challenge.votes_against || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%)
-                        </span>
-                      </div>
-                      <div className="flex overflow-hidden" style={{ height: '8px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)' }}>
-                        <div style={{ width: `${Math.round(((post.challenge.votes_for || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%`, background: 'linear-gradient(90deg, #0A7AFF, #3D9AFF)', borderRadius: '4px 0 0 4px' }} />
-                        <div style={{ width: `${Math.round(((post.challenge.votes_against || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%`, background: 'linear-gradient(90deg, #F5C842, #FFD464)', borderRadius: '0 4px 4px 0' }} />
-                      </div>
-                      
-                      {/* Challenge Responses Button */}
-                      {challengeResponses.length > 0 && (
-                        <div className="mt-2 flex justify-center">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setChallengeDrawerOpen(true);
-                            }}
-                            className="flex items-center justify-center gap-1.5 py-1 px-4 rounded-full text-xs font-semibold text-slate-300 hover:text-white transition-all hover:bg-white/5"
-                          >
-                            <Zap className="w-3 h-3 text-[#E41E52]" />
-                            Vedi {challengeResponses.length} rispost{challengeResponses.length === 1 ? 'a' : 'e'}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* CTA "Accetta la sfida" (essential-cta-accept) */}
-                    {(() => {
-                      const isExpired = post.challenge?.status === 'expired' || post.challenge?.status === 'closed' || new Date(post.challenge?.expires_at || '') < new Date();
-                      const isAuthor = user?.id === post.author.id;
-                      const hasResponded = challengeResponses.some(r => r.user_id === user?.id);
-                      const isDisabled = isExpired || hasResponded;
-
-                      return !isAuthor ? (
-                        <button
-                          ref={registerRef('essential-cta-accept')}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (isDisabled) return;
-                            // Trigger challenge respond flow
-                            const handleRespond = async () => {
-                              const transcriptText = activeVoicePost?.transcript || post.content;
-                              const wordCount = getWordCount(transcriptText);
-                              const questionCount = getQuestionCountWithoutSource(wordCount);
-                              if (questionCount === 0) {
-                                setShowChallengeFlow(true);
-                                return;
-                              }
-                              setShowAnalysisOverlay(true);
-                              try {
-                                const result = await generateQA({
-                                  contentId: post.id,
-                                  title: post.author.full_name || post.author.username,
-                                  summary: transcriptText,
-                                  userText: transcriptText || '',
-                                  questionCount,
-                                });
-                                setShowAnalysisOverlay(false);
-                                if (result.insufficient_context) {
-                                  toast.info("Trascrizione non sufficiente per il test.");
-                                  setShowChallengeFlow(true);
-                                    return;
-                                 }
-                                 if (!result || result.error || !result.questions?.length) {
-                                   toast.error(result?.error || "Errore generico");
-                                   return;
-                                 }
-                                 setQuizData({ qaId: result.qaId, questions: result.questions, sourceUrl: `post://${post.id}`, onChallengeRespond: true });
-                                 setShowQuiz(true);
-                               } catch {
-                                 setShowAnalysisOverlay(false);
-                                 toast.error("Errore generico");
-                               }
-                             };
-                             handleRespond();
-                           }}
-                           disabled={isDisabled}
-                           className={cn(
-                             "relative w-full mt-2 rounded-full font-bold text-sm tracking-wide overflow-hidden transition-all flex-shrink-0 flex items-center justify-center",
-                             isDisabled ? "opacity-50 cursor-not-allowed" : "hover:scale-[1.02] active:scale-[0.98]"
-                           )}
-                           style={{
-                             height: '48px',
-                             background: isDisabled ? 'rgba(255,255,255,0.05)' : 'linear-gradient(135deg, #E41E52, #FF6B35)',
-                             color: isDisabled ? 'rgba(255,255,255,0.3)' : 'white',
-                             border: isDisabled ? '1px solid rgba(255,255,255,0.1)' : 'none',
-                           }}
-                         >
-                           {!isDisabled && (
-                             <span className="absolute inset-0" style={{
-                               background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%)',
-                               backgroundSize: '200% 100%',
-                               animation: 'shimmer 2.5s ease-in-out infinite',
-                             }} />
-                           )}
-                           <span className="relative z-10">
-                             {hasResponded ? '✓ Hai già risposto' : isExpired ? '⚡ Sfida chiusa' : '⚡ Accetta la sfida'}
-                           </span>
-                         </button>
-                       ) : null;
-                     })()}
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      </DrawerContent>
+                    </Drawer>
                   </div>
-
-                  {/* Response Drawer */}
-                  <Drawer open={challengeDrawerOpen} onOpenChange={setChallengeDrawerOpen}>
-                    <DrawerContent className="max-h-[85vh]">
-                      <DrawerHeader>
-                        <DrawerTitle className="flex items-center justify-center gap-2">
-                          <Zap className="w-5 h-5" style={{ color: '#E41E52' }} />
-                          {challengeResponses.length} rispost{challengeResponses.length === 1 ? 'a' : 'e'} alla challenge
-                        </DrawerTitle>
-                      </DrawerHeader>
-                      <ScrollArea className="flex-1 overflow-auto px-4 pb-6" style={{ maxHeight: 'calc(85vh - 80px)' }}>
-                        <div className="space-y-3">
-                          {challengeResponses.map((resp) => (
-                            <div
-                              key={resp.id}
-                              className="rounded-xl p-4"
-                              style={{
-                                background: 'hsl(var(--muted) / 0.5)',
-                                border: '1px solid hsl(var(--border))',
-                              }}
-                            >
-                              <div className="flex items-center gap-2 mb-3">
-                                <Avatar className="w-7 h-7">
-                                  <AvatarImage src={getAvatarImageUrl(resp.user.avatar_url) || undefined} />
-                                  <AvatarFallback className="text-[10px] bg-muted">
-                                    {(resp.user.full_name || resp.user.username).charAt(0).toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <span className="text-sm font-semibold text-foreground">
-                                  {resp.user.full_name || resp.user.username}
-                                </span>
-                                <span
-                                  className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ml-auto"
-                                  style={{
-                                     background: resp.stance === 'for' ? 'rgba(10,122,255,0.15)' : 'rgba(255,212,100,0.15)',
-                                     color: resp.stance === 'for' ? '#0A7AFF' : '#FFD464',
-                                  }}
-                                >
-                                  {resp.stance === 'for' ? 'A favore' : 'Contro'}
-                                </span>
-                              </div>
-                              <VoicePlayer
-                                audioUrl={resp.voice_post.audio_url}
-                                durationSeconds={resp.voice_post.duration_seconds}
-                                waveformData={resp.voice_post.waveform_data}
-                                transcript={resp.voice_post.transcript}
-                                transcriptStatus={resp.voice_post.transcript_status as any}
-                                accentColor={resp.stance === 'for' ? '#0A7AFF' : '#FFD464'}
-                              />
-                              <div className="flex items-center justify-between mt-3">
-                                <span className="text-xs text-muted-foreground">
-                                  {resp.argument_votes} vot{resp.argument_votes === 1 ? 'o' : 'i'}
-                                </span>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (userVote?.challenge_response_id === resp.id) {
-                                      removeVote();
-                                    } else if (!userVote) {
-                                      voteForResponse(resp.id);
-                                    }
-                                  }}
-                                  disabled={!!userVote && userVote.challenge_response_id !== resp.id}
-                                  className={cn(
-                                    "text-xs font-semibold px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5",
-                                    userVote?.challenge_response_id === resp.id
-                                      ? "bg-primary/20 text-primary hover:bg-destructive/20 hover:text-destructive"
-                                      : userVote
-                                        ? "bg-muted text-muted-foreground cursor-not-allowed"
-                                        : "bg-muted hover:bg-accent text-foreground"
-                                  )}
-                                >
-                                  {userVote?.challenge_response_id === resp.id ? (
-                                    <span className="flex items-center gap-1">
-                                      <span className="group-hover:hidden">✓ Votato</span>
-                                      <span className="hidden group-hover:inline">✗ Rimuovi voto</span>
-                                    </span>
-                                  ) : (
-                                    '🏆 Miglior argomento'
-                                  )}
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </ScrollArea>
-                    </DrawerContent>
-                  </Drawer>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Stack Layout: User comment first - Plain text for standard */}
               {useStackLayout && !isAudioPost && !isChallengePost && (post.content || post.title) && post.content !== post.shared_title && (
@@ -3009,7 +2958,7 @@ const ImmersivePostCardInner = ({
                   isNearActive={isNearActive}
                   isActive={isActive}
                   useStackLayout={useStackLayout}
-                  emergencyScroll={emergencyScroll || false}
+                  emergencyScroll={false}
                   bodyLineClamp={bodyLineClamp}
                   shouldShowApprofondisci={shouldShowApprofondisci}
                   flexiblesStatus={flexiblesStatus}
@@ -3036,7 +2985,7 @@ const ImmersivePostCardInner = ({
                   sharedTitle={post.shared_title || undefined}
                   previewImg={post.preview_img || undefined}
                   useStackLayout={useStackLayout}
-                  emergencyScroll={emergencyScroll || false}
+                  emergencyScroll={false}
                   bodyLineClamp={bodyLineClamp}
                   shouldShowApprofondisci={shouldShowApprofondisci}
                   tweetEmbedStep={tweetEmbedStep || "full"}
@@ -3058,7 +3007,7 @@ const ImmersivePostCardInner = ({
                   sharedTitle={post.shared_title || undefined}
                   previewImg={post.preview_img || undefined}
                   useStackLayout={useStackLayout}
-                  emergencyScroll={emergencyScroll || false}
+                  emergencyScroll={false}
                   bodyLineClamp={bodyLineClamp}
                   shouldShowApprofondisci={shouldShowApprofondisci}
                   linkedinEmbedStep={linkedinEmbedStep || "full"}
@@ -3081,7 +3030,7 @@ const ImmersivePostCardInner = ({
                   sharedUrl={post.shared_url || undefined}
                   sharedTitle={post.shared_title || undefined}
                   useStackLayout={useStackLayout}
-                  emergencyScroll={emergencyScroll || false}
+                  emergencyScroll={false}
                   bodyLineClamp={bodyLineClamp}
                   shouldShowApprofondisci={shouldShowApprofondisci}
                   flexiblesStatus={flexiblesStatus}
@@ -3110,7 +3059,7 @@ const ImmersivePostCardInner = ({
                   postPreviewImg={post.preview_img}
                   articlePreview={articlePreview}
                   useStackLayout={useStackLayout}
-                  emergencyScroll={emergencyScroll}
+                  emergencyScroll={false}
                   bodyLineClamp={bodyLineClamp}
                   shouldShowApprofondisci={shouldShowApprofondisci}
                   youtubeEmbedStep={youtubeEmbedStep}
@@ -3131,7 +3080,7 @@ const ImmersivePostCardInner = ({
                   sharedTitle={post.shared_title}
                   articlePreview={articlePreview}
                   useStackLayout={useStackLayout}
-                  emergencyScroll={emergencyScroll}
+                  emergencyScroll={false}
                   bodyLineClamp={bodyLineClamp}
                   shouldShowApprofondisci={shouldShowApprofondisci}
                   spotifyEpisodeStep={spotifyEpisodeStep}
@@ -3159,7 +3108,7 @@ const ImmersivePostCardInner = ({
                   postTitle={post.title || undefined}
                   postContent={post.content || undefined}
                   useStackLayout={useStackLayout}
-                  emergencyScroll={emergencyScroll || false}
+                  emergencyScroll={false}
                   bodyLineClamp={bodyLineClamp}
                   shouldShowApprofondisci={shouldShowApprofondisci}
                   spotifyTrackStep={spotifyTrackStep as any}
@@ -3183,7 +3132,7 @@ const ImmersivePostCardInner = ({
                   previewImg={post.preview_img}
                   articlePreview={articlePreview}
                   useStackLayout={useStackLayout}
-                  emergencyScroll={emergencyScroll || false}
+                  emergencyScroll={false}
                   bodyLineClamp={bodyLineClamp}
                   shouldShowApprofondisci={shouldShowApprofondisci}
                   articleStep={articleStep || "full"}
@@ -3225,7 +3174,7 @@ const ImmersivePostCardInner = ({
                   sharedTitle={post.shared_title}
                   articlePreview={articlePreview}
                   useStackLayout={useStackLayout}
-                  emergencyScroll={emergencyScroll}
+                  emergencyScroll={false}
                   bodyLineClamp={bodyLineClamp}
                   shouldShowApprofondisci={shouldShowApprofondisci}
                   flexiblesStatus={flexiblesStatus}

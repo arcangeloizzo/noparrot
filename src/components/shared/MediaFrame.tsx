@@ -27,6 +27,10 @@ interface MediaFrameProps {
   isStage?: boolean;
   onLoad?: (e: React.SyntheticEvent<HTMLImageElement, Event>) => void;
   onError?: (e: React.SyntheticEvent<HTMLImageElement, Event>) => void;
+  /** Override del min-height del variant mini. Default 176 (spec §5.3). */
+  miniMinHeight?: number;
+  /** Altezza esplicita calcolata dal motore di layout */
+  height?: number;
 }
 
 /**
@@ -51,8 +55,10 @@ function MediaFrameImpl({
   isStage = false,
   onLoad,
   onError,
+  miniMinHeight = 176,
+  height,
 }: MediaFrameProps) {
-  const variantStyle = getVariantStyle(variant, media.ratio);
+  const variantStyle = getVariantStyle(variant, media.ratio, miniMinHeight);
 
   return (
     <div
@@ -65,6 +71,7 @@ function MediaFrameImpl({
       style={{
         borderRadius: 20,
         ...variantStyle,
+        ...(height !== undefined ? { height, minHeight: height, maxHeight: height } : {}),
       }}
       onClick={onTap}
       role={onTap ? 'button' : undefined}
@@ -111,6 +118,8 @@ export const MediaFrame = memo(MediaFrameImpl, (prev, next) => (
   prev.children === next.children &&
   prev.onLoad === next.onLoad &&
   prev.onError === next.onError &&
+  prev.miniMinHeight === next.miniMinHeight &&
+  prev.height === next.height &&
   prev.media.src === next.media.src &&
   prev.media.ratio === next.media.ratio &&
   prev.media.orientation === next.media.orientation &&
@@ -123,7 +132,8 @@ export const MediaFrame = memo(MediaFrameImpl, (prev, next) => (
  */
 function getVariantStyle(
   variant: MediaFrameVariant,
-  ratio: UnifiedMedia['ratio']
+  ratio: UnifiedMedia['ratio'],
+  miniMinHeight: number
 ): CSSProperties {
   switch (variant) {
     case 'tall': {
@@ -146,13 +156,13 @@ function getVariantStyle(
         flex: '0 1 auto',
       };
     case 'mini':
-      // Spec §5.3: mini affiancato — width:auto, aspect-ratio match ratio nativo, max-height min(31vh, 240px), min-height 176
+      // Spec §5.3: mini affiancato — width:auto, aspect-ratio match ratio nativo, max-height min(31vh, 240px), min-height configurabile via miniMinHeight (default 176)
       // Spec specifica solo 9:16 e 3:4 variante r34. Per square 1:1 usiamo 9:16 default come safety.
       return {
         width: 'auto',
         aspectRatio: ratio === '3:4' ? '3 / 4' : '9 / 16',
         maxHeight: 'min(31vh, 240px)',
-        minHeight: 176,
+        minHeight: miniMinHeight,
         flexShrink: 0,
         alignSelf: 'flex-start',
         marginTop: 0,

@@ -7,6 +7,7 @@ import { MentionText } from "../MentionText";
 import { MediaGallery } from "@/components/media/MediaGallery";
 import { VoicePlayer } from "@/components/media/VoicePlayer";
 import { ImmersiveVoicePlayerV2 } from "@/components/media/ImmersiveVoicePlayerV2";
+import { MediaFrame } from "@/components/shared/MediaFrame";
 
 interface VoiceCastBodyProps {
   // Identification
@@ -95,6 +96,7 @@ const VoiceCastBodyInner = ({
     return getCardImageUrl(mediaUrl, 1200, 75);
   }, [mediaUrl]);
   const handleDescriptionRef = (node: HTMLDivElement | null) => {
+    registerRef("essential-description")(node);
     if (bodyRef) {
       if (typeof bodyRef === "function") {
         bodyRef(node);
@@ -121,6 +123,7 @@ const VoiceCastBodyInner = ({
       }
     }
   };
+  const shouldRenderMini = hasMedia && media && media.length > 0 && !shouldUseBlurredBg;
 
   return (
     <div
@@ -153,41 +156,77 @@ const VoiceCastBodyInner = ({
         )}
       </div>
 
-      {/* Description flessibile se esiste */}
-      {voiceContent && voiceContent.trim().length > 0 && (
-        <div
-          ref={handleDescriptionRef}
-          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
-          style={{
-            fontFamily: '"Inter", sans-serif',
-            lineHeight: 1.55,
-            display: "-webkit-box",
-            WebkitLineClamp: bodyLineClamp,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
-          }}
-        >
-          <MentionText content={voiceContent} />
-        </div>
-      )}
+      {/* Content wrapper: row for mini layout, column for standard layout */}
+      <div
+        className={cn(shouldRenderMini ? "vstage-row w-full flex gap-4" : "w-full flex flex-col")}
+        style={shouldRenderMini ? { flex: '0 0 auto', marginTop: 0 } : undefined}
+      >
+        <div className={cn(shouldRenderMini ? "v-col flex-1 min-w-0 flex flex-col" : "w-full flex flex-col")}>
+          {/* Description flessibile se esiste */}
+          {voiceContent && voiceContent.trim().length > 0 && (
+            <div
+              ref={handleDescriptionRef}
+              className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
+              style={{
+                fontFamily: '"Inter", sans-serif',
+                lineHeight: 1.55,
+                display: "-webkit-box",
+                WebkitLineClamp: bodyLineClamp,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+              }}
+            >
+              <MentionText content={voiceContent} />
+            </div>
+          )}
 
-      {/* Approfondisci subito dopo description (se non c'è description, dopo title) */}
-      {shouldShowApprofondisci && (
-        <div className="flex-shrink-0 mt-2 mb-3">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              openFullTextDrawer("description");
-            }}
-            className="text-sm text-primary font-semibold hover:underline block"
-          >
-            Approfondisci
-          </button>
+          {/* Approfondisci subito dopo description (se non c'è description, dopo title) */}
+          {shouldShowApprofondisci && (
+            <div className="flex-shrink-0 mt-2 mb-3 text-left">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openFullTextDrawer("description");
+                }}
+                className="text-sm text-primary font-semibold hover:underline block"
+              >
+                Approfondisci
+              </button>
+            </div>
+          )}
         </div>
-      )}
 
-      {/* Image/Media flessibile */}
-      {hasMedia && media && media.length > 0 && !shouldUseBlurredBg && (
+        {/* Colonna destra (media), SOLO se shouldRenderMini */}
+        {shouldRenderMini && media && media[0] && (() => {
+          const mediaForFrame = {
+            src: isVideoMedia ? (media[0].thumbnail_url || mediaUrl || '') : (media[0].url || mediaUrl || ''),
+            ratio: media[0].ratio || undefined,
+            orientation: media[0].orientation || undefined,
+            kind: isVideoMedia ? "video" as const : "image" as const,
+          };
+          return (
+            <div
+              ref={handleMediaRef}
+              className="flex-shrink-0"
+              style={{ 
+                alignSelf: "flex-start",
+                maxHeight: flexibleImageHeight ? `${flexibleImageHeight}px` : undefined
+              }}
+            >
+              <MediaFrame
+                media={mediaForFrame}
+                variant="mini"
+                miniMinHeight={90}
+                height={flexibleImageHeight}
+                onTap={() => setSelectedMediaIndex(0)}
+              />
+            </div>
+          );
+        })()}
+      </div>
+
+      {/* Image/Media flessibile per layout standard (non-mini) */}
+      {!shouldRenderMini && hasMedia && media && media.length > 0 && !shouldUseBlurredBg && (
         <>
           {flexibleImageStep === "full" && (
             <div

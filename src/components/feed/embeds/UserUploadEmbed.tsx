@@ -80,13 +80,19 @@ const UserUploadEmbedInner = ({
   const userUploadMedia = normalizedMedias.find((m) => m.source === "user_upload");
   const linkPreviewMedia = normalizedMedias.find((m) => m.source === "link_preview");
   const hasPreviewMetadata = false && !!linkPreviewMedia;
-  const isMiniLayout =
-    (userUploadMedia &&
-      userUploadMedia.kind === "image" &&
-      calculateMediaLayout(userUploadMedia, wordCount) === "mini") ||
-    (linkPreviewMedia &&
-      hasPreviewMetadata &&
-      calculateMediaLayout(linkPreviewMedia, wordCount) === "mini");
+
+  const isLandscape = userUploadMedia?.orientation === 'landscape';
+  const isWordCountMini = userUploadMedia
+    ? calculateMediaLayout(userUploadMedia, wordCount) === "mini"
+    : false;
+  const isEngineMini = flexiblesStatus?.["flexible-image"]?.step === "mini";
+
+  const shouldRenderMini = !!(
+    userUploadMedia &&
+    userUploadMedia.kind === "image" &&
+    !isLandscape &&
+    (isWordCountMini || isEngineMini)
+  );
 
   return (
     <div
@@ -115,9 +121,10 @@ const UserUploadEmbedInner = ({
       )}
 
       {/* Body text — unico flessibile o primo flessibile (renderizzato qui solo se NON mini layout) */}
-      {!isMiniLayout && postContent && postContent.trim().length > 0 && (
+      {!shouldRenderMini && postContent && postContent.trim().length > 0 && (
         <div
           ref={(el) => {
+            registerRef("essential-description")(el);
             if (bodyRef) {
               if (typeof bodyRef === "function") bodyRef(el);
               else (bodyRef as any).current = el;
@@ -143,7 +150,7 @@ const UserUploadEmbedInner = ({
       )}
 
       {/* Approfondisci (subito dopo il body text - renderizzato qui solo se NON mini layout) */}
-      {!isMiniLayout && shouldShowApprofondisci && (
+      {!shouldRenderMini && shouldShowApprofondisci && (
         <div className="flex-shrink-0 mt-2 mb-3">
           <button
             onClick={(e) => {
@@ -209,13 +216,14 @@ const UserUploadEmbedInner = ({
                 );
               }
 
-              if (layout === "mini") {
+              if (shouldRenderMini) {
                 return (
                   <div className="vstage-row">
                     <div className="v-col">
                       {postContent && postContent.trim().length > 0 && (
                         <div
                           ref={(el) => {
+                            registerRef("essential-description")(el);
                             if (bodyRef) {
                               if (typeof bodyRef === "function") bodyRef(el);
                               else (bodyRef as any).current = el;
@@ -240,7 +248,7 @@ const UserUploadEmbedInner = ({
                         </div>
                       )}
                       {shouldShowApprofondisci && (
-                        <div className="flex-shrink-0 mt-2 mb-3">
+                        <div className="flex-shrink-0 mt-2 mb-3 text-left">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -267,6 +275,7 @@ const UserUploadEmbedInner = ({
                       <MediaFrame
                         media={mediaForFrame}
                         variant="mini"
+                        height={flexiblesStatus?.["flexible-image"]?.height}
                         onTap={() => onMediaTap?.(0)}
                       >
                         <div
@@ -308,6 +317,7 @@ const UserUploadEmbedInner = ({
                   <MediaFrame
                     media={mediaForFrame}
                     variant={layout}
+                    height={imageStep === "mini" ? flexiblesStatus?.["flexible-image"]?.height : undefined}
                     onTap={() => onMediaTap?.(0)}
                   >
                     <div

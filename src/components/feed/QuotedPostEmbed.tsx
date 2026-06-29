@@ -544,8 +544,8 @@ const QuotedPostEmbedImpl: React.FC<QuotedPostEmbedProps> = ({
   const postType = post.post_type;
   
   const isIlPunto = post.author?.username === 'ilpunto' || post.author?.username === 'npe_ilpunto' || post.author?.username === 'Il Punto' || post.author?.id === 'system';
-  const isVoice = postType === 'voice' || postType === 'voicecast' || !!post.voice_post;
   const isChallenge = postType === 'challenge' || !!post.challenge;
+  const isVoice = (postType === 'voice' || postType === 'voicecast' || !!post.voice_post) && !isChallenge;
   
   const platform = articlePreview?.platform || getHostnameFromUrl(post.shared_url);
   const isYoutube = platform === 'youtube' || post.shared_url?.includes('youtube.com') || post.shared_url?.includes('youtu.be');
