@@ -266,7 +266,8 @@ export function useDynamicCardLayout({
         for (const id in flexStatuses) {
           total += flexStatuses[id].height;
         }
-        const slotBottomHeight = slotBottomRef.current?.offsetHeight ?? 0;
+        const hasFlexibleImage = flexibles.some(f => f.id === 'flexible-image');
+        const slotBottomHeight = hasFlexibleImage ? (slotBottomRef.current?.offsetHeight ?? 0) : 0;
         return total + slotBottomHeight;
       };
 
