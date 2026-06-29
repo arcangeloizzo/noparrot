@@ -11,6 +11,8 @@ import type { UnifiedMedia } from "@/types/media";
 interface UserUploadEmbedProps {
   postTitle?: string;
   postContent?: string;
+  layoutMode?: 'filled' | 'hero' | 'poster';
+  accentColor?: string;
   postMedia?: any[];
   normalizedMedias: UnifiedMedia[];
   isNearActive: boolean;
@@ -36,6 +38,8 @@ interface UserUploadEmbedProps {
 const UserUploadEmbedInner = ({
   postTitle,
   postContent,
+  layoutMode = 'filled',
+  accentColor,
   postMedia = [],
   normalizedMedias = [],
   isNearActive,
@@ -94,6 +98,9 @@ const UserUploadEmbedInner = ({
     (isWordCountMini || isEngineMini)
   );
 
+  const isPoster = layoutMode === 'poster';
+  const isLettura = layoutMode === 'filled' && !hasMedia && wordCount >= 30;
+
   return (
     <div
       className={cn(
@@ -101,6 +108,14 @@ const UserUploadEmbedInner = ({
         emergencyScroll && "overflow-y-auto"
       )}
     >
+      {isLettura && accentColor && (
+        <div className="lettura-accent" style={{ background: accentColor }} />
+      )}
+
+      {isPoster && accentColor && (
+        <div className="poster-accent" style={{ background: accentColor }} />
+      )}
+
       {/* Title */}
       {postTitle && postTitle.trim().length > 0 && (
         <ClampedTitle
@@ -108,14 +123,14 @@ const UserUploadEmbedInner = ({
           text={postTitle}
           maxLines={3}
           ref={titleRef}
-          className="uppercase mb-2 flex-shrink-0"
+          className={cn("uppercase mb-2 flex-shrink-0", isPoster && "text-center")}
           style={{
             fontFamily: "Impact, sans-serif",
-            fontSize: "clamp(30px, 8vw, 42px)",
-            lineHeight: 0.92,
+            fontSize: isPoster ? "clamp(42px, 12vw, 58px)" : "clamp(30px, 8vw, 42px)",
+            lineHeight: isPoster ? 1.02 : 0.92,
             letterSpacing: "-0.02em",
             color: "#FFFFFF",
-            textAlign: "left",
+            textAlign: isPoster ? "center" : "left",
           }}
         />
       )}
@@ -134,11 +149,11 @@ const UserUploadEmbedInner = ({
               else (bodyTextRef as any).current = el;
             }
           }}
-          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
+          className={cn("whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]", isPoster && "text-center")}
           style={{
             fontFamily: "Inter, sans-serif",
             lineHeight: 1.55,
-            textAlign: "left",
+            textAlign: isPoster ? "center" : "left",
             display: "-webkit-box",
             WebkitLineClamp: bodyLineClamp,
             WebkitBoxOrient: "vertical",

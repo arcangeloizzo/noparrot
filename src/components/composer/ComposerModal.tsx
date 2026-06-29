@@ -2839,7 +2839,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-        <AnalysisOverlay isVisible={showAnalysisOverlay} message={isGeneratingInfographic ? "Sintetizzando i concetti chiave in un'infografica..." : "Analisi in corso..."} />
+        <AnalysisOverlay isVisible={showAnalysisOverlay} message={isGeneratingInfographic ? "Sintetizzando i concetti chiave in un'infografica..." : "Analisi in corso..."} className="z-[10050]" />
 
         <MediaPreviewModal
           isOpen={!!previewMediaUrl}

@@ -532,6 +532,7 @@ export const FeedCard = ({
     // 1️⃣ MOSTRA LOADING NEL READER (non chiuderlo!)
     setGateStep('reader:loading');
     setReaderLoading(true);
+    setShowAnalysisOverlay(true);
 
     console.log('[Gate] handleReaderComplete started', { readerSource, shareAction });
 
@@ -587,6 +588,7 @@ export const FeedCard = ({
       // 3️⃣ GESTISCI ERRORI PRIMA DI CHIUDERE
       if (result.insufficient_context) {
         toast.info('Contenuto troppo breve — Puoi comunque condividere questo post');
+        setShowAnalysisOverlay(false);
         await closeReaderSafely();
         onQuoteShare?.(post);
         return;
@@ -595,6 +597,7 @@ export const FeedCard = ({
       if (!result) {
         console.error('[Gate] generateQA returned null/undefined');
         toast.error('Risposta non valida dal server');
+        setShowAnalysisOverlay(false);
         setReaderLoading(false);
         return; // Reader resta aperto
       }
@@ -602,6 +605,7 @@ export const FeedCard = ({
       if (result.error) {
         console.error('[Gate] generateQA error:', result.error);
         toast.error(result.error);
+        setShowAnalysisOverlay(false);
         setReaderLoading(false);
         return; // Reader resta aperto
       }
@@ -609,6 +613,7 @@ export const FeedCard = ({
       if (!result.questions || !Array.isArray(result.questions) || result.questions.length === 0) {
         console.error('[Gate] Invalid questions array:', result.questions);
         toast.error('Quiz non valido, riprova');
+        setShowAnalysisOverlay(false);
         setReaderLoading(false);
         return; // Reader resta aperto
       }
@@ -617,6 +622,7 @@ export const FeedCard = ({
       if (invalidQuestion) {
         console.error('[Gate] Invalid question format:', invalidQuestion);
         toast.error('Formato domanda non valido');
+        setShowAnalysisOverlay(false);
         setReaderLoading(false);
         return; // Reader resta aperto
       }
@@ -639,6 +645,7 @@ export const FeedCard = ({
         sourceUrl,
       });
       setShowQuiz(true);
+      setShowAnalysisOverlay(false);
 
       // STEP B: aspetta 1 frame per garantire che il quiz sia renderizzato
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
@@ -695,6 +702,7 @@ export const FeedCard = ({
       setGateStep('error');
       console.error('[Gate] Error in handleReaderComplete:', error);
       toast.error('Si è verificato un errore. Riprova.');
+      setShowAnalysisOverlay(false);
       setReaderLoading(false);
       setReaderClosing(false);
       // Reader resta aperto, utente può chiudere manualmente o riprovare
@@ -892,7 +900,7 @@ export const FeedCard = ({
             }}
           />
         )}
-        <AnalysisOverlay isVisible={showAnalysisOverlay} message="Analisi in corso..." />
+        <AnalysisOverlay isVisible={showAnalysisOverlay} message="Analisi in corso..." className="z-[10050]" />
       </>
     );
   }
@@ -1433,7 +1441,7 @@ export const FeedCard = ({
           mode="view"
         />
       )}
-      <AnalysisOverlay isVisible={showAnalysisOverlay} message="Analisi in corso..." />
+      <AnalysisOverlay isVisible={showAnalysisOverlay} message="Analisi in corso..." className="z-[10050]" />
       <ReportContentDialog
         open={showReportDialog}
         onOpenChange={setShowReportDialog}

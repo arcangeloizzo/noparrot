@@ -2951,6 +2951,8 @@ const ImmersivePostCardInner = ({
 
               {isStandardPost ? (
                 <UserUploadEmbed
+                  layoutMode={layoutMode}
+                  accentColor={getCategoryColor(post.category)}
                   postTitle={post.title}
                   postContent={post.content}
                   postMedia={post.media}
