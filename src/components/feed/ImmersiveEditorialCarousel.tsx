@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef, memo } from "react";
+import React, { useState, useCallback, useEffect, useRef, memo, useLayoutEffect } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { Heart, MessageCircle, Bookmark, Info, Sparkles, Layers } from "lucide-react";
 import { perfStore } from "@/lib/perfStore";
@@ -514,6 +514,16 @@ const EditorialSlideInner = ({
   const headerRef = useRef<HTMLDivElement>(null);
   const badgeRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [snapAlign, setSnapAlign] = useState<'start' | 'center'>('start');
+  useLayoutEffect(() => {
+    const el = boxRef.current; if (!el) return;
+    const ro = new ResizeObserver(() => {
+      setSnapAlign(el.offsetHeight <= window.innerHeight - 150 ? 'center' : 'start');
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // Lazy mount flag for ReactionPicker
   const hasMountedReactionPicker = useRef(false);
@@ -560,8 +570,8 @@ const EditorialSlideInner = ({
       style={{ minHeight: 'calc(var(--vh, 1vh) * 100)' }}
       onClick={onClick}
     >
-      {/* Box Flottante */}
       <div
+        ref={boxRef}
         className="relative z-10 w-full pointer-events-none"
         style={{
           margin: 'auto',
@@ -570,7 +580,10 @@ const EditorialSlideInner = ({
           border: '1px solid rgba(255,255,255,0.11)',
           background: 'linear-gradient(180deg, #0D1B2A 0%, #0A1420 100%)',  /* navy editoriale, NON vetro */
           boxShadow: '0 24px 60px -22px rgba(0,0,0,0.8)',
-          overflow: 'visible'
+          overflow: 'visible',
+          scrollSnapAlign: snapAlign,
+          scrollMarginTop: 'calc(56px + env(safe-area-inset-top))',
+          scrollMarginBottom: 'calc(88px + env(safe-area-inset-bottom))'
         }}
       >
         <CardShell>
@@ -736,124 +749,113 @@ const EditorialSlideInner = ({
             </div>
           )}
 
-          <div className="flex items-center justify-between gap-6 pt-4 pointer-events-auto w-full">
-            {/* Primary Share Button - Pill shape with consistent height */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                haptics.light();
-                onShare?.();
-              }}
-              className="liquid-share-pill"
-            >
-              <Logo variant="icon" className="liquid-share-pill-icon object-contain" />
-              <span>Condividi</span>
-              {(item.reactions?.shares ?? 0) > 0 && (
-                <span className="text-xs opacity-70">({item.reactions?.shares})</span>
-              )}
-            </button>
 
-            {/* Action Icons - Uniform w-6 h-6, aligned on same axis */}
-            <div
-              className="flex items-center gap-4 h-11 action-bar-zone bg-slate-100 px-4 rounded-full border border-slate-200 dark:bg-transparent dark:px-0 dark:rounded-none dark:border-none transition-all"
-              style={{ WebkitTapHighlightColor: 'transparent' }}
-            >
-              {/* Like with long press for reaction picker */}
-              <div className="relative flex items-center justify-center gap-1.5 h-full">
-                <button
-                  ref={likeButtonRef}
-                  className="flex items-center justify-center h-full select-none no-ios-callout"
-                  style={{ WebkitTapHighlightColor: 'transparent' }}
-                  {...likeHandlers}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {currentReaction && currentReaction !== 'heart' ? (
-                    <span className="text-xl transition-transform active:scale-90">
-                      {reactionToEmoji(currentReaction)}
-                    </span>
-                  ) : (
-                    <Heart
-                      className={cn(
-                        "w-6 h-6 transition-transform active:scale-90",
-                        reactionsData?.likedByMe ? "text-red-500 fill-red-500" : "text-slate-700 dark:text-immersive-foreground"
-                      )}
-                      fill={reactionsData?.likedByMe ? "currentColor" : "none"}
-                    />
-                  )}
-                </button>
-                <button
-                  className="text-sm font-bold text-slate-700 dark:text-immersive-foreground hover:text-black dark:hover:text-immersive-foreground/80 transition-colors select-none"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const likesCount = reactionsData?.likes ?? item.reactions?.likes ?? 0;
-                    if (likesCount > 0) {
-                      onOpenReactionsSheet?.();
-                    }
-                  }}
-                >
-                  {reactionsData?.likes ?? item.reactions?.likes ?? 0}
-                </button>
-
-                {hasMountedReactionPicker.current && (
-                  <ReactionPicker
-                    isOpen={showReactionPicker}
-                    onClose={() => setShowReactionPicker(false)}
-                    onSelect={(type) => {
-                      setCurrentReaction(type);
-                      onLike(type);
-                      setShowReactionPicker(false);
-                    }}
-                    currentReaction={currentReaction}
-                    triggerRef={likeButtonRef}
-                  />
-                )}
-              </div>
-
-              {/* Reaction Summary - Show who reacted */}
-              {(reactionsData?.likes ?? 0) > 0 && (
-                <ReactionSummary
-                  reactions={[{ type: 'heart' as ReactionType, count: reactionsData?.likes ?? 0 }]}
-                  totalCount={reactionsData?.likes ?? 0}
-                  onClick={() => onOpenReactionsSheet?.()}
-                  showCount={false}
-                />
-              )}
-
-              {/* Comments */}
-              <button
-                className="flex items-center justify-center gap-1.5 h-full select-none"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  haptics.light();
-                  onComment?.(item);
-                }}
-              >
-                <MessageCircle className="w-6 h-6 text-slate-700 dark:text-immersive-foreground transition-transform active:scale-90" />
-                <span className="text-sm font-bold text-slate-700 dark:text-immersive-foreground select-none">
-                  {item.reactions?.comments ?? 0}
-                </span>
-              </button>
-
-              {/* Bookmark */}
-              <button
-                className="flex items-center justify-center h-full"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  haptics.light();
-                  onBookmark();
-                }}
-              >
-                <Bookmark
-                  className={cn(
-                    "w-6 h-6 transition-transform active:scale-90",
-                    isBookmarked ? "text-blue-400 fill-blue-400" : "text-slate-700 dark:text-immersive-foreground"
-                  )}
-                />
-              </button>
-            </div>
-          </div>
         </CardShell.Bottom>
       </CardShell>
+
+      {/* ═══ RAIL AZIONI VERTICALE — Il Punto (stile mockup: icone + contatori/etichette) ═══ */}
+      <div
+        className="absolute right-[-20px] top-1/2 -translate-y-1/2 z-50 flex flex-col items-center gap-[18px] pointer-events-auto"
+        style={{ WebkitTapHighlightColor: 'transparent' }}
+      >
+        {/* ── Like (long-press → reaction picker) ── */}
+        <div className="flex flex-col items-center gap-[3px]">
+          <button
+            ref={likeButtonRef}
+            className="flex items-center justify-center min-w-[44px] min-h-[44px] select-none no-ios-callout"
+            style={{ WebkitTapHighlightColor: 'transparent', filter: 'drop-shadow(0 2px 7px rgba(0,0,0,0.8))' }}
+            {...likeHandlers}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {currentReaction && currentReaction !== 'heart' ? (
+              <span className="text-2xl transition-transform active:scale-90">
+                {reactionToEmoji(currentReaction)}
+              </span>
+            ) : (
+              <Heart
+                className={cn(
+                  "w-7 h-7",
+                  reactionsData?.likedByMe ? "text-red-500 fill-red-500" : "text-white"
+                )}
+                fill={reactionsData?.likedByMe ? "currentColor" : "none"}
+              />
+            )}
+          </button>
+          <span
+            className="select-none"
+            style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10.5px', color: '#fff', textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}
+          >
+            {reactionsData?.likes ?? item.reactions?.likes ?? 0}
+          </span>
+        </div>
+
+        {/* ── Commenti ── */}
+        <button
+          className="flex flex-col items-center gap-[3px] select-none"
+          onClick={(e) => { e.stopPropagation(); haptics.light(); onComment?.(item); }}
+        >
+          <MessageCircle className="w-7 h-7 text-white" style={{ filter: 'drop-shadow(0 2px 7px rgba(0,0,0,0.8))' }} />
+          <span
+            className="select-none"
+            style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10.5px', color: '#fff', textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}
+          >
+            {item.reactions?.comments || 0}
+          </span>
+        </button>
+
+        {/* ── Salva ── */}
+        <button
+          className="flex flex-col items-center gap-[3px] min-w-[44px]"
+          onClick={(e) => { e.stopPropagation(); onBookmark?.(); }}
+        >
+          <Bookmark
+            className={cn("w-7 h-7", isBookmarked ? "text-blue-400 fill-blue-400" : "text-white")}
+            fill={isBookmarked ? "currentColor" : "none"}
+            style={{ filter: 'drop-shadow(0 2px 7px rgba(0,0,0,0.8))' }}
+          />
+          <span
+            className="select-none"
+            style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10.5px', color: '#fff', textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}
+          >
+            Salva
+          </span>
+        </button>
+
+        {/* ── Invia ── */}
+        <button
+          className="flex flex-col items-center gap-[3px] min-w-[44px]"
+          onClick={(e) => { e.stopPropagation(); haptics.light(); onShare?.(); }}
+        >
+          <svg
+            width="26" height="26" viewBox="0 0 26 26" fill="none"
+            stroke="#fff" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"
+            style={{ filter: 'drop-shadow(0 2px 7px rgba(0,0,0,0.8))' }}
+          >
+            <path d="M23 4L10 15M23 4l-8 20-3.5-8.5L3 12z" />
+          </svg>
+          <span
+            className="select-none"
+            style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10.5px', color: '#fff', textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}
+          >
+            Invia
+          </span>
+        </button>
+
+        {/* Reaction picker — spostato nel rail, ref invariati */}
+        {hasMountedReactionPicker.current && (
+          <ReactionPicker
+            isOpen={showReactionPicker}
+            onClose={() => setShowReactionPicker(false)}
+            onSelect={(type) => {
+              setCurrentReaction(type);
+              onLike(type);
+              setShowReactionPicker(false);
+            }}
+            currentReaction={currentReaction}
+            triggerRef={likeButtonRef}
+          />
+        )}
+      </div>
       </div> {/* Chiude Box Flottante */}
     </div>
   );

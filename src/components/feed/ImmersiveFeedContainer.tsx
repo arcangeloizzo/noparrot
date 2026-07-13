@@ -29,9 +29,9 @@ const FeedWrapper = React.memo(({ isVisible, registerRef, children }: FeedWrappe
       ref={registerRef}
       style={{
         minHeight: 'calc(var(--vh, 1vh) * 100)',
-        scrollSnapStop: 'always',
+        paddingBottom: '48px',
       }}
-      className="w-full snap-start shrink-0 relative"
+      className="w-full shrink-0 relative"
     >
       {isVisible ? children : null}
     </div>
@@ -103,6 +103,10 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
   const cardElementsRef = useRef<Map<string, HTMLDivElement>>(new Map());
   const entryRatioMap = useRef<Map<string, number>>(new Map());
   const cardRefsMap = useRef<Map<string, (el: HTMLDivElement | null) => void>>(new Map());
+  const pendingSettleIdRef = useRef<string | null>(null);
+  const prevActiveIndexRef = useRef(activeIndex);
+  const settleTimerRef = useRef<number | null>(null);
+  const isProgrammaticScrollRef = useRef(false);
 
   const registerCard = useCallback((el: HTMLDivElement | null, itemId: string) => {
     if (el) {
@@ -202,6 +206,14 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
     });
   }, [items]);
 
+  useEffect(() => {
+    if (activeIndex !== prevActiveIndexRef.current) {
+      prevActiveIndexRef.current = activeIndex;
+      const id = items[activeIndex]?.id;
+      if (id != null) pendingSettleIdRef.current = String(id);
+    }
+  }, [activeIndex, items]);
+
   // Pull-to-refresh handlers
   const handleTouchStart = (e: React.TouchEvent) => {
     if (containerRef.current && containerRef.current.scrollTop === 0) {
@@ -270,6 +282,28 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
     );
   };
 
+  const settleEntry = () => {
+    const container = containerRef.current;
+    if (!container || isProgrammaticScrollRef.current) return;
+    const id = pendingSettleIdRef.current; if (!id) return;
+    const slot = cardElementsRef.current.get(id); if (!slot) return;
+    const vh = container.clientHeight;
+    if (slot.offsetHeight <= vh) { pendingSettleIdRef.current = null; return; } // corta: la centra il CSS
+    const anchor = container.getBoundingClientRect().top + 56;
+    const delta = slot.getBoundingClientRect().top - anchor;
+    pendingSettleIdRef.current = null;
+    if (Math.abs(delta) > 8 && Math.abs(delta) < vh) {
+      isProgrammaticScrollRef.current = true;
+      container.scrollTo({ top: container.scrollTop + delta, behavior: 'smooth' });
+      window.setTimeout(() => { isProgrammaticScrollRef.current = false; }, 400);
+    }
+  };
+
+  const handleScroll = () => {
+    if (settleTimerRef.current) window.clearTimeout(settleTimerRef.current);
+    settleTimerRef.current = window.setTimeout(settleEntry, 150);
+  };
+
   return (
     <FeedContext.Provider value={{ activeIndex }}>
       <div
@@ -277,13 +311,12 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
         data-tutorial="feed"
         className="w-full overflow-y-scroll snap-y snap-mandatory bg-background relative"
         style={{ 
-          height: 'calc(var(--vh, 1vh) * 100)',
-          scrollPaddingTop: 'calc(44px + env(safe-area-inset-top))',
-          scrollPaddingBottom: 'calc(88px + env(safe-area-inset-bottom))'
+          height: 'calc(var(--vh, 1vh) * 100)'
         }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onScroll={handleScroll}
       >
         {/* Pull to refresh indicator */}
         {isRefreshing && (

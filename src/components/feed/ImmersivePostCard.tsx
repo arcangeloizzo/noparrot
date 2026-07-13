@@ -326,6 +326,16 @@ const ImmersivePostCardInner = ({
   const toggleReaction = useToggleReaction();
   const deletePost = useDeletePost();
   const { data: quotedPost } = useQuotedPost(post.quoted_post_id);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [snapAlign, setSnapAlign] = useState<'start' | 'center'>('start');
+  useLayoutEffect(() => {
+    const el = boxRef.current; if (!el) return;
+    const ro = new ResizeObserver(() => {
+      setSnapAlign(el.offsetHeight <= window.innerHeight - 150 ? 'center' : 'start');
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const [selectedMediaIndex, setSelectedMediaIndex] = useState<number | null>(null);
   const [carouselIndex, setCarouselIndex] = useState(0);
   const createThread = useCreateThread();
@@ -2197,6 +2207,7 @@ const ImmersivePostCardInner = ({
 
         {/* Box Flottante */}
         <div
+          ref={boxRef}
           className="relative z-10 w-full pointer-events-none"
           style={{
             margin: 'auto',
@@ -2207,7 +2218,10 @@ const ImmersivePostCardInner = ({
             backdropFilter: 'blur(12px)',
             WebkitBackdropFilter: 'blur(12px)',
             boxShadow: '0 24px 60px -22px rgba(0,0,0,0.8)',
-            overflow: 'visible'
+            overflow: 'visible',
+            scrollSnapAlign: snapAlign,
+            scrollMarginTop: 'calc(56px + env(safe-area-inset-top))',
+            scrollMarginBottom: 'calc(88px + env(safe-area-inset-bottom))'
           }}
         >
           {/* Wrapper Header dentro il box */}
