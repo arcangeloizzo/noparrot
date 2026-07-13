@@ -1538,7 +1538,7 @@ const ImmersivePostCardInner = ({
         <div style={{ zIndex: 10, position: 'relative' }}>
           <div style={{
             display: '-webkit-box',
-            WebkitLineClamp: 3,
+            WebkitLineClamp: 16,
             WebkitBoxOrient: 'vertical',
             overflow: 'hidden',
             fontFamily: 'Inter, sans-serif',
@@ -1584,8 +1584,8 @@ const ImmersivePostCardInner = ({
           onShowFull={() => openFullTextDrawer('description')}
           enabled={isNearActive}
           lineHeightPx={hasTitle ? 22 : 28}
-          minLines={20}
-          maxLinesCap={20}
+          minLines={16}
+          maxLinesCap={16}
           fadeColor="#0d1117"
         />
       </div>
@@ -2200,7 +2200,7 @@ const ImmersivePostCardInner = ({
           className="relative z-10 w-full pointer-events-none"
           style={{
             margin: 'auto',
-            width: 'calc(100% - 28px)',
+            width: 'calc(100% - 40px)',
             borderRadius: '24px',
             border: '1px solid rgba(255,255,255,0.11)',
             background: 'rgba(12,16,26,0.55)',
@@ -2440,7 +2440,6 @@ const ImmersivePostCardInner = ({
               <CardShell.Mid ref={midRef} layoutMode={layoutMode}>
                 <div 
                   className="w-full flex flex-col relative z-[1] pointer-events-auto flex-1 min-h-0"
-                  style={{ maxHeight: `${availableHeight}px` }}
                 >
 
 

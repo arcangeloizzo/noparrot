@@ -2232,6 +2232,7 @@ html:not(.light) .liquid-glass-navbar {
   flex-direction: column;
   overflow: visible;         /* ★ punto chiave architetturale: clip content sforante */
   pointer-events: none;
+  padding-right: 52px;
 }
 
 /* Modalità FILLED — default, top-anchored */

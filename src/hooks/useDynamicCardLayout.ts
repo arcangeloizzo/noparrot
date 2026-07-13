@@ -101,7 +101,7 @@ export function useDynamicCardLayout({
   const subBarRef = useRef<HTMLDivElement>(null);
 
   const [layoutMode, setLayoutMode] = useState<'filled' | 'hero' | 'poster'>(cached ? cached.layoutMode : 'filled');
-  const [bodyLineClamp, setBodyLineClamp] = useState<number>(cached ? cached.bodyLineClamp : 3);
+  const [bodyLineClamp, setBodyLineClamp] = useState<number>(16);
   const [showApprofondisci, setShowApprofondisci] = useState<boolean>(cached ? cached.showApprofondisci : false);
 
   const elementRefs = useRef<Record<string, HTMLElement | null>>({});
@@ -525,7 +525,7 @@ export function useDynamicCardLayout({
       // Costante statica del design system (fontSize 14px * lineHeight 1.55)
       // che corrisponde a text-[14px] e lineHeight: 1.55 inline in ImmersivePostCard.tsx
       const LINE_HEIGHT = 21.7;
-      const computedLineClamp = Math.max(3, Math.floor(availableForBody / LINE_HEIGHT));
+      const computedLineClamp = 16;
       setBodyLineClamp(prev => prev !== computedLineClamp ? computedLineClamp : prev);
 
       const bodyFullHeight = bodyEl?.scrollHeight ?? 0;
