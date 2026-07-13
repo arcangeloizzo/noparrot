@@ -556,10 +556,24 @@ const EditorialSlideInner = ({
 
   return (
     <div
-      className="flex-[0_0_100%] min-w-0 h-full relative cursor-pointer transform-gpu will-change-transform"
+      className="flex-[0_0_100%] min-w-0 relative cursor-pointer transform-gpu will-change-transform flex flex-col justify-start"
+      style={{ minHeight: 'calc(var(--vh, 1vh) * 100)' }}
       onClick={onClick}
     >
-      <CardShell>
+      {/* Box Flottante */}
+      <div
+        className="relative z-10 w-full pointer-events-none"
+        style={{
+          margin: 'auto',
+          width: 'calc(100% - 40px)',
+          borderRadius: '24px',
+          border: '1px solid rgba(255,255,255,0.11)',
+          background: 'linear-gradient(180deg, #0D1B2A 0%, #0A1420 100%)',  /* navy editoriale, NON vetro */
+          boxShadow: '0 24px 60px -22px rgba(0,0,0,0.8)',
+          overflow: 'visible'
+        }}
+      >
+        <CardShell>
         {/* [Rail 1] HeaderRail: Fixed top overlay with gradient fade */}
         <CardShell.Header ref={headerRef}>
           <div className="flex justify-between items-start w-full pb-5">
@@ -840,6 +854,7 @@ const EditorialSlideInner = ({
           </div>
         </CardShell.Bottom>
       </CardShell>
+      </div> {/* Chiude Box Flottante */}
     </div>
   );
 };

@@ -278,7 +278,8 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
         className="w-full overflow-y-scroll snap-y snap-mandatory bg-background relative"
         style={{ 
           height: 'calc(var(--vh, 1vh) * 100)',
-          scrollPaddingTop: 'calc(56px + env(safe-area-inset-top))'
+          scrollPaddingTop: 'calc(44px + env(safe-area-inset-top))',
+          scrollPaddingBottom: 'calc(88px + env(safe-area-inset-bottom))'
         }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
