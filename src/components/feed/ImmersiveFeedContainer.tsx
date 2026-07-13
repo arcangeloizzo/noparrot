@@ -295,14 +295,15 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
     pendingSettleIdRef.current = null;
     if (Math.abs(delta) > 8 && Math.abs(delta) < vh) {
       isProgrammaticScrollRef.current = true;
-      container.scrollTo({ top: container.scrollTop + delta, behavior: 'smooth' });
-      window.setTimeout(() => { isProgrammaticScrollRef.current = false; }, 400);
+      const small = Math.abs(delta) < 80;
+      container.scrollTo({ top: container.scrollTop + delta, behavior: small ? 'auto' : 'smooth' });
+      window.setTimeout(() => { isProgrammaticScrollRef.current = false; }, small ? 100 : 400);
     }
   };
 
   const handleScroll = () => {
     if (settleTimerRef.current) window.clearTimeout(settleTimerRef.current);
-    settleTimerRef.current = window.setTimeout(settleEntry, 150);
+    settleTimerRef.current = window.setTimeout(settleEntry, 80);
   };
 
   return (
