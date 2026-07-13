@@ -40,7 +40,8 @@ const FeedWrapper = React.memo(({ isVisible, registerRef, children }: FeedWrappe
   return prev.isVisible === next.isVisible && 
          prev.itemId === next.itemId && 
          prev.registerRef === next.registerRef &&
-         prev.isActive === next.isActive;
+         prev.isActive === next.isActive &&
+         prev.children === next.children;
 });
 FeedWrapper.displayName = 'FeedWrapper';
 

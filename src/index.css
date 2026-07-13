@@ -2196,7 +2196,7 @@ html:not(.light) .liquid-glass-navbar {
 /* CardShell — flex column reale */
 .card-shell {
   position: relative;
-  padding-top: 20px;
+  padding-top: 0px;
   padding-bottom: 20px;
   padding-left: 18px;
   padding-right: 18px;

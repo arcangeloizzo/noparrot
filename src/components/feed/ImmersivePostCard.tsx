@@ -2225,7 +2225,7 @@ const ImmersivePostCardInner = ({
           }}
         >
           {/* Wrapper Header dentro il box */}
-          <div className="relative z-50 pointer-events-none w-full">
+          <div className="relative z-50 pointer-events-none w-full px-[18px] pt-[16px]">
             <CardShell.Header ref={headerRef}>
               <div className="flex justify-between items-start w-full pb-5">
               <div
