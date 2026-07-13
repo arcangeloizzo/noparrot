@@ -2173,7 +2173,7 @@ const ImmersivePostCardInner = ({
     <>
       <div
         ref={registerRef('card-container')}
-        className="w-full relative bg-immersive transition-colors duration-500 flex flex-col items-center justify-start"
+        className="w-full relative bg-immersive transition-colors duration-500 flex flex-col items-center justify-center"
         style={{ isolation: 'isolate', contain: 'layout style', minHeight: 'calc(var(--vh, 1vh) * 100)' }}
         onClick={handleDoubleTap}
       >
@@ -2195,124 +2195,12 @@ const ImmersivePostCardInner = ({
           onAnimationComplete={() => setShowHeartAnimation(false)}
         />
 
-        {/* Fascia fade superiore */}
-        <div
-          className="absolute top-0 left-0 right-0 z-40 pointer-events-none"
-          style={{
-            background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)',
-            height: 'calc(env(safe-area-inset-top) + 180px)'
-          }}
-        />
-
-        {/* Wrapper Header absolute top */}
-        <div className="absolute top-0 left-0 right-0 z-50 pointer-events-none px-[14px]">
-          <CardShell.Header ref={headerRef}>
-            <div className="flex justify-between items-start w-full pb-5">
-            <div
-              className="flex items-center gap-3 cursor-pointer relative z-[60] min-w-0 pointer-events-auto"
-              onClick={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                navigate(`/profile/${post.author.id}`);
-              }}
-            >
-              <div className="w-10 h-10 rounded-full border border-white/20 bg-white/10 overflow-hidden flex-shrink-0">
-                {getAvatarContent()}
-              </div>
-              <div className="flex flex-col min-w-0">
-                <span className="text-slate-900 dark:text-white font-bold text-sm truncate">
-                  {post.author.full_name || getDisplayUsername(post.author.username)}
-                </span>
-                <span className="text-slate-500 dark:text-gray-400 text-xs truncate flex items-center gap-1.5">
-                  {timeAgo}
-                </span>
-              </div>
-            </div>
-              
-
-
-            {/* Menu */}
-            {isOwnPost ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                  <button className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-black/20 dark:hover:bg-white/10 transition-colors text-slate-900 dark:text-white pointer-events-auto">
-                    <MoreHorizontal className="w-4 h-4" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  {canEdit && (
-                    <DropdownMenuItem
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEdit?.(post);
-                      }}
-                      className="text-foreground focus:text-foreground mb-1"
-                    >
-                      <Edit2 className="w-4 h-4 mr-2" />
-                      Modifica
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deletePost.mutate(post.id, {
-                        onSuccess: () => {
-                          toast.success('Post eliminato');
-                          onRemove?.(post.id);
-                        },
-                        onError: () => {
-                          toast.error(TOASTS.ERROR_GENERIC.description);
-                        }
-                      });
-                    }}
-                    className="text-destructive focus:text-destructive"
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Elimina post
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                  <button className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-black/20 dark:hover:bg-white/10 transition-colors text-slate-900 dark:text-white pointer-events-auto">
-                    <MoreHorizontal className="w-4 h-4" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowReportDialog(true);
-                    }}
-                  >
-                    <Flag className="w-4 h-4 mr-2" />
-                    Segnala contenuto
-                  </DropdownMenuItem>
-                  {isStaff && (
-                    <DropdownMenuItem
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowAdminRemoveDialog(true);
-                      }}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <ShieldAlert className="w-4 h-4 mr-2" />
-                      Rimuovi contenuto (Admin)
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-            </div>
-          </CardShell.Header>
-        </div>
-
         {/* Box Flottante */}
         <div
           className="relative z-10 w-full pointer-events-none"
           style={{
-            margin: '14px',
+            margin: 'auto',
+            width: 'calc(100% - 28px)',
             borderRadius: '24px',
             border: '1px solid rgba(255,255,255,0.11)',
             background: 'rgba(12,16,26,0.55)',
@@ -2322,6 +2210,110 @@ const ImmersivePostCardInner = ({
             overflow: 'visible'
           }}
         >
+          {/* Wrapper Header dentro il box */}
+          <div className="relative z-50 pointer-events-none w-full">
+            <CardShell.Header ref={headerRef}>
+              <div className="flex justify-between items-start w-full pb-5">
+              <div
+                className="flex items-center gap-3 cursor-pointer relative z-[60] min-w-0 pointer-events-auto"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  navigate(`/profile/${post.author.id}`);
+                }}
+              >
+                <div className="w-10 h-10 rounded-full border border-white/20 bg-white/10 overflow-hidden flex-shrink-0">
+                  {getAvatarContent()}
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-slate-900 dark:text-white font-bold text-sm truncate">
+                    {post.author.full_name || getDisplayUsername(post.author.username)}
+                  </span>
+                  <span className="text-slate-500 dark:text-gray-400 text-xs truncate flex items-center gap-1.5">
+                    {timeAgo}
+                  </span>
+                </div>
+              </div>
+                
+
+
+              {/* Menu */}
+              {isOwnPost ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                    <button className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-black/20 dark:hover:bg-white/10 transition-colors text-slate-900 dark:text-white pointer-events-auto">
+                      <MoreHorizontal className="w-4 h-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    {canEdit && (
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEdit?.(post);
+                        }}
+                        className="text-foreground focus:text-foreground mb-1"
+                      >
+                        <Edit2 className="w-4 h-4 mr-2" />
+                        Modifica
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deletePost.mutate(post.id, {
+                          onSuccess: () => {
+                            toast.success('Post eliminato');
+                            onRemove?.(post.id);
+                          },
+                          onError: () => {
+                            toast.error(TOASTS.ERROR_GENERIC.description);
+                          }
+                        });
+                      }}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Elimina post
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                    <button className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-black/20 dark:hover:bg-white/10 transition-colors text-slate-900 dark:text-white pointer-events-auto">
+                      <MoreHorizontal className="w-4 h-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowReportDialog(true);
+                      }}
+                    >
+                      <Flag className="w-4 h-4 mr-2" />
+                      Segnala contenuto
+                    </DropdownMenuItem>
+                    {isStaff && (
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowAdminRemoveDialog(true);
+                        }}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <ShieldAlert className="w-4 h-4 mr-2" />
+                        Rimuovi contenuto (Admin)
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+              </div>
+            </CardShell.Header>
+          </div>
+
           <CardShell>
 
           <CardShell.Badge ref={badgeRef}>
@@ -3247,126 +3239,116 @@ const ImmersivePostCardInner = ({
             </div>
           </CardShell.Mid>
 
-        </CardShell>
-      </div>
+          {/* ═══ RAIL AZIONI VERTICALE — colonna destra sul box (sostituisce Bottom orizzontale) ═══ */}
+          {/* Ancorato al box, centrato verticalmente. pointer-events-auto per cliccabilità. */}
+          <div
+            className="absolute right-[10px] top-1/2 -translate-y-1/2 z-50 flex flex-col items-center gap-[18px] pointer-events-auto"
+            style={{ WebkitTapHighlightColor: 'transparent' }}
+          >
+            {/* ── Like (long-press → reaction picker) ── */}
+            <div className="flex flex-col items-center gap-[3px]">
+              <motion.button
+                whileTap={{ scale: 0.85 }}
+                ref={likeButtonRef}
+                className="flex items-center justify-center min-w-[44px] min-h-[44px] select-none no-ios-callout"
+                style={{ WebkitTapHighlightColor: 'transparent', filter: 'drop-shadow(0 2px 7px rgba(0,0,0,0.8))' }}
+                {...likeButtonHandlers}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {post.user_reactions?.myReactionType && post.user_reactions.myReactionType !== 'heart' ? (
+                  <span className="text-2xl">
+                    {reactionToEmoji(post.user_reactions.myReactionType)}
+                  </span>
+                ) : (
+                  <Heart
+                    className={cn(
+                      "w-7 h-7",
+                      post.user_reactions?.has_hearted ? "text-red-500 fill-red-500" : "text-white"
+                    )}
+                    fill={post.user_reactions?.has_hearted ? "currentColor" : "none"}
+                  />
+                )}
+              </motion.button>
+              <button
+                className="select-none"
+                style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10.5px', color: '#fff', textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if ((post.reactions?.hearts || 0) > 0) {
+                    setShowReactionsSheet(true);
+                  }
+                }}
+              >
+                {post.reactions?.hearts || 0}
+              </button>
+            </div>
 
-      {/* Fascia fade inferiore */}
-      <div
-        className="absolute bottom-0 left-0 right-0 z-40 pointer-events-none"
-        style={{
-          background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)',
-          height: 'calc(4rem + env(safe-area-inset-bottom) + 120px)'
-        }}
-      />
+            {/* ── Commenti ── */}
+            <motion.button
+              whileTap={{ scale: 0.85 }}
+              className="flex flex-col items-center gap-[3px] select-none"
+              onClick={(e) => { e.stopPropagation(); haptics.light(); setShowComments(true); }}
+            >
+              <MessageCircle className="w-7 h-7 text-white" style={{ filter: 'drop-shadow(0 2px 7px rgba(0,0,0,0.8))' }} />
+              <span
+                className="select-none"
+                style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10.5px', color: '#fff', textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}
+              >
+                {post.reactions?.comments || 0}
+              </span>
+            </motion.button>
 
-      {/* Wrapper Bottom absolute bottom (senza pointer-events-none) */}
-      <div className="absolute bottom-0 left-0 right-0 z-50 px-[14px]">
-        <CardShell.Bottom ref={bottomRef}>
-          <div className="flex items-center justify-between gap-6 pt-4 pointer-events-auto w-full">
+            {/* ── Salva ── */}
+            <motion.button
+              whileTap={{ scale: 0.85 }}
+              className="flex items-center justify-center min-w-[44px] min-h-[44px]"
+              onClick={handleBookmark}
+            >
+              <Bookmark
+                className={cn("w-7 h-7", post.user_reactions.has_bookmarked ? "text-blue-400 fill-blue-400" : "text-white")}
+                fill={post.user_reactions.has_bookmarked ? "currentColor" : "none"}
+                style={{ filter: 'drop-shadow(0 2px 7px rgba(0,0,0,0.8))' }}
+              />
+            </motion.button>
 
-            {/* Primary Share Button - Pill shape with consistent height */}
-            {/* Primary Share Button - Pill shape with consistent height */}
-            {/* Primary Share Button - Pill shape with consistent height */}
+            {/* ── Invia / Condividi (aeroplanino, NON pappagallo) ── */}
             <motion.button
               whileTap={{ scale: 0.95 }}
+              className="flex items-center justify-center min-w-[44px] min-h-[44px]"
               onClick={(e) => {
                 e.stopPropagation();
                 haptics.light();
                 handleShareClick(e);
               }}
-              className="liquid-share-pill"
             >
-              <Logo variant="icon" className="liquid-share-pill-icon object-contain" />
-              <span>Condividi</span>
-              {(post.shares_count ?? 0) > 0 && (
-                <span className="text-xs opacity-70">({post.shares_count})</span>
-              )}
+              <svg
+                width="26" height="26" viewBox="0 0 26 26" fill="none"
+                stroke="#fff" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"
+                style={{ filter: 'drop-shadow(0 2px 7px rgba(0,0,0,0.8))' }}
+              >
+                <path d="M23 4L10 15M23 4l-8 20-3.5-8.5L3 12z" />
+              </svg>
             </motion.button>
 
-            {/* Action Icons - Uniform w-6 h-6, aligned on same axis */}
-            <div
-              ref={actionBarRef}
-              className="flex items-center gap-4 h-11 action-bar-zone bg-slate-100 px-4 rounded-full shadow-sm border border-slate-200 dark:bg-transparent dark:px-0 dark:rounded-none dark:shadow-none dark:border-none transition-all"
-              style={{ WebkitTapHighlightColor: 'transparent' }}
-            >
+            {/* Reaction picker — spostato nel rail, ref invariati */}
+            {hasMountedReactionPicker.current && (
+              <ReactionPicker
+                isOpen={showReactionPicker}
+                onClose={() => setShowReactionPicker(false)}
+                onSelect={(type) => {
+                  handleHeart(undefined, type);
+                  setShowReactionPicker(false);
+                }}
+                triggerRef={likeButtonRef}
+                actionBarRef={actionBarRef}
+              />
+            )}
 
-              {/* Like with long press for reaction picker */}
-              <div className="relative flex items-center justify-center gap-1.5 h-full">
-                <motion.button
-                  whileTap={{ scale: 0.85 }}
-                  ref={likeButtonRef}
-                  className="flex items-center justify-center h-full min-w-[44px] min-h-[44px] select-none no-ios-callout"
-                  style={{ WebkitTapHighlightColor: 'transparent' }}
-                  {...likeButtonHandlers}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {/* Dynamic icon: show emoji if non-heart reaction, otherwise Heart icon */}
-                  {post.user_reactions?.myReactionType && post.user_reactions.myReactionType !== 'heart' ? (
-                    <span className="text-xl">
-                      {reactionToEmoji(post.user_reactions.myReactionType)}
-                    </span>
-                  ) : (
-                    <Heart
-                      className={cn(
-                        "w-6 h-6",
-                        post.user_reactions?.has_hearted ? "text-red-500 fill-red-500" : "text-immersive-foreground"
-                      )}
-                      fill={post.user_reactions?.has_hearted ? "currentColor" : "none"}
-                    />
-                  )}
-                </motion.button>
-                {/* Count - clickable to open reactions drawer, select-none prevents text selection on long-press */}
-                <button
-                  className="text-sm font-bold text-immersive-foreground hover:text-immersive-foreground/80 transition-colors select-none ml-1.5"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if ((post.reactions?.hearts || 0) > 0) {
-                      setShowReactionsSheet(true);
-                    }
-                  }}
-                >
-                  {post.reactions?.hearts || 0}
-                </button>
-
-                {hasMountedReactionPicker.current && (
-                  <ReactionPicker
-                    isOpen={showReactionPicker}
-                    onClose={() => setShowReactionPicker(false)}
-                    onSelect={(type) => {
-                      handleHeart(undefined, type);
-                      setShowReactionPicker(false);
-                    }}
-                    triggerRef={likeButtonRef}
-                    actionBarRef={actionBarRef}
-                  />
-                )}
-              </div>
-
-              {/* Comments - select-none prevents text selection on long-press */}
-              {/* Comments - select-none prevents text selection on long-press */}
-              <motion.button
-                whileTap={{ scale: 0.85 }}
-                className="flex items-center justify-center gap-1.5 h-full select-none"
-                onClick={(e) => { e.stopPropagation(); haptics.light(); setShowComments(true); }}
-              >
-                <MessageCircle className="w-6 h-6 text-immersive-foreground" />
-                <span className="text-sm font-bold text-immersive-foreground select-none">{post.reactions?.comments || 0}</span>
-              </motion.button>
-
-              {/* Bookmark */}
-              <motion.button
-                whileTap={{ scale: 0.85 }}
-                className="flex items-center justify-center h-full"
-                onClick={handleBookmark}
-              >
-                <Bookmark
-                  className={cn("w-6 h-6", post.user_reactions.has_bookmarked ? "text-blue-400 fill-blue-400" : "text-immersive-foreground")}
-                  fill={post.user_reactions.has_bookmarked ? "currentColor" : "none"}
-                />
-              </motion.button>
-            </div>
+            {/* ref invisibile per il posizionamento del picker (era su actionBar orizzontale) */}
+            <div ref={actionBarRef} className="absolute inset-0 pointer-events-none" aria-hidden="true" />
           </div>
-        </CardShell.Bottom>
+
+        </CardShell>
       </div>
     </div>
 
