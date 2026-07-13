@@ -50,7 +50,7 @@ export const Logo = ({ className, size = "md", variant = "icon", id, onClick }: 
       <div 
         className={cn("uppercase", clickableClasses, className)}
         style={{
-          fontFamily: 'Impact, sans-serif',
+          fontFamily: "'Anton', 'Impact', sans-serif",
           fontSize: fontSizes[size],
           lineHeight: 0.92,
           letterSpacing: '0.02em',
@@ -69,7 +69,7 @@ export const Logo = ({ className, size = "md", variant = "icon", id, onClick }: 
         id={id}
         className={cn("flex items-center gap-1.5 uppercase", clickableClasses, className)}
         style={{
-          fontFamily: 'Impact, sans-serif',
+          fontFamily: "'Anton', 'Impact', sans-serif",
           fontSize: fontSizes[size],
           lineHeight: 0.92,
           letterSpacing: '0.02em',
@@ -94,7 +94,7 @@ export const Logo = ({ className, size = "md", variant = "icon", id, onClick }: 
         id={id}
         className={cn("flex items-center gap-1.5 uppercase", clickableClasses, className)}
         style={{
-          fontFamily: 'Impact, sans-serif',
+          fontFamily: "'Anton', 'Impact', sans-serif",
           fontSize: fontSizes[size],
           lineHeight: 0.92,
           letterSpacing: '0.02em',
@@ -117,7 +117,7 @@ export const Logo = ({ className, size = "md", variant = "icon", id, onClick }: 
     <div 
       className={cn("flex items-center gap-1.5 uppercase", clickableClasses, className)}
       style={{
-        fontFamily: 'Impact, sans-serif',
+        fontFamily: "'Anton', 'Impact', sans-serif",
         fontSize: fontSizes[size],
         lineHeight: 0.92,
         letterSpacing: '0.02em',

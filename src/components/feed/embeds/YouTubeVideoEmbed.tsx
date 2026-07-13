@@ -87,7 +87,7 @@ const YouTubeVideoEmbedInner = ({
           ref={titleRef}
           className="uppercase mb-2 flex-shrink-0"
           style={{
-            fontFamily: "Impact, sans-serif",
+            fontFamily: "'Anton', 'Impact', sans-serif",
             fontSize: "clamp(30px, 8vw, 42px)",
             lineHeight: 0.92,
             letterSpacing: "-0.02em",

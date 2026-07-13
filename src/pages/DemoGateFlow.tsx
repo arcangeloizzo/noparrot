@@ -240,7 +240,7 @@ export const DemoGateFlow = ({ onComplete, onSkip }: DemoGateFlowProps) => {
             className="flex-1 flex flex-col items-center justify-center p-6 w-full max-w-md mx-auto"
           >
             <div className="text-center mb-10 w-full space-y-4">
-              <h1 className="text-4xl md:text-5xl font-bold tracking-tight" style={{ fontFamily: 'Impact, sans-serif' }}>
+              <h1 className="text-4xl md:text-5xl font-bold tracking-tight" style={{ fontFamily: "'Anton', 'Impact', sans-serif" }}>
                 Prima di entrare, prova.
               </h1>
               <p className="text-[rgba(255,255,255,0.7)] text-lg max-w-[280px] mx-auto leading-relaxed">
@@ -340,7 +340,7 @@ export const DemoGateFlow = ({ onComplete, onSkip }: DemoGateFlowProps) => {
                 <div className="w-48 h-48 bg-[#222] shadow-2xl rounded-sm mb-6 flex items-center justify-center overflow-hidden border border-[rgba(255,255,255,0.1)]">
                   {/* Provide a stylized placeholder since we can't reliably load spotify images without auth/api */}
                   <div className="w-full h-full bg-gradient-to-br from-gray-800 to-black flex items-center justify-center">
-                    <span className="font-bold text-3xl tracking-widest uppercase text-white/80" style={{ fontFamily: 'Impact, sans-serif' }}>THE WALL</span>
+                    <span className="font-bold text-3xl tracking-widest uppercase text-white/80" style={{ fontFamily: "'Anton', 'Impact', sans-serif" }}>THE WALL</span>
                   </div>
                 </div>
                 <h2 className="text-2xl font-bold text-center">Another Brick in the Wall (Part 2)</h2>
@@ -506,7 +506,7 @@ export const DemoGateFlow = ({ onComplete, onSkip }: DemoGateFlowProps) => {
                  </div>
                </motion.div>
 
-               <h1 className="text-4xl font-bold tracking-tight mb-4" style={{ fontFamily: 'Impact, sans-serif' }}>Hai messo a fuoco.</h1>
+               <h1 className="text-4xl font-bold tracking-tight mb-4" style={{ fontFamily: "'Anton', 'Impact', sans-serif" }}>Hai messo a fuoco.</h1>
                <p className="text-[rgba(255,255,255,0.7)] text-lg mb-4">
                  Ecco come funziona NoParrot: comprendi, poi partecipi. Ogni contenuto che capisci arricchisce la tua mappa mentale.
                </p>
@@ -527,7 +527,7 @@ export const DemoGateFlow = ({ onComplete, onSkip }: DemoGateFlowProps) => {
                  <XCircle className="w-10 h-10" />
                </div>
                
-               <h1 className="text-4xl font-bold tracking-tight mb-4" style={{ fontFamily: 'Impact, sans-serif' }}>Quasi.</h1>
+               <h1 className="text-4xl font-bold tracking-tight mb-4" style={{ fontFamily: "'Anton', 'Impact', sans-serif" }}>Quasi.</h1>
                <p className="text-[rgba(255,255,255,0.7)] text-lg mb-8">
                  Il Gate non è un esame — è un invito a rileggere con più attenzione. Su NoParrot, ogni tentativo è crescita.
                </p>

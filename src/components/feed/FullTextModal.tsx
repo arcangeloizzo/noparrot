@@ -260,7 +260,7 @@ const FullTextModalInner = ({
           <h2 
             className="uppercase mb-4"
             style={{
-              fontFamily: 'Impact, sans-serif',
+              fontFamily: "'Anton', 'Impact', sans-serif",
               fontSize: '18px',
               lineHeight: 1.2,
               color: '#FFFFFF',

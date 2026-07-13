@@ -87,7 +87,9 @@ export const LogoHorizontal = ({ className, id, onClick }: LogoHorizontalProps) 
       x="200"
       y="156"
       style={{
-        fontFamily: 'Impact, sans-serif',
+        // NB: Anton via webfont in <text> SVG non si embedda in favicon/PWA-icon/OG.
+        //     Se il marchio deve essere Anton anche come icona statica → outline path o PNG.
+        fontFamily: "'Anton', 'Impact', sans-serif",
         fontSize: '120px',
         letterSpacing: '0.01em',
       }}

@@ -176,7 +176,7 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate, class
               {quotedPost.title && (
                 <h2 
                   className="font-black tracking-tight text-foreground uppercase mb-1.5 line-clamp-2"
-                  style={{ fontFamily: 'Impact, sans-serif', fontSize: 'clamp(18px, 5vw, 24px)', lineHeight: '1.1' }}
+                  style={{ fontFamily: "'Anton', 'Impact', sans-serif", fontSize: 'clamp(18px, 5vw, 24px)', lineHeight: '1.1' }}
                 >
                   {quotedPost.title}
                 </h2>
@@ -322,7 +322,7 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate, class
               {quotedPost.title && (
                 <h2 
                   className="font-black tracking-tight text-foreground uppercase mb-1 line-clamp-2"
-                  style={{ fontFamily: 'Impact, sans-serif', fontSize: 'clamp(16px, 4vw, 20px)', lineHeight: '1.1' }}
+                  style={{ fontFamily: "'Anton', 'Impact', sans-serif", fontSize: 'clamp(16px, 4vw, 20px)', lineHeight: '1.1' }}
                 >
                   {quotedPost.title}
                 </h2>

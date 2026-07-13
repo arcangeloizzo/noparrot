@@ -125,7 +125,7 @@ const UserUploadEmbedInner = ({
           ref={titleRef}
           className={cn("uppercase mb-2 flex-shrink-0", isPoster && "text-center")}
           style={{
-            fontFamily: "Impact, sans-serif",
+            fontFamily: "'Anton', 'Impact', sans-serif",
             fontSize: isPoster ? "clamp(42px, 12vw, 58px)" : "clamp(30px, 8vw, 42px)",
             lineHeight: isPoster ? 1.02 : 0.92,
             letterSpacing: "-0.02em",

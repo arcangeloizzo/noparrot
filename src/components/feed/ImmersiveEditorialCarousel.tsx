@@ -621,7 +621,7 @@ const EditorialSlideInner = ({
               maxLines={isSmallScreen ? 2 : 3}
               as="h1"
               style={{
-                fontFamily: "'Impact','Haettenschweiler','Arial Narrow',sans-serif",
+                fontFamily: "'Anton', 'Impact', sans-serif",
                 fontSize: 'clamp(26px, 7.2vw, 33px)',
                 lineHeight: 1.05,
                 letterSpacing: '-0.02em',

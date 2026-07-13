@@ -145,7 +145,7 @@ const VoiceCastBodyInner = ({
             maxLines={3}
             className="uppercase mb-3 flex-shrink-0"
             style={{
-              fontFamily: '"Impact", sans-serif',
+              fontFamily: "'Anton', 'Impact', sans-serif",
               fontSize: "clamp(30px, 8vw, 42px)",
               lineHeight: 0.92,
               letterSpacing: "-0.02em",

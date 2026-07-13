@@ -202,7 +202,7 @@ export const MediaPostExpandedSheet = ({ post, isOpen, onClose, activeVoicePost,
           {displayTitle && (
             <h2 
               className="uppercase mb-4"
-              style={{ fontFamily: 'Impact, sans-serif', fontSize: '18px', color: '#fff', lineHeight: 1.2, margin: '0 0 16px 0' }}
+              style={{ fontFamily: "'Anton', 'Impact', sans-serif", fontSize: '18px', color: '#fff', lineHeight: 1.2, margin: '0 0 16px 0' }}
             >
               {displayTitle}
             </h2>

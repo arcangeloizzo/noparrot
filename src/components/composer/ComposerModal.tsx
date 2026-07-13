@@ -2341,7 +2341,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
                           }}
                           className="w-full bg-transparent outline-none transition-colors placeholder:text-muted-foreground/60"
                           style={{
-                            fontFamily: 'Impact, sans-serif',
+                            fontFamily: "'Anton', 'Impact', sans-serif",
                             fontSize: '24px',
                             color: '#FFFFFF',
                             border: 'none',
@@ -2440,7 +2440,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
                       }}
                       className="w-full bg-transparent outline-none transition-colors"
                       style={{
-                        fontFamily: 'Impact, sans-serif',
+                        fontFamily: "'Anton', 'Impact', sans-serif",
                         fontSize: '24px',
                         color: '#FFFFFF',
                         borderBottom: showTitleError ? '2px solid #E41E52' : (voiceTitle.trim().length > 0 ? '2px solid #0A7AFF' : '2px solid rgba(10,122,255,0.3)'),

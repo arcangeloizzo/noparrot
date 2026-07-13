@@ -51,7 +51,7 @@ export const SplashScreen = ({ onComplete }: SplashScreenProps) => {
             <h1 
               className="uppercase"
               style={{
-                fontFamily: 'Impact, sans-serif',
+                fontFamily: "'Anton', 'Impact', sans-serif",
                 fontSize: 'clamp(40px, 10vw, 56px)',
                 lineHeight: 0.92,
                 letterSpacing: '0.02em',

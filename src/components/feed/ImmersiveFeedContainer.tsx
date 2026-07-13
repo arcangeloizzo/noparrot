@@ -28,9 +28,10 @@ const FeedWrapper = React.memo(({ isVisible, registerRef, children }: FeedWrappe
     <div
       ref={registerRef}
       style={{
-        height: 'calc(var(--vh, 1vh) * 100)',
+        minHeight: 'calc(var(--vh, 1vh) * 100)',
+        scrollSnapStop: 'always',
       }}
-      className="w-full snap-start shrink-0 overflow-hidden relative"
+      className="w-full snap-start shrink-0 relative"
     >
       {isVisible ? children : null}
     </div>
@@ -237,8 +238,8 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
       const singleItem = items[0];
       return (
         <div
-          className="w-full snap-start shrink-0 overflow-hidden"
-          style={{ height: 'calc(var(--vh, 1vh) * 100)' }}
+          className="w-full snap-start shrink-0"
+          style={{ minHeight: 'calc(var(--vh, 1vh) * 100)', scrollSnapStop: 'always' }}
         >
           {typeof children === 'function' ? children(singleItem, 0) : children}
         </div>

@@ -15,7 +15,7 @@
   --txt:   rgba(255,255,255,0.92);
   --txt-2: rgba(255,255,255,0.78);
   --txt-3: rgba(255,255,255,0.52);
-  --display: 'Impact','Haettenschweiler','Arial Narrow',sans-serif;
+  --display: 'Anton','Impact','Haettenschweiler','Arial Narrow',sans-serif;
   --body:    'Inter',-apple-system,'Segoe UI',Roboto,sans-serif;
   --mono:    'JetBrains Mono',ui-monospace,'SF Mono',Menlo,monospace;
   --nav-h: 64px;
@@ -2195,10 +2195,7 @@ html:not(.light) .liquid-glass-navbar {
 
 /* CardShell — flex column reale */
 .card-shell {
-  position: absolute;
-  inset-block: 0;
-  left: var(--pad);
-  right: var(--pad);
+  position: relative;
   padding-top: calc(env(safe-area-inset-top) + 72px);
   padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 36px);
   display: flex;
@@ -2228,12 +2225,12 @@ html:not(.light) .liquid-glass-navbar {
 }
 
 .zone-mid {
-  flex: 1 1 0;
+  flex: 0 0 auto;
   min-height: 0;            /* permette flex children con overflow corretto */
   margin-top: 12px;         /* gap canonico §T2 badge→mid */
   display: flex;
   flex-direction: column;
-  overflow: hidden;         /* ★ punto chiave architetturale: clip content sforante */
+  overflow: visible;         /* ★ punto chiave architetturale: clip content sforante */
   pointer-events: none;
 }
 

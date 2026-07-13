@@ -1584,7 +1584,8 @@ const ImmersivePostCardInner = ({
           onShowFull={() => openFullTextDrawer('description')}
           enabled={isNearActive}
           lineHeightPx={hasTitle ? 22 : 28}
-          minLines={2}
+          minLines={20}
+          maxLinesCap={20}
           fadeColor="#0d1117"
         />
       </div>
@@ -1923,15 +1924,13 @@ const ImmersivePostCardInner = ({
     slotBottomRef,
     subBarRef
   } = useDynamicCardLayout({
-    availableHeight: (isYoutube || isLinkedIn || isTwitter) 
-      ? availableHeight - 75 
-      : availableHeight,
+    availableHeight: 100000,
     essentials: essentialsConfig,
     flexibles: flexiblesConfig,
     compressionPriority: priorityConfig,
     postId: post.id,
     enabled: isNearActive,
-    cacheKeyExtra: `v22_${post.title || ''}_${post.content || ''}_${post.media?.length || 0}_${articlePreview?.image || ''}`
+    cacheKeyExtra: `v22_${post.title || ''}_${post.content || ''}_${post.media?.length || 0}_${articlePreview?.image || ''}_q:${quotedPost?.id || 'none'}`
   });
 
   const tweetEmbedStep = useStackLayout 
@@ -2174,8 +2173,8 @@ const ImmersivePostCardInner = ({
     <>
       <div
         ref={registerRef('card-container')}
-        className="h-[100dvh] w-full relative overflow-hidden bg-immersive transition-colors duration-500"
-        style={{ isolation: 'isolate', contain: 'layout style size' }}
+        className="w-full relative bg-immersive transition-colors duration-500 flex flex-col items-center justify-start"
+        style={{ isolation: 'isolate', contain: 'layout style', minHeight: 'calc(var(--vh, 1vh) * 100)' }}
         onClick={handleDoubleTap}
       >
         {/* Global card scrim (NoParrot Feed UI Spec v1 §2.2) */}
@@ -2196,50 +2195,40 @@ const ImmersivePostCardInner = ({
           onAnimationComplete={() => setShowHeartAnimation(false)}
         />
 
-        {/* Content Layer */}
-        <div className="relative z-10 w-full h-full pointer-events-none">
+        {/* Fascia fade superiore */}
+        <div
+          className="absolute top-0 left-0 right-0 z-40 pointer-events-none"
+          style={{
+            background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)',
+            height: 'calc(env(safe-area-inset-top) + 180px)'
+          }}
+        />
 
-          <div
-            className="absolute top-0 left-0 right-0 z-40 pointer-events-none"
-            style={{
-              background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)',
-              height: 'calc(env(safe-area-inset-top) + 180px)'
-            }}
-          />
-
-          <div
-            className="absolute bottom-0 left-0 right-0 z-40 pointer-events-none"
-            style={{
-              background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)',
-              height: 'calc(4rem + env(safe-area-inset-bottom) + 120px)'
-            }}
-          />
-
-          <CardShell>
-            {/* [Rail 1] HeaderRail: Fixed top overlay with gradient fade */}
-            <CardShell.Header ref={headerRef}>
-              <div className="flex justify-between items-start w-full pb-5">
-              <div
-                className="flex items-center gap-3 cursor-pointer relative z-[60] min-w-0 pointer-events-auto"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  navigate(`/profile/${post.author.id}`);
-                }}
-              >
-                <div className="w-10 h-10 rounded-full border border-white/20 bg-white/10 overflow-hidden flex-shrink-0">
-                  {getAvatarContent()}
-                </div>
-                <div className="flex flex-col min-w-0">
-                  <span className="text-slate-900 dark:text-white font-bold text-sm truncate">
-                    {post.author.full_name || getDisplayUsername(post.author.username)}
-                  </span>
-                  <span className="text-slate-500 dark:text-gray-400 text-xs truncate flex items-center gap-1.5">
-                    {timeAgo}
-                  </span>
-                </div>
+        {/* Wrapper Header absolute top */}
+        <div className="absolute top-0 left-0 right-0 z-50 pointer-events-none px-[14px]">
+          <CardShell.Header ref={headerRef}>
+            <div className="flex justify-between items-start w-full pb-5">
+            <div
+              className="flex items-center gap-3 cursor-pointer relative z-[60] min-w-0 pointer-events-auto"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                navigate(`/profile/${post.author.id}`);
+              }}
+            >
+              <div className="w-10 h-10 rounded-full border border-white/20 bg-white/10 overflow-hidden flex-shrink-0">
+                {getAvatarContent()}
               </div>
-                
+              <div className="flex flex-col min-w-0">
+                <span className="text-slate-900 dark:text-white font-bold text-sm truncate">
+                  {post.author.full_name || getDisplayUsername(post.author.username)}
+                </span>
+                <span className="text-slate-500 dark:text-gray-400 text-xs truncate flex items-center gap-1.5">
+                  {timeAgo}
+                </span>
+              </div>
+            </div>
+              
 
 
             {/* Menu */}
@@ -2317,6 +2306,23 @@ const ImmersivePostCardInner = ({
             )}
             </div>
           </CardShell.Header>
+        </div>
+
+        {/* Box Flottante */}
+        <div
+          className="relative z-10 w-full pointer-events-none"
+          style={{
+            margin: '14px',
+            borderRadius: '24px',
+            border: '1px solid rgba(255,255,255,0.11)',
+            background: 'rgba(12,16,26,0.55)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            boxShadow: '0 24px 60px -22px rgba(0,0,0,0.8)',
+            overflow: 'visible'
+          }}
+        >
+          <CardShell>
 
           <CardShell.Badge ref={badgeRef}>
                 {/* 1. Voce AI Badge (if AI profile) */}
@@ -2508,7 +2514,7 @@ const ImmersivePostCardInner = ({
                           maxLines={3}
                           className="uppercase mb-3 flex-shrink-0"
                           style={{
-                            fontFamily: 'Impact, sans-serif',
+                            fontFamily: "'Anton', 'Impact', sans-serif",
                             fontSize: isSmallScreen ? 'clamp(22px, 6vw, 28px)' : 'clamp(30px, 8vw, 42px)',
                             lineHeight: 0.92,
                             letterSpacing: '-0.02em',
@@ -2810,7 +2816,7 @@ const ImmersivePostCardInner = ({
                       maxLines={3}
                       className="uppercase mb-1"
                       style={{
-                        fontFamily: 'Impact, sans-serif',
+                        fontFamily: "'Anton', 'Impact', sans-serif",
                         fontSize: 'clamp(30px, 8vw, 42px)',
                         lineHeight: 0.92,
                         letterSpacing: '-0.02em',
@@ -2911,7 +2917,7 @@ const ImmersivePostCardInner = ({
                       maxLines={3}
                       className="uppercase mb-1"
                       style={{
-                        fontFamily: 'Impact, sans-serif',
+                        fontFamily: "'Anton', 'Impact', sans-serif",
                         fontSize: 'clamp(30px, 8vw, 42px)',
                         lineHeight: 0.92,
                         letterSpacing: '-0.02em',
@@ -2936,7 +2942,7 @@ const ImmersivePostCardInner = ({
                       maxLines={3}
                       className="uppercase mb-1"
                       style={{
-                        fontFamily: 'Impact, sans-serif',
+                        fontFamily: "'Anton', 'Impact', sans-serif",
                         fontSize: 'clamp(30px, 8vw, 42px)',
                         lineHeight: 0.92,
                         letterSpacing: '-0.02em',
@@ -3241,10 +3247,22 @@ const ImmersivePostCardInner = ({
             </div>
           </CardShell.Mid>
 
-          {/* Bottom Actions - Single horizontal axis alignment */}
-          {/* [Rail 3] ActionRail: Fixed bottom overlay with gradient fade */}
-          <CardShell.Bottom ref={bottomRef}>
-            <div className="flex items-center justify-between gap-6 pt-4 pointer-events-auto w-full">
+        </CardShell>
+      </div>
+
+      {/* Fascia fade inferiore */}
+      <div
+        className="absolute bottom-0 left-0 right-0 z-40 pointer-events-none"
+        style={{
+          background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)',
+          height: 'calc(4rem + env(safe-area-inset-bottom) + 120px)'
+        }}
+      />
+
+      {/* Wrapper Bottom absolute bottom (senza pointer-events-none) */}
+      <div className="absolute bottom-0 left-0 right-0 z-50 px-[14px]">
+        <CardShell.Bottom ref={bottomRef}>
+          <div className="flex items-center justify-between gap-6 pt-4 pointer-events-auto w-full">
 
             {/* Primary Share Button - Pill shape with consistent height */}
             {/* Primary Share Button - Pill shape with consistent height */}
@@ -3348,8 +3366,7 @@ const ImmersivePostCardInner = ({
               </motion.button>
             </div>
           </div>
-          </CardShell.Bottom>
-        </CardShell>
+        </CardShell.Bottom>
       </div>
     </div>
 

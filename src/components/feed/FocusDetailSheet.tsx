@@ -178,7 +178,7 @@ export const FocusDetailSheet = ({
           <div className="flex-1 min-h-0 overflow-y-auto w-full force-scrollbar">
             <h2 
               style={{
-                fontFamily: 'Impact, sans-serif',
+                fontFamily: "'Anton', 'Impact', sans-serif",
                 fontSize: '28px',
                 lineHeight: 1.05,
                 color: '#FFFFFF',

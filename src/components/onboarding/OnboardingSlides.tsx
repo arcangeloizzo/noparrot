@@ -103,7 +103,7 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
       <h2 
         className="uppercase mb-6"
         style={{
-          fontFamily: 'Impact, sans-serif',
+          fontFamily: "'Anton', 'Impact', sans-serif",
           fontSize: 'clamp(30px, 8vw, 42px)',
           lineHeight: 0.92,
           letterSpacing: '-0.02em',
@@ -161,7 +161,7 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
       <h2 
         className="uppercase mb-6"
         style={{
-          fontFamily: 'Impact, sans-serif',
+          fontFamily: "'Anton', 'Impact', sans-serif",
           fontSize: 'clamp(30px, 8vw, 42px)',
           lineHeight: 0.92,
           letterSpacing: '-0.02em',
@@ -209,7 +209,7 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
       <h2 
         className="uppercase mb-6"
         style={{
-          fontFamily: 'Impact, sans-serif',
+          fontFamily: "'Anton', 'Impact', sans-serif",
           fontSize: 'clamp(30px, 8vw, 42px)',
           lineHeight: 0.92,
           letterSpacing: '-0.02em',
@@ -253,7 +253,7 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
       <h2 
         className="uppercase mb-6"
         style={{
-          fontFamily: 'Impact, sans-serif',
+          fontFamily: "'Anton', 'Impact', sans-serif",
           fontSize: 'clamp(30px, 8vw, 42px)',
           lineHeight: 0.92,
           letterSpacing: '-0.02em',

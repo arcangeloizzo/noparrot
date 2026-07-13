@@ -90,7 +90,9 @@ export const LogoVertical = ({ className, hideText = false, id, onClick }: LogoV
         y="900"
         textAnchor="middle"
         style={{
-          fontFamily: 'Impact, sans-serif',
+          // NB: Anton via webfont in <text> SVG non si embedda in favicon/PWA-icon/OG.
+          //     Se il marchio deve essere Anton anche come icona statica → outline path o PNG.
+          fontFamily: "'Anton', 'Impact', sans-serif",
           fontSize: '150px',
           letterSpacing: '0.02em',
         }}
