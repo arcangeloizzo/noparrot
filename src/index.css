@@ -2196,8 +2196,10 @@ html:not(.light) .liquid-glass-navbar {
 /* CardShell — flex column reale */
 .card-shell {
   position: relative;
-  padding-top: calc(env(safe-area-inset-top) + 72px);
-  padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 36px);
+  padding-top: 20px;
+  padding-bottom: 20px;
+  padding-left: 18px;
+  padding-right: 18px;
   display: flex;
   flex-direction: column;
   z-index: 2;
@@ -2232,7 +2234,7 @@ html:not(.light) .liquid-glass-navbar {
   flex-direction: column;
   overflow: visible;         /* ★ punto chiave architetturale: clip content sforante */
   pointer-events: none;
-  padding-right: 52px;
+  padding-right: 30px;
 }
 
 /* Modalità FILLED — default, top-anchored */

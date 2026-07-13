@@ -2502,7 +2502,7 @@ const ImmersivePostCardInner = ({
                         <ClampedTitle
                           as="h2"
                           text={challengeTitle}
-                          maxLines={3}
+                          maxLines={6}
                           className="uppercase mb-3 flex-shrink-0"
                           style={{
                             fontFamily: "'Anton', 'Impact', sans-serif",
@@ -2804,7 +2804,7 @@ const ImmersivePostCardInner = ({
                     <ClampedTitle
                       as="h2"
                       text={post.title}
-                      maxLines={3}
+                      maxLines={6}
                       className="uppercase mb-1"
                       style={{
                         fontFamily: "'Anton', 'Impact', sans-serif",
@@ -2905,7 +2905,7 @@ const ImmersivePostCardInner = ({
                     <ClampedTitle
                       as="h2"
                       text={post.title}
-                      maxLines={3}
+                      maxLines={6}
                       className="uppercase mb-1"
                       style={{
                         fontFamily: "'Anton', 'Impact', sans-serif",
@@ -2930,7 +2930,7 @@ const ImmersivePostCardInner = ({
                     <ClampedTitle
                       as="h2"
                       text={post.title}
-                      maxLines={3}
+                      maxLines={6}
                       className="uppercase mb-1"
                       style={{
                         fontFamily: "'Anton', 'Impact', sans-serif",
@@ -3241,7 +3241,7 @@ const ImmersivePostCardInner = ({
           {/* ═══ RAIL AZIONI VERTICALE — colonna destra sul box (sostituisce Bottom orizzontale) ═══ */}
           {/* Ancorato al box, centrato verticalmente. pointer-events-auto per cliccabilità. */}
           <div
-            className="absolute right-[10px] top-1/2 -translate-y-1/2 z-50 flex flex-col items-center gap-[18px] pointer-events-auto"
+            className="absolute right-[-20px] top-1/2 -translate-y-1/2 z-50 flex flex-col items-center gap-[18px] pointer-events-auto"
             style={{ WebkitTapHighlightColor: 'transparent' }}
           >
             {/* ── Like (long-press → reaction picker) ── */}

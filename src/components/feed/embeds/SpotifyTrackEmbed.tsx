@@ -69,7 +69,7 @@ const SpotifyTrackEmbedInner = ({
         <ClampedTitle
           as="h2"
           text={postTitle}
-          maxLines={3}
+          maxLines={6}
           ref={titleRef}
           className="uppercase mb-2 flex-shrink-0"
           style={{

@@ -88,9 +88,13 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
     getActiveIndex: () => activeIndex,
     scrollToIndex: (index: number) => {
       if (!containerRef.current) return;
-      const { clientHeight } = containerRef.current;
-      const targetPosition = index * clientHeight;
-      containerRef.current.scrollTo({ top: targetPosition });
+      const itemId = items[index]?.id;
+      const el = itemId ? cardElementsRef.current.get(String(itemId)) : null;
+      if (el) {
+        el.scrollIntoView({ block: 'start' });
+      } else {
+        containerRef.current.scrollTo({ top: index * containerRef.current.clientHeight });
+      }
     }
   }));
 
@@ -272,7 +276,10 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
         ref={containerRef}
         data-tutorial="feed"
         className="w-full overflow-y-scroll snap-y snap-mandatory bg-background relative"
-        style={{ height: 'calc(var(--vh, 1vh) * 100)' }}
+        style={{ 
+          height: 'calc(var(--vh, 1vh) * 100)',
+          scrollPaddingTop: 'calc(56px + env(safe-area-inset-top))'
+        }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
