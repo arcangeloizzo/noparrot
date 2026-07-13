@@ -108,6 +108,7 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
   const prevActiveIndexRef = useRef(activeIndex);
   const settleTimerRef = useRef<number | null>(null);
   const isProgrammaticScrollRef = useRef(false);
+  const lastTopRef = useRef(0);
 
   const registerCard = useCallback((el: HTMLDivElement | null, itemId: string) => {
     if (el) {
@@ -292,18 +293,35 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
     if (slot.offsetHeight <= vh) { pendingSettleIdRef.current = null; return; } // corta: la centra il CSS
     const anchor = container.getBoundingClientRect().top + 56;
     const delta = slot.getBoundingClientRect().top - anchor;
-    pendingSettleIdRef.current = null;
     if (Math.abs(delta) > 8 && Math.abs(delta) < vh) {
       isProgrammaticScrollRef.current = true;
-      const small = Math.abs(delta) < 80;
+      pendingSettleIdRef.current = null;
+      const small = Math.abs(delta) < 120;
       container.scrollTo({ top: container.scrollTop + delta, behavior: small ? 'auto' : 'smooth' });
-      window.setTimeout(() => { isProgrammaticScrollRef.current = false; }, small ? 100 : 400);
+      window.setTimeout(() => { isProgrammaticScrollRef.current = false; }, small ? 250 : 550);
+    } else if (Math.abs(delta) <= 8) {
+      pendingSettleIdRef.current = null; // già a posto: consuma
     }
   };
 
   const handleScroll = () => {
+    const container = containerRef.current;
+    if (!container || isProgrammaticScrollRef.current) {
+      if (settleTimerRef.current) window.clearTimeout(settleTimerRef.current);
+      lastTopRef.current = container?.scrollTop ?? 0;
+      return;
+    }
+    const top = container.scrollTop;
+    const delta = Math.abs(top - lastTopRef.current);
+    lastTopRef.current = top;
     if (settleTimerRef.current) window.clearTimeout(settleTimerRef.current);
-    settleTimerRef.current = window.setTimeout(settleEntry, 80);
+    // momentum quasi esaurito (movimento < 4px per evento): assesta SUBITO,
+    // la correzione si fonde con la coda dell'inerzia
+    if (delta < 4) {
+      settleTimerRef.current = window.setTimeout(settleEntry, 30);
+    } else {
+      settleTimerRef.current = window.setTimeout(settleEntry, 120);
+    }
   };
 
   return (

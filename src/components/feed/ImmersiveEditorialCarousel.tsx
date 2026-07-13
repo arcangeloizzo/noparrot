@@ -587,8 +587,10 @@ const EditorialSlideInner = ({
         }}
       >
         <CardShell>
-        {/* [Rail 1] HeaderRail: Fixed top overlay with gradient fade */}
-        <CardShell.Header ref={headerRef}>
+        {/* Wrapper Header dentro il box */}
+        <div className="relative z-50 pointer-events-none w-full px-[18px] pt-[16px]">
+          {/* [Rail 1] HeaderRail: Fixed top overlay with gradient fade */}
+          <CardShell.Header ref={headerRef}>
           <div className="flex justify-between items-start w-full pb-5">
             <div className="flex items-center gap-3">
               {/* Avatar */}
@@ -612,6 +614,7 @@ const EditorialSlideInner = ({
             </div>
           </div>
         </CardShell.Header>
+        </div>
 
         {/* [Rail 2] ContentRail: Zone-mid */}
         <CardShell.Badge ref={badgeRef}>
