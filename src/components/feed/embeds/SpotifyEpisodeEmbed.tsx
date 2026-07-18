@@ -13,6 +13,7 @@ interface SpotifyEpisodeEmbedProps {
     image?: string;
     description?: string;
     title?: string;
+    platform?: string;
   } | null;
   useStackLayout: boolean;
   emergencyScroll: boolean;

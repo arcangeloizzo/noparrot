@@ -16,6 +16,8 @@ interface YouTubeVideoEmbedProps {
   articlePreview?: {
     title?: string;
     image?: string;
+    description?: string;
+    platform?: string;
   } | null;
   useStackLayout: boolean;
   emergencyScroll: boolean;

@@ -19,7 +19,7 @@ interface LinkedInEmbedCardProps {
   emergencyScroll: boolean;
   bodyLineClamp: number;
   shouldShowApprofondisci: boolean;
-  linkedinEmbedStep: "full" | "compact" | "pill";
+  linkedinEmbedStep: "full" | "compact" | "pill" | "hidden";
   flexiblesStatus: any;
   
   // Callbacks

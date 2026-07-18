@@ -2735,9 +2735,6 @@ const ImmersivePostCardInner = ({
                                     <p className="text-xs font-bold text-slate-200 truncate">
                                       {resp.user?.full_name || resp.user?.username}
                                     </p>
-                                    <p className="text-[10px] text-slate-400">
-                                      {new Date(resp.created_at).toLocaleDateString()}
-                                    </p>
                                   </div>
                                 </div>
 
@@ -2754,12 +2751,11 @@ const ImmersivePostCardInner = ({
                                   <div className="flex items-center gap-1.5">
                                     <button
                                       onClick={() => {
-                                        const userVote = challengeVotes.find(v => v.user_id === user?.id);
                                         const isMyVote = userVote?.challenge_response_id === resp.id;
                                         if (isMyVote) {
-                                          deleteVoteMutation.mutate(userVote.id);
+                                          removeVote();
                                         } else {
-                                          voteMutation.mutate({ responseId: resp.id });
+                                          voteForResponse(resp.id);
                                         }
                                       }}
                                       className={cn(
@@ -3003,7 +2999,7 @@ const ImmersivePostCardInner = ({
                   emergencyScroll={false}
                   bodyLineClamp={bodyLineClamp}
                   shouldShowApprofondisci={shouldShowApprofondisci}
-                  linkedinEmbedStep={linkedinEmbedStep || "full"}
+                  linkedinEmbedStep={(linkedinEmbedStep || "full") as any}
                   flexiblesStatus={flexiblesStatus}
                   onOpenFullText={openFullTextDrawer}
                   registerRef={registerRef}
@@ -3055,7 +3051,7 @@ const ImmersivePostCardInner = ({
                   emergencyScroll={false}
                   bodyLineClamp={bodyLineClamp}
                   shouldShowApprofondisci={shouldShowApprofondisci}
-                  youtubeEmbedStep={youtubeEmbedStep}
+                  youtubeEmbedStep={youtubeEmbedStep as any}
                   hasUserMedia={hasUserMedia}
                   flexiblesStatus={flexiblesStatus}
                   onOpenFullText={openFullTextDrawer}
@@ -3076,7 +3072,7 @@ const ImmersivePostCardInner = ({
                   emergencyScroll={false}
                   bodyLineClamp={bodyLineClamp}
                   shouldShowApprofondisci={shouldShowApprofondisci}
-                  spotifyEpisodeStep={spotifyEpisodeStep}
+                  spotifyEpisodeStep={spotifyEpisodeStep as any}
                   hasUserMedia={hasUserMedia}
                   flexiblesStatus={flexiblesStatus}
                   onOpenFullText={openFullTextDrawer}
@@ -3128,7 +3124,7 @@ const ImmersivePostCardInner = ({
                   emergencyScroll={false}
                   bodyLineClamp={bodyLineClamp}
                   shouldShowApprofondisci={shouldShowApprofondisci}
-                  articleStep={articleStep || "full"}
+                  articleStep={(articleStep || "full") as any}
                   isEditorialFocus={isEditorialFocus || false}
                   editorialSummary={editorialSummary}
                   displayTrustScore={displayTrustScore}

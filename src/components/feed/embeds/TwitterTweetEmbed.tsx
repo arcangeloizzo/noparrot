@@ -19,6 +19,8 @@ interface TwitterTweetEmbedProps {
     author_username?: string;
     author_avatar?: string;
     is_verified?: boolean;
+    description?: string;
+    platform?: string;
   } | null;
   
   // Parent state / props
