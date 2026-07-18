@@ -104,13 +104,6 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
   const cardElementsRef = useRef<Map<string, HTMLDivElement>>(new Map());
   const entryRatioMap = useRef<Map<string, number>>(new Map());
   const cardRefsMap = useRef<Map<string, (el: HTMLDivElement | null) => void>>(new Map());
-  const pendingSettleIdRef = useRef<string | null>(null);
-  const prevActiveIndexRef = useRef(activeIndex);
-  const settleTimerRef = useRef<number | null>(null);
-  const isProgrammaticScrollRef = useRef(false);
-  const lastTopRef = useRef(0);
-  const scrollDirRef = useRef<'down'|'up'>('down');
-
   const registerCard = useCallback((el: HTMLDivElement | null, itemId: string) => {
     if (el) {
       (el as any).__itemId = itemId;
@@ -208,14 +201,6 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
       }
     });
   }, [items]);
-
-  useEffect(() => {
-    if (activeIndex !== prevActiveIndexRef.current) {
-      prevActiveIndexRef.current = activeIndex;
-      const id = items[activeIndex]?.id;
-      if (id != null) pendingSettleIdRef.current = String(id);
-    }
-  }, [activeIndex, items]);
 
   // Pull-to-refresh handlers
   const handleTouchStart = (e: React.TouchEvent) => {
