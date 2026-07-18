@@ -231,8 +231,8 @@ const ImmersiveEditorialCarouselInner = ({
 
   return (
     <div className="w-full h-full relative flex flex-col overflow-hidden">
-      {/* Editorial Background - Uniform base matching inner box */}
-      <div className="absolute inset-0 z-0" style={{ background: '#0A1420' }} />
+      {/* Editorial Background - transparent to inherit app bg (no color mismatch) */}
+      <div className="absolute inset-0 z-0" style={{ background: 'transparent' }} />
 
       {/* Content Layer */}
       <div className="relative z-10 w-full h-full flex flex-col">
