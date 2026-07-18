@@ -338,6 +338,8 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
                   overflowY: 'auto',
                   overscrollBehavior: 'contain',
                   WebkitOverflowScrolling: 'touch',
+                  paddingTop: 'calc(56px + env(safe-area-inset-top))',
+                  paddingBottom: 'calc(88px + env(safe-area-inset-bottom))',
                 }}
               >
                 <FeedWrapper
@@ -374,7 +376,6 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
         className="w-full bg-background relative overflow-hidden"
         style={{
           height: 'var(--feed-viewport-h)',
-          marginTop: '56px',
         }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}

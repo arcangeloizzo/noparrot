@@ -26,11 +26,14 @@ export const Header = ({ variant = "default" }: HeaderProps) => {
   const isImmersive = variant === "immersive";
 
   return (
-    <header className={cn(
-      isImmersive 
-        ? "fixed top-0 left-0 right-0 z-50 bg-transparent pointer-events-none" 
-        : "cognitive-header liquid-glass-navbar border-b-0"
-    )}>
+    <header
+      className={cn(
+        isImmersive
+          ? "fixed top-0 left-0 right-0 z-50 pointer-events-none"
+          : "cognitive-header liquid-glass-navbar border-b-0"
+      )}
+      style={isImmersive ? { background: 'linear-gradient(180deg, rgba(5,8,16,0.72) 0%, rgba(5,8,16,0.35) 55%, rgba(5,8,16,0) 100%)' } : undefined}
+    >
       <div className="container flex h-14 max-w-screen-xl items-center justify-center px-4 relative">
         {/* Logo centrale */}
         <LogoHorizontal className={cn("h-8", isImmersive && "pointer-events-auto")} />
