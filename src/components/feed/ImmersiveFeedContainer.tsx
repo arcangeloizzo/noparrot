@@ -109,6 +109,7 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
   const settleTimerRef = useRef<number | null>(null);
   const isProgrammaticScrollRef = useRef(false);
   const lastTopRef = useRef(0);
+  const scrollDirRef = useRef<'down'|'up'>('down');
 
   const registerCard = useCallback((el: HTMLDivElement | null, itemId: string) => {
     if (el) {
@@ -291,8 +292,19 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
     const slot = cardElementsRef.current.get(id); if (!slot) return;
     const vh = container.clientHeight;
     if (slot.offsetHeight <= vh) { pendingSettleIdRef.current = null; return; } // corta: la centra il CSS
-    const anchor = container.getBoundingClientRect().top + 56;
-    const delta = slot.getBoundingClientRect().top - anchor;
+    const NAV_H = 88;                      // navbar
+    const TOPBAR = 56;                     // top-bar
+    const anchorTop = container.getBoundingClientRect().top + TOPBAR;
+    const rect = slot.getBoundingClientRect();
+    let delta: number;
+    if (scrollDirRef.current === 'down' || slot.offsetHeight <= vh) {
+      // entrando in discesa (o card corta): allinea l'INIZIO
+      delta = rect.top - anchorTop;
+    } else {
+      // entrando in risalita su card lunga: allinea il FONDO sopra la navbar
+      const anchorBottom = container.getBoundingClientRect().top + vh - NAV_H;
+      delta = rect.bottom - anchorBottom;
+    }
     if (Math.abs(delta) > 8 && Math.abs(delta) < vh) {
       isProgrammaticScrollRef.current = true;
       pendingSettleIdRef.current = null;
@@ -313,6 +325,7 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
     }
     const top = container.scrollTop;
     const delta = Math.abs(top - lastTopRef.current);
+    if (top !== lastTopRef.current) scrollDirRef.current = top > lastTopRef.current ? 'down' : 'up';
     lastTopRef.current = top;
     if (settleTimerRef.current) window.clearTimeout(settleTimerRef.current);
     // momentum quasi esaurito (movimento < 4px per evento): assesta SUBITO,
