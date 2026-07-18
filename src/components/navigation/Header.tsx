@@ -32,7 +32,7 @@ export const Header = ({ variant = "default" }: HeaderProps) => {
           ? "fixed top-0 left-0 right-0 z-50 pointer-events-none"
           : "cognitive-header liquid-glass-navbar border-b-0"
       )}
-      style={isImmersive ? { background: 'linear-gradient(180deg, rgba(5,8,16,0.72) 0%, rgba(5,8,16,0.35) 55%, rgba(5,8,16,0) 100%)' } : undefined}
+      style={isImmersive ? { background: 'linear-gradient(180deg, rgba(5,8,16,0.95) 0%, rgba(5,8,16,0.65) 45%, rgba(5,8,16,0) 100%)' } : undefined}
     >
       <div className="container flex h-14 max-w-screen-xl items-center justify-center px-4 relative">
         {/* Logo centrale */}
