@@ -1,84 +1,132 @@
-## Diagnosi — perché le card corte non sono centrate
+## Diagnosi CSS — perché `margin:auto` non centra
 
-Catena d'altezza attuale, dall'esterno all'interno:
+### Catena STANDARD (attuale, post-d963e09)
 
 ```text
-.embla-slide             flex:0 0 var(--feed-viewport-h)   ← ALTEZZA REALE (vh − 56 − 88)
-└─ [data-slide-scroll]   height:100%; overflowY:auto       ✅ risolve (parent ha flex-basis)
-   └─ FeedWrapper        minHeight:100%; paddingBottom:48px ⚠️ % ok, ma +48px forza overflow SEMPRE
-      └─ card-container  minHeight: calc(var(--vh)*100)     ❌ SLEGATO dallo slot
-         flex-col items-center JUSTIFY-CENTER               ❌ clippa la cima se figlio più alto
-         └─ boxRef       margin:auto                        (già ok se il parent non clippa)
+[data-slide-scroll]  height:100%; overflowY:auto              ← altezza definita (slot Embla)
+└─ FeedWrapper       min-height:100%; flex flex-col           ⚠ min-height, non height
+   └─ card-container min-height:100%; flex flex-col items-center  ❌ % non risolve
+      └─ box         margin:auto                              ❌ nessuno spazio libero
 ```
 
-Due bug indipendenti che si sommano:
+Il bug è nella regola CSS di risoluzione dei percentuali su `min-height`:
 
-1. **`minHeight: calc(var(--vh)*100)` sulla root della card ≠ altezza dello slot Embla.** Lo slot vale `vh − 56 − 88`, la card pretende `vh` pieno. La card è quindi *sempre* più alta dello slot → l'inner scroller `data-slide-scroll` ha *sempre* overflow → anche una card cortissima parte in alto e richiede scroll per essere vista intera. Questa è la causa principale del sintomo riportato.
-2. **`justify-content: center` su un flex-column il cui figlio può superare il parent → clippa la cima.** È il bug flexbox classico. Se lo risolvessimo solo con `minHeight:100%` senza cambiare l'allineamento, le card lunghe (articoli/reshare/summary — che sono il caso normale) perderebbero header/titolo.
-3. **`FeedWrapper` ha `paddingBottom:48px`.** Anche a card cortissima, forza sempre l'altezza del contenuto interno oltre il 100% dello slot → contribuisce a mantenere lo scroll attivo. Il "respiro" di 48 px va spostato dentro la card (bottom padding del contenuto), non applicato al wrapper.
-4. **`ImmersiveEditorialCarousel` usa `h-[100dvh]` sulla root e `minHeight: calc(vh*100)` sulla slide interna.** Stessi due problemi: hard-height in dvh legato al viewport globale, non allo slot Embla; nessuna centratura sicura.
+- `min-height: 100%` su un figlio **si risolve solo se il parent ha una `height` definita** (non solo `min-height`). `FeedWrapper` ha *solo* `min-height:100%` → per la `card-container`, `min-height:100%` degrada a `auto`.
+- Conseguenza: la `card-container` prende altezza = altezza del contenuto (= altezza del box). Non c'è spazio libero da distribuire → `margin:auto` collassa a 0 → il box appare in alto. Il vuoto visibile sotto è dello *scroller esterno*, non della card.
+- Non è un problema di `items-center`: quello agisce solo sull'asse cross (orizzontale). L'asse main verticale è quello che manca di dimensione definita.
 
-## Meccanismo per "centrata-se-corta E no-clip-se-lunga"
+Perché nel piano precedente si pensava funzionasse: si assumeva che `min-height:100%` si propagasse lungo tutta la catena. In realtà serve almeno un anello con `height` definita (o `flex:1` in un flex container con altezza definita) affinché i `%` successivi si risolvano.
 
-Il pattern giusto è **flex-column + `margin:auto` sul figlio**, MAI `justify-content:center`:
+### Catena IL PUNTO (`ImmersiveEditorialCarousel`)
 
-- Parent: `display:flex; flex-direction:column; min-height:100%`.
-- Figlio (box flottante): `margin:auto` (già presente).
+```text
+[data-slide-scroll]  height:100%
+└─ FeedWrapper       min-height:100%; flex flex-col
+   └─ Root           min-height:100%; flex flex-col overflow-hidden    ⚠ min-height
+      └─ Content     h-full; flex flex-col                             ❌ h-full % non risolve
+         └─ Carousel flex-1; overflow-hidden                           ← se Content ha altezza, ok
+            └─ emblaX flex; h-full                                     ← h-full su main-axis flex
+               └─ Slide flex-[0_0_100%]; min-height:100%; flex flex-col ❌ min-height % non risolve
+                  └─ box margin:auto                                   ❌ nessuno spazio
+```
 
-Con questo pattern:
-- Card **corta**: il figlio è più piccolo del parent → `margin:auto` distribuisce lo spazio libero sopra/sotto ⇒ **centrata**. Poiché il parent è `min-height:100%` (non `100vh`), la card non supera lo slot, l'inner scroller non ha overflow ⇒ **niente scroll**.
-- Card **lunga**: `margin:auto` diventa 0 quando non c'è spazio libero (comportamento standard flex, a differenza di `justify-center`) ⇒ **nessun clip del top**. L'overflow viene gestito dall'inner scroller `data-slide-scroll` come oggi.
+Stesso identico bug alla radice: `Root` è `min-height:100%` senza `height`, quindi ogni `h-full` / `min-height:100%` a valle degrada a auto. Il box si ancora in alto.
 
-Perché i `%` si risolvono davvero: la catena è `slide (basis fisso) → data-slide-scroll (height:100%, definito) → FeedWrapper (min-height:100%) → card root (min-height:100%)`. Ogni anello ha un parent con dimensione definita, quindi i percentuali collassano fino allo slot Embla. Nessuna catena "min-height:% su parent auto".
+Nota aggiuntiva su `overflow-hidden` del Carousel Container: serve a Embla per non mostrare le slide adiacenti orizzontalmente, ma clippa anche l'asse Y. Se una slide superasse lo slot, il contenuto sotto sarebbe tagliato senza possibilità di scroll (il `data-slide-scroll` esterno non aiuta perché il taglio avviene *dentro* il carosello).
 
-## Diff proposti (non applicati, minimali)
+## Meccanismo corretto
+
+Regola CSS che garantisce sia centratura-se-corta sia no-clip-se-lunga:
+
+- **Un anello della catena deve avere `height` (non solo `min-height`) definita**, così i `%` successivi risolvono.
+- **L'anello che contiene il box deve essere un flex-column che si stira a tutto lo slot**, sia con contenuto corto sia lungo.
+- **Il box usa `margin:auto`** (già presente): con parent flex-col dimensionato, `margin:auto` distribuisce lo spazio libero verticale quando c'è (corto → centrato); degrada a 0 quando non c'è (lungo → box al top, nessun clip perché `overflow` del parent è `visible`).
+
+Traduzione operativa in due mosse minime:
+
+1. **`FeedWrapper` diventa `height:100%`** (invece di `min-height:100%`). È l'anello che ancora la catena al `data-slide-scroll`. Overflow verticale è gestito dal `data-slide-scroll` (il figlio card-container può superare 100%, non viene clippato perché `FeedWrapper` è block con overflow visible di default).
+2. **`card-container` (ImmersivePostCard) e `EditorialSlide` (Il Punto) prendono `flex-1`** dentro il loro parent flex-col. `flex-1` = `flex:1 1 0%`: l'item si stira a riempire il parent quando corto, ma cresce oltre quando il contenuto lo richiede (in flex, `min-content` impedisce di comprimere sotto il contenuto intrinseco). Risultato: altezza dell'anello = `max(contenuto, altezza parent)`.
+
+Per Il Punto serve anche cambiare `overflow-hidden` → `overflow-x-hidden` sul Carousel Container: Embla ha bisogno del clip solo su X. In Y lasciamo `visible` così, nel caso raro di slide con contenuto > slot, il box può eccedere senza taglio grafico. Se in futuro serve gestire davvero lo scroll interno per Il Punto, si aggiunge un inner-scroller sulla singola `EditorialSlide` in uno step successivo — fuori scope qui, dato che i contenuti editoriali sono corti per design.
+
+Perché card lunghe standard non regrediscono: `card-container` con `flex-1` si stira ad almeno l'altezza dello slot, ma cresce quando il contenuto è più alto; `margin:auto` sul box degrada a 0 → il box parte dal top; il `data-slide-scroll` esterno scrolla come oggi. Nessuna modifica al motore di misura né agli handler touch.
+
+## Diff PROPOSTI (testo, NON applicati)
 
 ### 1) `src/components/feed/ImmersiveFeedContainer.tsx` — `FeedWrapper`
+
 ```diff
--  style={{
--    minHeight: '100%',
--    paddingBottom: '48px',
--  }}
--  className="w-full shrink-0 relative"
-+  style={{ minHeight: '100%' }}
-+  className="w-full shrink-0 relative flex flex-col"
+   <div
+     ref={registerRef}
+-    style={{ minHeight: '100%' }}
++    style={{ height: '100%' }}
+     className="w-full shrink-0 relative flex flex-col"
+   >
 ```
-Motivo: rimuove il `+48px` che forza overflow anche a card corte; imposta il wrapper come flex-column così che il `margin:auto` del figlio funzioni. Il respiro visivo di 48 px verrà, se serve, replicato come `padding-bottom` sul contenuto della card (fuori scope di questo blocco, non introduce regressioni: oggi quel padding è "sotto tutto", non contribuisce alla composizione visiva della card).
+
+Motivo: fornire alla catena l'anello con altezza definita. `height:100%` risolve contro `data-slide-scroll` (che è `height:100%` del proprio slot Embla, a sua volta `flex:0 0 var(--feed-viewport-h)`, definito). Da qui in giù ogni `%` / `flex-1` risolve. Il contenuto interno che eccede non viene clippato: `FeedWrapper` è block, `overflow:visible` di default; il `data-slide-scroll` è l'unico scroller.
 
 ### 2) `src/components/feed/ImmersivePostCard.tsx` — root card (riga ~2166)
-```diff
--  className="w-full relative bg-immersive transition-colors duration-500 flex flex-col items-center justify-center"
--  style={{ isolation: 'isolate', contain: 'layout style', minHeight: 'calc(var(--vh, 1vh) * 100)' }}
-+  className="w-full relative bg-immersive transition-colors duration-500 flex flex-col items-center"
-+  style={{ isolation: 'isolate', contain: 'layout style', minHeight: '100%' }}
-```
-Motivo: allinea la card allo slot Embla (`100%`, non `100vh`) e rimuove `justify-center` per evitare il clip della cima sulle card lunghe. `items-center` resta per l'asse orizzontale. La centratura verticale è delegata al `margin:auto` già presente sul `boxRef`.
 
-### 3) `src/components/feed/ImmersiveEditorialCarousel.tsx` — root (riga 233) + slide interna (riga 568)
 ```diff
-- <div className="h-[100dvh] w-full snap-start relative flex flex-col overflow-hidden">
-+ <div className="w-full relative flex flex-col overflow-hidden" style={{ minHeight: '100%' }}>
+-  className="w-full relative bg-immersive transition-colors duration-500 flex flex-col items-center"
+-  style={{ isolation: 'isolate', contain: 'layout style', minHeight: '100%' }}
++  className="w-full flex-1 relative bg-immersive transition-colors duration-500 flex flex-col items-center"
++  style={{ isolation: 'isolate', contain: 'layout style' }}
 ```
+
+Motivo: `flex-1` (dentro `FeedWrapper` che è `flex flex-col` con `height:100%`) stira la card a riempire lo slot quando il contenuto è più corto, e permette la crescita oltre 100% quando è più lungo. `min-height:100%` diventa ridondante (rimosso per non mescolare due meccanismi). `items-center` (cross-axis) resta; la centratura verticale è delegata al `margin:auto` già presente sul `boxRef`.
+
+### 3) `src/components/feed/ImmersiveEditorialCarousel.tsx` — Root, Carousel Container, EditorialSlide
+
+Root (riga 233):
+
 ```diff
-- className="flex-[0_0_100%] min-w-0 relative cursor-pointer transform-gpu will-change-transform flex flex-col justify-start"
-- style={{ minHeight: 'calc(var(--vh, 1vh) * 100)' }}
-+ className="flex-[0_0_100%] min-w-0 relative cursor-pointer transform-gpu will-change-transform flex flex-col"
-+ style={{ minHeight: '100%' }}
+- <div className="w-full relative flex flex-col overflow-hidden" style={{ minHeight: '100%' }}>
++ <div className="w-full h-full relative flex flex-col overflow-hidden">
 ```
-Motivo: stessa logica — root ancorata allo slot Embla, slide con `min-height:100%` e centratura via `margin:auto` esistente. Rimuovo `snap-start` e `justify-start` residui che non hanno più significato dentro Embla (Embla non è uno scroll-snap container).
+
+Carousel Container (riga 242-244):
+
+```diff
+   <div
+     ref={emblaRef}
+-    className="flex-1 overflow-hidden touch-pan-y"
++    className="flex-1 overflow-x-hidden touch-pan-y"
+   >
+```
+
+EditorialSlide (riga 568-570):
+
+```diff
+   <div
+-    className="flex-[0_0_100%] min-w-0 relative cursor-pointer transform-gpu will-change-transform flex flex-col"
+-    style={{ minHeight: '100%' }}
++    className="flex-[0_0_100%] min-w-0 h-full relative cursor-pointer transform-gpu will-change-transform flex flex-col"
+     onClick={onClick}
+   >
+```
+
+Motivo:
+- Root con `h-full` (risolve contro `FeedWrapper` ora `height:100%`) fornisce l'anello dimensionato al sottoalbero editoriale.
+- Carousel Container passa a `overflow-x-hidden`: Embla continua a clippare le slide adiacenti orizzontalmente; asse Y libero, così un box lungo non viene tagliato (fallback: box ancorato al top via `margin:auto→0`).
+- `EditorialSlide` con `h-full`: dentro `emblaX` (che è `flex h-full`, main-axis orizzontale, cross-axis verticale con stretch di default), `h-full` sull'asse verticale (cross) è ridondante ma esplicito e robusto contro cambi di config. Rimosso `min-height:100%` per lo stesso motivo del caso standard (evitare mescolanza di meccanismi). `margin:auto` sul box interno centra quando c'è spazio libero.
 
 ## Cosa NON tocco
 
-- `useDynamicCardLayout` e qualunque motore di misura contenuti card.
-- `AmbientLayer`, cinematic-fade, urban-noise overlays.
-- Config Embla in `ImmersiveFeedContainer` (axis, align, duration, watchDrag).
-- `handleTouchStart/Move/End`, logica pull-to-refresh, logica edge-swipe.
-- I residui `scrollSnapAlign` / `scrollMarginTop` / `scrollMarginBottom` sui box flottanti: inerti con Embla, si rimuoveranno in un pass di pulizia successivo.
-- Le regole `padding-bottom: 9vh/12vh` di `.zone-mid--hero` / `.zone-mid--poster` in `src/index.css`: da valutare a schermo dopo aver applicato questo blocco.
-- Nessuna modifica ai token CSS (`--feed-viewport-h`, `--vh`, `--zone-*`) né a `useStableViewportHeight`.
+- Motore `useDynamicCardLayout`, catena di misura e osservatori.
+- `AmbientLayer`, `card-scrim`, `cinematic-fade-overlay`, `urban-noise-overlay`.
+- Config Embla (`axis`, `align`, `duration`, `containScroll`, `skipSnaps`).
+- `watchDrag`, `handleTouchStart/Move/End`, pull-to-refresh, edge-swipe.
+- Residui `scrollSnapAlign` / `scrollMarginTop` / `scrollMarginBottom` sui box (inerti con Embla, pulizia successiva).
+- `padding-bottom: 9vh / 12vh` di `.zone-mid--hero` e `.zone-mid--poster` in `src/index.css`.
+- Token CSS (`--feed-viewport-h`, `--vh`, `--zone-*`) e `useStableViewportHeight`.
+- La rifinitura grafica delle 3 zone / liquid glass (step successivo).
 
-## Verifica dopo l'implementazione (fuori da questo piano)
+## Verifica dopo l'implementazione (fuori scope di questo piano)
 
-- Card corta (poll-only / title-only / Il Punto short) → box centrato verticalmente, `data-slide-scroll` senza barra di scroll.
-- Card lunga (articolo, reshare stack, transcript, summary) → cima immediatamente visibile a snap, scroll interno regolare fino al bottom, edge-swipe verso la prossima intatto.
-- Nessuna regressione in `ImmersiveEditorialCarousel` (Il Punto) sia con item singolo che con carousel orizzontale.
+- Card corta standard (title-only / poll-only / Il Punto short): box verticalmente centrato nello slot, nessuna barra di scroll nel `data-slide-scroll`, vuoto simmetrico sopra e sotto.
+- Card lunga standard (articolo, reshare stack, transcript, summary): cima immediatamente visibile a snap, scroll interno regolare fino in fondo, edge-swipe alla card successiva intatto.
+- Il Punto con item unico: box centrato nello slot editoriale.
+- Il Punto carousel orizzontale multi-item: swipe orizzontale invariato, ciascuna slide con box centrato.
+- Nessuna regressione nella sensazione di snap Embla verticale.
