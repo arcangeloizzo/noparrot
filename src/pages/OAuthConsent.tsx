@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Logo } from "@/components/ui/logo";
 
-// Typed shim around the (beta) supabase.auth.oauth namespace.
+// The installed @supabase/supabase-js does not expose `supabase.auth.oauth`
+// at runtime, so we call the managed OAuth 2.1 REST endpoints directly.
 type AuthorizationDetails = {
   client?: { name?: string; client_uri?: string; logo_uri?: string };
   redirect_uri?: string;
@@ -14,17 +15,49 @@ type AuthorizationDetails = {
   redirect_url?: string;
   redirect_to?: string;
 };
-type OAuthResult<T = AuthorizationDetails> = {
-  data: T | null;
-  error: { message: string } | null;
+type OAuthResult<T> = { data: T | null; error: { message: string } | null };
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+
+async function oauthFetch<T>(path: string, method: "GET" | "POST"): Promise<OAuthResult<T>> {
+  const { data: sess } = await supabase.auth.getSession();
+  const token = sess.session?.access_token;
+  if (!token) return { data: null, error: { message: "Not authenticated" } };
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1${path}`, {
+      method,
+      headers: {
+        apikey: SUPABASE_ANON,
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+    const text = await res.text();
+    const body = text ? JSON.parse(text) : null;
+    if (!res.ok) {
+      return { data: null, error: { message: body?.error_description || body?.msg || body?.message || `HTTP ${res.status}` } };
+    }
+    return { data: body as T, error: null };
+  } catch (e) {
+    return { data: null, error: { message: e instanceof Error ? e.message : String(e) } };
+  }
+}
+
+const authOAuth = {
+  getAuthorizationDetails: (id: string) =>
+    oauthFetch<AuthorizationDetails>(`/oauth/authorizations/${encodeURIComponent(id)}`, "GET"),
+  approveAuthorization: (id: string) =>
+    oauthFetch<{ redirect_url?: string; redirect_to?: string }>(
+      `/oauth/authorizations/${encodeURIComponent(id)}/approve`,
+      "POST",
+    ),
+  denyAuthorization: (id: string) =>
+    oauthFetch<{ redirect_url?: string; redirect_to?: string }>(
+      `/oauth/authorizations/${encodeURIComponent(id)}/deny`,
+      "POST",
+    ),
 };
-const authOAuth = (supabase.auth as unknown as {
-  oauth: {
-    getAuthorizationDetails: (id: string) => Promise<OAuthResult>;
-    approveAuthorization: (id: string) => Promise<OAuthResult<{ redirect_url?: string; redirect_to?: string }>>;
-    denyAuthorization: (id: string) => Promise<OAuthResult<{ redirect_url?: string; redirect_to?: string }>>;
-  };
-}).oauth;
 
 function isSameOriginPath(p: string): boolean {
   return typeof p === "string" && p.startsWith("/") && !p.startsWith("//");
