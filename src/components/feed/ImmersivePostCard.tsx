@@ -3245,16 +3245,11 @@ const ImmersivePostCardInner = ({
                 onClick={(e) => e.stopPropagation()}
               >
                 {post.user_reactions?.myReactionType && post.user_reactions.myReactionType !== 'heart' ? (
-                  <span className="text-xl">
+                  <span className="text-2xl">
                     {reactionToEmoji(post.user_reactions.myReactionType)}
                   </span>
                 ) : (
-                  <svg width="26" height="26" viewBox="0 0 28 28" fill={post.user_reactions?.has_hearted ? "#ef4444" : "none"}
-                       stroke={post.user_reactions?.has_hearted ? "#ef4444" : "#fff"} strokeWidth="1.8"
-                       strokeLinecap="round" strokeLinejoin="round"
-                       style={{ filter: 'drop-shadow(0 2px 7px rgba(0,0,0,0.8))' }}>
-                    <path d="M14 23s-7.7-4.8-10.2-9.2C1.9 10.6 3.4 7.2 6.7 7.2c2.1 0 3.2 1.2 3.8 2.1.6-.9 1.7-2.1 3.8-2.1 3.3 0 4.8 3.4 3 6.6C21.6 18.2 14 23 14 23z"/>
-                  </svg>
+                  <Heart className={cn("w-7 h-7", post.user_reactions?.has_hearted ? "text-red-500 fill-red-500" : "text-white")} fill={post.user_reactions?.has_hearted ? "currentColor" : "none"} />
                 )}
               </motion.button>
               <button
@@ -3277,11 +3272,7 @@ const ImmersivePostCardInner = ({
               className="flex flex-col items-center gap-[3px] select-none"
               onClick={(e) => { e.stopPropagation(); haptics.light(); setShowComments(true); }}
             >
-              <svg width="26" height="26" viewBox="0 0 28 28" fill="none" stroke="#fff" strokeWidth="1.8"
-                   strokeLinecap="round" strokeLinejoin="round"
-                   style={{ filter: 'drop-shadow(0 2px 7px rgba(0,0,0,0.8))' }}>
-                <path d="M23 6H5v12h6l3 3 3-3h3z"/>
-              </svg>
+              <MessageCircle className="w-7 h-7 text-white" style={{ filter: 'drop-shadow(0 2px 7px rgba(0,0,0,0.8))' }} />
               <span
                 className="select-none"
                 style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10.5px', color: '#fff', textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}
@@ -3296,13 +3287,7 @@ const ImmersivePostCardInner = ({
               className="flex items-center justify-center min-w-[44px] min-h-[44px]"
               onClick={handleBookmark}
             >
-              <svg width="22" height="22" viewBox="0 0 25 25"
-                   fill={post.user_reactions.has_bookmarked ? "#60a5fa" : "none"}
-                   stroke={post.user_reactions.has_bookmarked ? "#60a5fa" : "#fff"} strokeWidth="1.8"
-                   strokeLinecap="round" strokeLinejoin="round"
-                   style={{ filter: 'drop-shadow(0 2px 7px rgba(0,0,0,0.8))' }}>
-                <path d="M7 4h11v18l-5.5-3.8L7 22z"/>
-              </svg>
+              <Bookmark className={cn("w-7 h-7", post.user_reactions.has_bookmarked ? "text-blue-400 fill-blue-400" : "text-white")} fill={post.user_reactions.has_bookmarked ? "currentColor" : "none"} style={{ filter: 'drop-shadow(0 2px 7px rgba(0,0,0,0.8))' }} />
             </motion.button>
 
             {/* ── Invia / Condividi (aeroplanino, NON pappagallo) ── */}
