@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -37,6 +37,15 @@ function calculateAge(dateOfBirth: string): number {
 
 export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: AuthPageProps) => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // Preserve the `next` param through email/password login, signup, and OAuth
+  // so OAuth-consent flows return the user to the original consent URL.
+  const rawNext = searchParams.get("next");
+  const nextPath =
+    rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : null;
+  const oauthRedirectUri = nextPath
+    ? `${window.location.origin}/auth?next=${encodeURIComponent(nextPath)}`
+    : window.location.origin;
   const { user, signIn, signUpStep1, verifyEmailOTP, completeProfile } = useAuth();
   
   const [isLogin, setIsLogin] = useState(initialMode === 'login');
