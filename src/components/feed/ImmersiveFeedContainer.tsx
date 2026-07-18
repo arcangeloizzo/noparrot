@@ -270,57 +270,6 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
     );
   };
 
-  const settleEntry = () => {
-    const container = containerRef.current;
-    if (!container || isProgrammaticScrollRef.current) return;
-    const id = pendingSettleIdRef.current; if (!id) return;
-    const slot = cardElementsRef.current.get(id); if (!slot) return;
-    const vh = container.clientHeight;
-    if (slot.offsetHeight <= vh) { pendingSettleIdRef.current = null; return; } // corta: la centra il CSS
-    const NAV_H = 88;                      // navbar
-    const TOPBAR = 56;                     // top-bar
-    const anchorTop = container.getBoundingClientRect().top + TOPBAR;
-    const rect = slot.getBoundingClientRect();
-    let delta: number;
-    if (scrollDirRef.current === 'down' || slot.offsetHeight <= vh) {
-      // entrando in discesa (o card corta): allinea l'INIZIO
-      delta = rect.top - anchorTop;
-    } else {
-      // entrando in risalita su card lunga: allinea il FONDO sopra la navbar
-      const anchorBottom = container.getBoundingClientRect().top + vh - NAV_H;
-      delta = rect.bottom - anchorBottom;
-    }
-    if (Math.abs(delta) > 8 && Math.abs(delta) < vh) {
-      isProgrammaticScrollRef.current = true;
-      pendingSettleIdRef.current = null;
-      const small = Math.abs(delta) < 120;
-      container.scrollTo({ top: container.scrollTop + delta, behavior: small ? 'auto' : 'smooth' });
-      window.setTimeout(() => { isProgrammaticScrollRef.current = false; }, small ? 250 : 550);
-    } else if (Math.abs(delta) <= 8) {
-      pendingSettleIdRef.current = null; // già a posto: consuma
-    }
-  };
-
-  const handleScroll = () => {
-    const container = containerRef.current;
-    if (!container || isProgrammaticScrollRef.current) {
-      if (settleTimerRef.current) window.clearTimeout(settleTimerRef.current);
-      lastTopRef.current = container?.scrollTop ?? 0;
-      return;
-    }
-    const top = container.scrollTop;
-    const delta = Math.abs(top - lastTopRef.current);
-    if (top !== lastTopRef.current) scrollDirRef.current = top > lastTopRef.current ? 'down' : 'up';
-    lastTopRef.current = top;
-    if (settleTimerRef.current) window.clearTimeout(settleTimerRef.current);
-    // momentum quasi esaurito (movimento < 4px per evento): assesta SUBITO,
-    // la correzione si fonde con la coda dell'inerzia
-    if (delta < 4) {
-      settleTimerRef.current = window.setTimeout(settleEntry, 30);
-    } else {
-      settleTimerRef.current = window.setTimeout(settleEntry, 120);
-    }
-  };
 
   return (
     <FeedContext.Provider value={{ activeIndex }}>
