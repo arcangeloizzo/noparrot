@@ -1,5 +1,6 @@
 import React, { useRef, useState, forwardRef, useImperativeHandle, useCallback, createContext, useContext, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import useEmblaCarousel from "embla-carousel-react";
 
 // Export OVERSCAN constant for easy tuning
 // Reduced from 3 -> 1 to mount only 3 cards (1+1+1) instead of 7.
@@ -28,7 +29,7 @@ const FeedWrapper = React.memo(({ isVisible, registerRef, children }: FeedWrappe
     <div
       ref={registerRef}
       style={{
-        minHeight: 'calc(var(--vh, 1vh) * 100)',
+        minHeight: '100%',
         paddingBottom: '48px',
       }}
       className="w-full shrink-0 relative"
@@ -75,10 +76,33 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
   const [isRefreshing, setIsRefreshing] = useState(false);
   const lastReportedIndex = useRef<number>(activeIndex);
 
+  // TRIAL EMBLA: vertical carousel with nested-scroll guard
+  const [emblaRef, emblaApi] = useEmblaCarousel({
+    axis: 'y',
+    align: 'start',
+    containScroll: 'trimSnaps',
+    dragFree: false,
+    skipSnaps: false,
+    duration: 22,
+    watchDrag: (_emblaApi, evt) => {
+      const target = evt.target as HTMLElement;
+      const scroller = target?.closest?.('[data-slide-scroll="true"]') as HTMLElement | null;
+      if (!scroller) return true;
+      const { scrollTop, scrollHeight, clientHeight } = scroller;
+      const canScrollInside = scrollHeight > clientHeight + 1;
+      if (!canScrollInside) return true;
+      const atTop = scrollTop <= 0;
+      const atBottom = scrollTop + clientHeight >= scrollHeight - 1;
+      if (!atTop && !atBottom) return false;
+      return true;
+    },
+  });
+
   // Expose scroll methods to parent
   useImperativeHandle(ref, () => ({
     scrollToTop: () => {
-      containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+      if (emblaApi) emblaApi.scrollTo(0);
+      else containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
     },
     getScrollPosition: () => {
       return containerRef.current?.scrollTop ?? 0;
@@ -88,6 +112,10 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
     },
     getActiveIndex: () => activeIndex,
     scrollToIndex: (index: number) => {
+      if (emblaApi) {
+        emblaApi.scrollTo(index);
+        return;
+      }
       if (!containerRef.current) return;
       const itemId = items[index]?.id;
       const el = itemId ? cardElementsRef.current.get(String(itemId)) : null;
@@ -163,7 +191,8 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
         const activeIdx = itemsRef.current.findIndex(item => item.id === activeItemId);
         if (activeIdx !== -1 && activeIdx !== lastReportedIndex.current) {
           lastReportedIndex.current = activeIdx;
-          onActiveIndexChangeRef.current?.(activeIdx);
+          // TRIAL EMBLA: silenziato, indice gestito da Embla select
+          // onActiveIndexChangeRef.current?.(activeIdx);
         }
       }
     };
@@ -202,15 +231,43 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
     });
   }, [items]);
 
+  // TRIAL EMBLA: sync active index from Embla select/reInit
+  useEffect(() => {
+    if (!emblaApi) return;
+    const onSelect = () => {
+      const idx = emblaApi.selectedScrollSnap();
+      if (idx !== lastReportedIndex.current) {
+        lastReportedIndex.current = idx;
+        onActiveIndexChangeRef.current?.(idx);
+      }
+    };
+    emblaApi.on('select', onSelect);
+    emblaApi.on('reInit', onSelect);
+    onSelect();
+    return () => {
+      emblaApi.off('select', onSelect);
+      emblaApi.off('reInit', onSelect);
+    };
+  }, [emblaApi]);
+
+  // TRIAL EMBLA: reInit when items count changes
+  useEffect(() => {
+    emblaApi?.reInit();
+  }, [items.length, emblaApi]);
+
   // Pull-to-refresh touch handlers only
   const handleTouchStart = (e: React.TouchEvent) => {
-    if (containerRef.current && containerRef.current.scrollTop === 0) {
-      touchStartY.current = e.touches[0].clientY;
+    // TRIAL EMBLA: only when first slide + inner scroller at top
+    if (emblaApi && emblaApi.selectedScrollSnap() === 0) {
+      const firstScroller = containerRef.current?.querySelector<HTMLElement>('[data-slide-scroll="true"]');
+      if (!firstScroller || firstScroller.scrollTop === 0) {
+        touchStartY.current = e.touches[0].clientY;
+      }
     }
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (touchStartY.current && containerRef.current && containerRef.current.scrollTop === 0) {
+    if (touchStartY.current) {
       const currentY = e.touches[0].clientY;
       pullDistance.current = currentY - touchStartY.current;
     }
@@ -238,32 +295,35 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
       return typeof children === 'function' ? null : children;
     }
 
-    if (items.length === 1) {
-      const singleItem = items[0];
-      return (
-        <div
-          className="w-full snap-start shrink-0"
-          style={{ minHeight: 'calc(var(--vh, 1vh) * 100)', scrollSnapStop: 'always' }}
-        >
-          {typeof children === 'function' ? children(singleItem, 0) : children}
-        </div>
-      );
-    }
-
     return (
-      <div className="w-full flex flex-col">
+      <div className="flex flex-col" style={{ height: '100%' }}>
         {items.map((item, actualIndex) => {
           const isVisible = actualIndex >= visibleStart && actualIndex <= visibleEnd;
           return (
-            <FeedWrapper
+            <div
               key={item.id ?? actualIndex}
-              itemId={item.id}
-              isVisible={isVisible}
-              isActive={actualIndex === activeIndex}
-              registerRef={getCardRefCallback(item.id)}
+              style={{ flex: '0 0 var(--feed-viewport-h)', minHeight: 0 }}
+              className="w-full"
             >
-              {typeof children === 'function' ? children(item, actualIndex) : null}
-            </FeedWrapper>
+              <div
+                data-slide-scroll="true"
+                style={{
+                  height: '100%',
+                  overflowY: 'auto',
+                  overscrollBehavior: 'contain',
+                  WebkitOverflowScrolling: 'touch',
+                }}
+              >
+                <FeedWrapper
+                  itemId={item.id}
+                  isVisible={isVisible}
+                  isActive={actualIndex === activeIndex}
+                  registerRef={getCardRefCallback(item.id)}
+                >
+                  {typeof children === 'function' ? children(item, actualIndex) : null}
+                </FeedWrapper>
+              </div>
+            </div>
           );
         })}
       </div>
@@ -274,11 +334,15 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
   return (
     <FeedContext.Provider value={{ activeIndex }}>
       <div
-        ref={containerRef}
+        ref={(node) => {
+          containerRef.current = node;
+          emblaRef(node);
+        }}
         data-tutorial="feed"
-        className="w-full overflow-y-scroll snap-y snap-mandatory bg-background relative"
-        style={{ 
-          height: 'calc(var(--vh, 1vh) * 100)'
+        className="w-full bg-background relative overflow-hidden"
+        style={{
+          height: 'var(--feed-viewport-h)',
+          marginTop: '56px',
         }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
