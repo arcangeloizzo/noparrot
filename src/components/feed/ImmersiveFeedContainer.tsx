@@ -76,6 +76,11 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
   const [isRefreshing, setIsRefreshing] = useState(false);
   const lastReportedIndex = useRef<number>(activeIndex);
 
+  // TRIAL EMBLA: edge-swipe change-card refs
+  const edgeTouchStartY = useRef(0);
+  const edgeAtTopRef = useRef(false);
+  const edgeAtBottomRef = useRef(false);
+
   // TRIAL EMBLA: vertical carousel with nested-scroll guard
   const [emblaRef, emblaApi] = useEmblaCarousel({
     axis: 'y',
@@ -88,13 +93,8 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
       const target = evt.target as HTMLElement;
       const scroller = target?.closest?.('[data-slide-scroll="true"]') as HTMLElement | null;
       if (!scroller) return true;
-      const { scrollTop, scrollHeight, clientHeight } = scroller;
-      const canScrollInside = scrollHeight > clientHeight + 1;
-      if (!canScrollInside) return true;
-      const atTop = scrollTop <= 0;
-      const atBottom = scrollTop + clientHeight >= scrollHeight - 1;
-      if (!atTop && !atBottom) return false;
-      return true;
+      const canScrollInside = scroller.scrollHeight > scroller.clientHeight + 1;
+      return !canScrollInside; // scrollable → native only; short → Embla drags
     },
   });
 
@@ -264,6 +264,18 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
         touchStartY.current = e.touches[0].clientY;
       }
     }
+
+    // TRIAL EMBLA: edge-swipe tracking on tall cards
+    const t = e.target as HTMLElement;
+    const sc = t?.closest?.('[data-slide-scroll="true"]') as HTMLElement | null;
+    edgeTouchStartY.current = e.touches[0].clientY;
+    if (sc && sc.scrollHeight > sc.clientHeight + 1) {
+      edgeAtTopRef.current = sc.scrollTop <= 0;
+      edgeAtBottomRef.current = sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 1;
+    } else {
+      edgeAtTopRef.current = false;
+      edgeAtBottomRef.current = false;
+    }
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
@@ -273,7 +285,7 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
     }
   };
 
-  const handleTouchEnd = async () => {
+  const handleTouchEnd = async (e: React.TouchEvent) => {
     if (pullDistance.current > 80 && !isRefreshing) {
       setIsRefreshing(true);
       await queryClient.invalidateQueries({ queryKey: ['posts'] });
@@ -282,6 +294,18 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
       if (onRefresh) await onRefresh();
       setIsRefreshing(false);
     }
+
+    // TRIAL EMBLA: edge-swipe → change card on tall content
+    const endY = e.changedTouches?.[0]?.clientY ?? 0;
+    const deltaY = edgeTouchStartY.current - endY; // >0 = finger up = wants next
+    const SWIPE_MIN = 50;
+    if (emblaApi) {
+      if (edgeAtBottomRef.current && deltaY > SWIPE_MIN) emblaApi.scrollNext();
+      else if (edgeAtTopRef.current && deltaY < -SWIPE_MIN) emblaApi.scrollPrev();
+    }
+    edgeAtTopRef.current = false;
+    edgeAtBottomRef.current = false;
+
     touchStartY.current = 0;
     pullDistance.current = 0;
   };
@@ -302,7 +326,11 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
           return (
             <div
               key={item.id ?? actualIndex}
-              style={{ flex: '0 0 var(--feed-viewport-h)', minHeight: 0 }}
+              style={{
+                flex: '0 0 var(--feed-viewport-h)',
+                minHeight: 'var(--feed-viewport-h)',
+                maxHeight: 'var(--feed-viewport-h)',
+              }}
               className="w-full"
             >
               <div
@@ -333,6 +361,12 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
 
   return (
     <FeedContext.Provider value={{ activeIndex }}>
+      {/* Pull to refresh indicator (position:fixed → sibling of Embla viewport) */}
+      {isRefreshing && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+        </div>
+      )}
       <div
         ref={(node) => {
           containerRef.current = node;
@@ -348,13 +382,6 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        {/* Pull to refresh indicator */}
-        {isRefreshing && (
-          <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
-          </div>
-        )}
-
         {renderContent()}
       </div>
     </FeedContext.Provider>
