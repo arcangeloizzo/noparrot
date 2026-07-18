@@ -230,7 +230,7 @@ const ImmersiveEditorialCarouselInner = ({
   if (!items.length) return null;
 
   return (
-    <div className="w-full flex-1 min-h-0 relative flex flex-col overflow-hidden">
+    <div className="w-full h-full relative flex flex-col overflow-hidden">
       {/* Editorial Background - Deep urban gradient */}
       <div className="absolute inset-0 z-0" style={{ background: 'radial-gradient(120% 80% at 50% 42%, #12253A 0%, #0B131A 62%, #070C12 100%)' }} />
 
