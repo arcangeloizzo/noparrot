@@ -335,6 +335,7 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
             >
               <div
                 data-slide-scroll="true"
+                className="no-scrollbar"
                 style={{
                   height: '100%',
                   overflowY: 'auto',
