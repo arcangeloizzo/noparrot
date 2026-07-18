@@ -143,7 +143,7 @@ const LinkedInEmbedCardInner = ({
               post={syntheticPost as any}
               articlePreview={articlePreview}
               useStackLayout={useStackLayout}
-              embedStep={useStackLayout ? "full" : linkedinEmbedStep || "full"}
+              embedStep={useStackLayout ? "full" : ((linkedinEmbedStep === "hidden" ? "full" : linkedinEmbedStep) || "full")}
             />
           </div>
         )}
