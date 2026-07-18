@@ -7,7 +7,7 @@
 /* ===== BLOCK 1 — Unified design tokens (NoParrot Feed UI Spec v1 §1) ===== */
 :root {
   --base: #050810;
-  --feed-viewport-h: calc(var(--vh, 1vh) * 100 - 56px - 88px);
+  --feed-viewport-h: calc(var(--vh, 1vh) * 100);
   --blue: #0A7AFF;
   --blue-l: #4DA3FF;
   --pink: #E41E52;
