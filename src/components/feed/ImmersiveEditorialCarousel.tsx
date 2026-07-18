@@ -575,9 +575,9 @@ const EditorialSlideInner = ({
           margin: 'auto',
           width: 'calc(100% - 40px)',
           borderRadius: '24px',
-          border: '1px solid rgba(255,255,255,0.05)',
-          background: '#0A1420',  /* fuso col fondo, contorno appena percettibile */
-          boxShadow: '0 4px 16px -12px rgba(0,0,0,0.4)',
+          border: 'none',
+          background: 'transparent',
+          boxShadow: 'none',
           overflow: 'visible',
           scrollSnapAlign: snapAlign,
           scrollMarginTop: 'calc(56px + env(safe-area-inset-top))',
