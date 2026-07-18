@@ -28,7 +28,11 @@ const FeedWrapper = React.memo(({ isVisible, registerRef, children }: FeedWrappe
   return (
     <div
       ref={registerRef}
-      style={{ height: '100%' }}
+      style={{
+        minHeight: '100%',
+        paddingTop: 'calc(56px + env(safe-area-inset-top))',
+        paddingBottom: 'calc(88px + env(safe-area-inset-bottom))',
+      }}
       className="w-full shrink-0 relative flex flex-col"
     >
       {isVisible ? children : null}
@@ -338,8 +342,6 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
                   overflowY: 'auto',
                   overscrollBehavior: 'contain',
                   WebkitOverflowScrolling: 'touch',
-                  paddingTop: 'calc(56px + env(safe-area-inset-top))',
-                  paddingBottom: 'calc(88px + env(safe-area-inset-bottom))',
                 }}
               >
                 <FeedWrapper
