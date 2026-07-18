@@ -199,26 +199,6 @@ const detectPlatformFromUrl = (url: string): string | undefined => {
   }
 };
 
-const extractYoutubeVideoId = (url: string): string | null => {
-  try {
-    const urlObj = new URL(url);
-    // youtu.be/VIDEO_ID
-    if (urlObj.hostname.includes('youtu.be')) {
-      return urlObj.pathname.slice(1).split('?')[0];
-    }
-    // youtube.com/watch?v=VIDEO_ID or youtube.com/shorts/VIDEO_ID
-    if (urlObj.hostname.includes('youtube.com')) {
-      if (urlObj.pathname.startsWith('/shorts/')) {
-        return urlObj.pathname.split('/shorts/')[1].split('?')[0];
-      }
-      return urlObj.searchParams.get('v');
-    }
-    return null;
-  } catch {
-    return null;
-  }
-};
-
 // Helper to detect if user text is similar to article title (avoids duplication)
 const isTextSimilarToTitle = (userText: string, title: string): boolean => {
   if (!userText || !title) return false;

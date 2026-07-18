@@ -210,7 +210,7 @@ export function normalizeMedia(post: Post, articlePreview?: any): UnifiedMedia[]
  * Calcola centralizzato il mediaLayout (variant del MediaFrame)
  */
 export function calculateMediaLayout(
-  media: UnifiedMedia,
+  media: Pick<UnifiedMedia, 'orientation'>,
   wordCount: number,
   slotContext: 'main' | 'quoted' = 'main'
 ): MediaFrameVariant {
