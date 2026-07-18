@@ -28,11 +28,8 @@ const FeedWrapper = React.memo(({ isVisible, registerRef, children }: FeedWrappe
   return (
     <div
       ref={registerRef}
-      style={{
-        minHeight: '100%',
-        paddingBottom: '48px',
-      }}
-      className="w-full shrink-0 relative"
+      style={{ minHeight: '100%' }}
+      className="w-full shrink-0 relative flex flex-col"
     >
       {isVisible ? children : null}
     </div>
