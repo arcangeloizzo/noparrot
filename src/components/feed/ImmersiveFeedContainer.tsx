@@ -72,6 +72,11 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
   const containerRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef<number>(0);
   const pullDistance = useRef<number>(0);
+  const snapStartY = useRef(0);
+  const snapStartTime = useRef(0);
+  const snapStartScrollTop = useRef(0);
+  const isAnimatingRef = useRef(false);
+  const rafRef = useRef<number | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const lastReportedIndex = useRef<number>(activeIndex);
 
@@ -202,11 +207,61 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
     });
   }, [items]);
 
-  // Pull-to-refresh handlers
+  // Touch-snapping JS + pull-to-refresh
+  const TOPBAR = 56;
+  const NAV_H = 88;
+  const SWIPE_VELOCITY = 0.35;
+  const SWIPE_DISTANCE = 60;
+  const READ_EDGE = 24;
+
+  const animateScrollTo = (targetTop: number, onDone?: () => void) => {
+    const container = containerRef.current;
+    if (!container) return;
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    isAnimatingRef.current = true;
+    const startTop = container.scrollTop;
+    const dist = targetTop - startTop;
+    const dur = Math.min(420, Math.max(180, Math.abs(dist) * 0.6));
+    const t0 = performance.now();
+    const ease = (t: number) => 1 - Math.pow(1 - t, 3);
+    const step = (now: number) => {
+      const p = Math.min(1, (now - t0) / dur);
+      container.scrollTop = startTop + dist * ease(p);
+      if (p < 1) {
+        rafRef.current = requestAnimationFrame(step);
+      } else {
+        isAnimatingRef.current = false;
+        rafRef.current = null;
+        onDone?.();
+      }
+    };
+    rafRef.current = requestAnimationFrame(step);
+  };
+
+  const scrollTopForCardStart = (el: HTMLElement) => {
+    const container = containerRef.current!;
+    const rectTop = el.getBoundingClientRect().top;
+    const contTop = container.getBoundingClientRect().top + TOPBAR;
+    return container.scrollTop + (rectTop - contTop);
+  };
+
+  const scrollTopForCardEnd = (el: HTMLElement) => {
+    const container = containerRef.current!;
+    const rectBottom = el.getBoundingClientRect().bottom;
+    const contBottom = container.getBoundingClientRect().top + container.clientHeight - NAV_H;
+    return container.scrollTop + (rectBottom - contBottom);
+  };
+
   const handleTouchStart = (e: React.TouchEvent) => {
     if (containerRef.current && containerRef.current.scrollTop === 0) {
       touchStartY.current = e.touches[0].clientY;
     }
+    const container = containerRef.current;
+    if (!container) return;
+    if (rafRef.current) { cancelAnimationFrame(rafRef.current); isAnimatingRef.current = false; }
+    snapStartY.current = e.touches[0].clientY;
+    snapStartTime.current = performance.now();
+    snapStartScrollTop.current = container.scrollTop;
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
@@ -224,9 +279,63 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
       await queryClient.invalidateQueries({ queryKey: ['interest-focus'] });
       if (onRefresh) await onRefresh();
       setIsRefreshing(false);
+      touchStartY.current = 0;
+      pullDistance.current = 0;
+      return;
     }
     touchStartY.current = 0;
     pullDistance.current = 0;
+
+    const container = containerRef.current;
+    if (!container) return;
+
+    const endTime = performance.now();
+    const dt = Math.max(1, endTime - snapStartTime.current);
+    const scrolled = container.scrollTop - snapStartScrollTop.current;
+    const velocity = Math.abs(scrolled) / dt;
+    const dir: 'down' | 'up' | 'none' =
+      scrolled > 4 ? 'down' : scrolled < -4 ? 'up' : 'none';
+
+    const activeId = items[activeIndex]?.id;
+    const activeEl = activeId ? cardElementsRef.current.get(String(activeId)) : null;
+    if (!activeEl) return;
+
+    const vh = container.clientHeight;
+    const isTall = activeEl.offsetHeight > vh - TOPBAR;
+    const decided = velocity >= SWIPE_VELOCITY || Math.abs(scrolled) >= SWIPE_DISTANCE;
+
+    if (isTall) {
+      const startTop = scrollTopForCardStart(activeEl);
+      const endTop = scrollTopForCardEnd(activeEl);
+      const atStart = container.scrollTop <= startTop + READ_EDGE;
+      const atEnd = container.scrollTop >= endTop - READ_EDGE;
+      if (!atStart && !atEnd) {
+        return;
+      }
+      if (!decided) {
+        if (dir === 'down' && !atEnd) { animateScrollTo(endTop); return; }
+        if (dir === 'up' && !atStart) { animateScrollTo(startTop); return; }
+        animateScrollTo(atEnd ? endTop : startTop);
+        return;
+      }
+    } else {
+      if (!decided) { animateScrollTo(scrollTopForCardStart(activeEl)); return; }
+    }
+
+    let targetIndex = activeIndex;
+    if (dir === 'down') targetIndex = Math.min(items.length - 1, activeIndex + 1);
+    else if (dir === 'up') targetIndex = Math.max(0, activeIndex - 1);
+
+    const targetId = items[targetIndex]?.id;
+    const targetEl = targetId ? cardElementsRef.current.get(String(targetId)) : null;
+    if (!targetEl) {
+      animateScrollTo(scrollTopForCardStart(activeEl));
+      return;
+    }
+
+    animateScrollTo(scrollTopForCardStart(targetEl), () => {
+      if (targetIndex !== activeIndex) onActiveIndexChange?.(targetIndex);
+    });
   };
 
   // Determine slice of items to render
@@ -276,7 +385,7 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
       <div
         ref={containerRef}
         data-tutorial="feed"
-        className="w-full overflow-y-scroll snap-y snap-mandatory bg-background relative"
+        className="w-full overflow-y-scroll bg-background relative"
         style={{ 
           height: 'calc(var(--vh, 1vh) * 100)'
         }}
