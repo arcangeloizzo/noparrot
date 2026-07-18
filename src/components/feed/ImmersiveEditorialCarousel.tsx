@@ -231,8 +231,8 @@ const ImmersiveEditorialCarouselInner = ({
 
   return (
     <div className="w-full h-full relative flex flex-col overflow-hidden">
-      {/* Editorial Background - Deep urban gradient */}
-      <div className="absolute inset-0 z-0" style={{ background: 'radial-gradient(120% 80% at 50% 42%, #12253A 0%, #0B131A 62%, #070C12 100%)' }} />
+      {/* Editorial Background - Uniform base matching inner box */}
+      <div className="absolute inset-0 z-0" style={{ background: '#0A1420' }} />
 
       {/* Content Layer */}
       <div className="relative z-10 w-full h-full flex flex-col">
