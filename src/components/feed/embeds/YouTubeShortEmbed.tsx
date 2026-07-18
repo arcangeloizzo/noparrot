@@ -14,6 +14,9 @@ interface YouTubeShortEmbedProps {
   normalizedMedias: UnifiedMedia[];
   articlePreview?: {
     title?: string;
+    description?: string;
+    image?: string;
+    platform?: string;
   } | null;
   
   // Parent state / props
