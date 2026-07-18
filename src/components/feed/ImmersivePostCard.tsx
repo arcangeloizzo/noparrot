@@ -2163,7 +2163,7 @@ const ImmersivePostCardInner = ({
     <>
       <div
         ref={registerRef('card-container')}
-        className="w-full flex-1 relative bg-immersive transition-colors duration-500 flex flex-col items-center"
+        className="w-full flex-[1_0_auto] relative bg-immersive transition-colors duration-500 flex flex-col items-center"
         style={{ isolation: 'isolate', contain: 'layout style' }}
         onClick={handleDoubleTap}
       >
