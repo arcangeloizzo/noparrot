@@ -230,7 +230,7 @@ const ImmersiveEditorialCarouselInner = ({
   if (!items.length) return null;
 
   return (
-    <div className="h-[100dvh] w-full snap-start relative flex flex-col overflow-hidden">
+    <div className="w-full relative flex flex-col overflow-hidden" style={{ minHeight: '100%' }}>
       {/* Editorial Background - Deep urban gradient */}
       {/* Background layer semplificato con colore solido invece di radial-gradient */}
       <div className="absolute inset-0 bg-[#0B131A] z-0" />
@@ -566,8 +566,8 @@ const EditorialSlideInner = ({
 
   return (
     <div
-      className="flex-[0_0_100%] min-w-0 relative cursor-pointer transform-gpu will-change-transform flex flex-col justify-start"
-      style={{ minHeight: 'calc(var(--vh, 1vh) * 100)' }}
+      className="flex-[0_0_100%] min-w-0 relative cursor-pointer transform-gpu will-change-transform flex flex-col"
+      style={{ minHeight: '100%' }}
       onClick={onClick}
     >
       <div
