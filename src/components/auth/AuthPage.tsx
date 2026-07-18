@@ -110,10 +110,10 @@ export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: 
         localStorage.removeItem(PENDING_SHARE_KEY);
         navigate("/", { replace: true, state: { openComposer: true } });
       } else {
-        navigate("/");
+        navigate(nextPath ?? "/", { replace: true });
       }
     }
-  }, [user, navigate, showUpdatePassword]);
+  }, [user, navigate, showUpdatePassword, nextPath]);
 
   useEffect(() => {
     const hashParams = new URLSearchParams(window.location.hash.substring(1));
@@ -615,7 +615,7 @@ export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: 
             className="w-full gap-2"
             onClick={async () => {
               const { error } = await lovable.auth.signInWithOAuth("google", {
-                redirect_uri: window.location.origin,
+                redirect_uri: oauthRedirectUri,
               });
               if (error) toast.error("Errore con Google: " + error.message);
             }}
@@ -743,7 +743,7 @@ export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: 
             className="w-full gap-2"
             onClick={async () => {
               const { error } = await lovable.auth.signInWithOAuth("google", {
-                redirect_uri: window.location.origin,
+                redirect_uri: oauthRedirectUri,
               });
               if (error) toast.error("Errore con Google: " + error.message);
             }}
