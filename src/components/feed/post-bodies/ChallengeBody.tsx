@@ -140,7 +140,7 @@ export const ChallengeBody = ({
                   {post.content.length > 150 && (
                     <button
                       onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
-                      className="text-sm font-semibold text-primary mt-1 hover:underline"
+                      className="text-sm font-semibold text-primary mt-1 active:opacity-60 transition-opacity"
                     >
                       Approfondisci
                     </button>

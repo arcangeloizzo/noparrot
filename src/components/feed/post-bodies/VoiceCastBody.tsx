@@ -188,7 +188,7 @@ const VoiceCastBodyInner = ({
                   e.stopPropagation();
                   openFullTextDrawer("description");
                 }}
-                className="text-sm text-primary font-semibold hover:underline block"
+                className="text-sm text-primary font-semibold active:opacity-60 transition-opacity block"
               >
                 Approfondisci
               </button>

@@ -162,7 +162,7 @@ const GenericArticleEmbedInner = ({
               e.stopPropagation();
               onOpenFullText("description");
             }}
-            className="text-sm text-primary font-semibold hover:underline block"
+            className="text-sm text-primary font-semibold active:opacity-60 transition-opacity block"
           >
             Approfondisci
           </button>
@@ -253,7 +253,7 @@ const GenericArticleEmbedInner = ({
                                       e.stopPropagation();
                                       onOpenFullText("description");
                                     }}
-                                    className="text-sm text-primary font-semibold hover:underline block"
+                                    className="text-sm text-primary font-semibold active:opacity-60 transition-opacity block"
                                   >
                                     Approfondisci
                                   </button>

@@ -91,7 +91,7 @@ export const QuotedEditorialCard = ({
             {needsTruncation && (
               <button
                 onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
-                className="mt-2 text-sm text-primary font-semibold hover:underline"
+                className="mt-2 text-sm text-primary font-semibold active:opacity-60 transition-opacity"
               >
                 Approfondisci
               </button>
