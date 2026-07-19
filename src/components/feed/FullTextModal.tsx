@@ -365,7 +365,7 @@ const FullTextModalInner = ({
     if (!post || !actions) return null;
 
     return (
-      <div className="mt-8 pt-6 border-t border-white/[0.08]">
+      <div className="mt-8 pt-6 border-t border-white/[0.06]">
         <div className="flex items-center justify-between gap-3">
           {actions.onShare && (
             <button
@@ -374,7 +374,7 @@ const FullTextModalInner = ({
                 handleClose();
                 setTimeout(() => actions.onShare?.(), 300);
               }}
-              className="h-10 px-4 bg-blue-50 hover:bg-blue-100 dark:bg-white dark:hover:bg-gray-200 text-blue-600 dark:text-[#1F3347] font-bold rounded-2xl shadow-sm dark:shadow-md border border-blue-100 dark:border-transparent flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+              className="liquid-share-pill"
             >
               <Logo variant="icon" size="sm" className="h-4 w-4" />
               <span className="text-sm font-semibold leading-none">Condividi</span>
@@ -384,17 +384,18 @@ const FullTextModalInner = ({
             </button>
           )}
 
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-black/20 h-10 px-3 rounded-2xl border border-slate-200 dark:border-white/5">
+          <div className="flex items-center gap-5">
             {actions.onHeart && (
               <button
                 className="flex items-center justify-center gap-1.5 h-full px-2"
                 onClick={(e) => { e.stopPropagation(); actions.onHeart?.(e); }}
               >
                 <Heart
-                  className={cn("w-5 h-5 transition-transform active:scale-90", post.user_reactions?.has_hearted ? "text-red-500 fill-red-500" : "text-slate-500 dark:text-white")}
+                  className={cn("w-6 h-6 transition-transform active:scale-90", post.user_reactions?.has_hearted ? "text-red-500 fill-red-500" : "text-white")}
                   fill={post.user_reactions?.has_hearted ? "currentColor" : "none"}
+                  style={{ filter: 'drop-shadow(0 2px 7px rgba(0,0,0,0.8))' }}
                 />
-                <span className="text-xs font-bold text-slate-700 dark:text-white">{post.reactions?.hearts || 0}</span>
+                <span className="text-xs font-bold text-white" style={{ fontFamily: 'var(--mono)' }}>{post.reactions?.hearts || 0}</span>
               </button>
             )}
 
@@ -403,8 +404,8 @@ const FullTextModalInner = ({
                 className="flex items-center justify-center gap-1.5 h-full px-2"
                 onClick={(e) => { e.stopPropagation(); handleClose(); setTimeout(() => actions.onComment?.(), 300); }}
               >
-                <MessageCircle className="w-5 h-5 text-slate-500 dark:text-white transition-transform active:scale-90" />
-                <span className="text-xs font-bold text-slate-700 dark:text-white">{post.reactions?.comments || 0}</span>
+                <MessageCircle className="w-6 h-6 text-white transition-transform active:scale-90" style={{ filter: 'drop-shadow(0 2px 7px rgba(0,0,0,0.8))' }} />
+                <span className="text-xs font-bold text-white" style={{ fontFamily: 'var(--mono)' }}>{post.reactions?.comments || 0}</span>
               </button>
             )}
 
@@ -414,8 +415,9 @@ const FullTextModalInner = ({
                 onClick={(e) => { e.stopPropagation(); actions.onBookmark?.(e); }}
               >
                 <Bookmark
-                  className={cn("w-5 h-5 transition-transform active:scale-90", post.user_reactions?.has_bookmarked ? "text-blue-400 fill-blue-400" : "text-slate-500 dark:text-white")}
+                  className={cn("w-6 h-6 transition-transform active:scale-90", post.user_reactions?.has_bookmarked ? "text-blue-400 fill-blue-400" : "text-white")}
                   fill={post.user_reactions?.has_bookmarked ? "currentColor" : "none"}
+                  style={{ filter: 'drop-shadow(0 2px 7px rgba(0,0,0,0.8))' }}
                 />
               </button>
             )}
@@ -471,13 +473,15 @@ const FullTextModalInner = ({
         ref={sheetRef}
         className="fixed left-0 right-0 bottom-0 z-[51] flex flex-col"
         style={{
-          backgroundColor: '#111d2e',
-          borderRadius: '16px 16px 0 0',
-          borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+          background: 'rgba(20, 28, 44, 0.88)',
+          backdropFilter: 'blur(24px) saturate(150%)',
+          WebkitBackdropFilter: 'blur(24px) saturate(150%)',
+          borderRadius: '24px 24px 0 0',
           maxHeight: '85vh',
           transform: sheetTransform,
           transition: sheetTransition,
           willChange: 'transform',
+          boxShadow: '0 1px 0 rgba(255,255,255,0.09) inset, 0 -24px 60px rgba(0,0,0,0.55)',
         }}
       >
         <div className="sheet-scroll-area flex-1 overflow-y-auto px-5 pb-6">
