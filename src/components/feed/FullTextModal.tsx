@@ -88,6 +88,7 @@ const FullTextModalInner = ({
   const scrollTopAtStart = useRef(0);
   const isDraggingRef = useRef(false);
   const dragYRef = useRef(0);
+  const lastTapRef = useRef(0);
   type MorphPhase = 'idle' | 'from' | 'open' | 'exit';
   const [morph, setMorph] = useState<MorphPhase>('idle');
   const originRef = useRef<{top:number;left:number;width:number;height:number} | null>(null);
@@ -477,7 +478,17 @@ const FullTextModalInner = ({
         <div style={{ position: 'absolute', top: 0, left: 0, height: '3px', width: `${Math.round(readPct * 100)}%`, background: accent, zIndex: 6, transition: 'width 80ms linear' }} />
         <div className="flex-1 flex flex-col min-h-0" style={{ opacity: morph === 'open' ? 1 : 0, transition: 'opacity .25s ease .1s' }}>
         <div
-          className="sheet-scroll-area flex-1 overflow-y-auto pl-5 pr-14 pb-6 relative"
+          className="sheet-scroll-area no-scrollbar flex-1 overflow-y-auto pl-5 pr-14 pb-6 relative"
+          onClick={(e) => {
+            if (!post || !actions?.onHeart) return;
+            const now = Date.now();
+            if (now - lastTapRef.current < 300) {
+              actions.onHeart(e as React.MouseEvent);
+              lastTapRef.current = 0;
+            } else {
+              lastTapRef.current = now;
+            }
+          }}
           onScroll={(e) => {
             const el = e.currentTarget;
             setReadPct(el.scrollTop / Math.max(1, el.scrollHeight - el.clientHeight));
