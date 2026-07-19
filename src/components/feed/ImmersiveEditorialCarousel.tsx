@@ -31,6 +31,7 @@ import { ShareSheet } from "@/components/share/ShareSheet";
 import { UnifiedBadge } from "@/components/shared/UnifiedBadge";
 import { CardShell } from "@/components/shared/CardShell";
 import { ClampedTitle } from "@/components/shared/ClampedTitle";
+import { FullTextModal } from "./FullTextModal";
 
 
 interface ImmersiveEditorialCarouselProps {
@@ -94,6 +95,9 @@ const ImmersiveEditorialCarouselInner = ({
   const [itemToShare, setItemToShare] = useState<DailyFocus | null>(null);
   const [shareAction, setShareAction] = useState<'feed' | 'friend'>('feed');
 
+  const [readerItem, setReaderItem] = useState<DailyFocus | null>(null);
+  const [readerExiting, setReaderExiting] = useState(false);
+
   const handleDialogChange = (open: boolean) => {
     if (!open) {
       suppressUntilRef.current = Date.now() + 400;
@@ -118,7 +122,7 @@ const ImmersiveEditorialCarouselInner = ({
   const handleCardClick = (item: DailyFocus) => {
     if (infoDialogOpen) return;
     if (Date.now() < suppressUntilRef.current) return;
-    onItemClick?.(item);
+    setReaderItem(item);
   };
 
   // Handle sources drawer open
@@ -303,6 +307,7 @@ const ImmersiveEditorialCarouselInner = ({
                   setReactionsSheetItem(item);
                   setShowReactionsSheet(true);
                 }}
+                boxHidden={readerItem?.id === item.id && !readerExiting}
               />
             ))}
           </div>
@@ -464,6 +469,68 @@ const ImmersiveEditorialCarouselInner = ({
           }}
         />
       )}
+
+      {readerItem && (
+        <FullTextModal
+          isOpen={!!readerItem}
+          onClose={() => { setReaderItem(null); setReaderExiting(false); }}
+          onExitStart={() => setReaderExiting(true)}
+          variant="editorial"
+          accentColor="#0A7AFF"
+          title={readerItem.title}
+          content={(readerItem.deep_content || readerItem.summary || '').replace(/\[SOURCE:[\d,\s]+\]/g, '').trim()}
+          author={{ name: 'Il Punto', username: 'ilpunto' }}
+          getOriginRect={() => (document.querySelector(`[data-punto-box="${selectedIndex}"]`) as HTMLElement | null)?.getBoundingClientRect() ?? null}
+          post={{
+            id: readerItem.id,
+            reactions: { hearts: reactionsData?.likes ?? 0, comments: readerItem.reactions?.comments ?? 0 },
+            user_reactions: { has_hearted: reactionsData?.likedByMe ?? false, has_bookmarked: isBookmarked ?? false },
+          }}
+          actions={{
+            onHeart: () => {
+              if (!user) { toast.error("Devi effettuare il login per mettere like"); return; }
+              toggleReaction.mutate({ focusId: readerItem.id, focusType: 'daily', reactionType: 'heart' });
+            },
+            onComment: () => onComment?.(readerItem),
+            onBookmark: () => {
+              if (!user) { toast.error("Devi effettuare il login per salvare"); return; }
+              toggleBookmark.mutate({ focusId: readerItem.id, focusType: 'daily' });
+            },
+            onShare: () => { setItemToShare(readerItem); setShowShareSheet(true); },
+          }}
+          linkCard={
+            <div className="flex flex-col gap-4">
+              {readerItem.sources?.length > 0 && (
+                <div>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: '10.5px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--txt-3)', marginBottom: '10px' }}>Fonti consultate ({readerItem.sources.length})</div>
+                  <div className="flex flex-wrap gap-2">
+                    {readerItem.sources.map((source: any, idx: number) => {
+                      const colors = ['#0A7AFF', '#E41E52', '#FFD464', '#10B981', '#A78BFA'];
+                      const barColor = colors[idx % colors.length];
+                      const domainName = (source.name || new URL(source.url || 'https://link').hostname).replace('www.', '');
+                      return (
+                        <button key={idx} onClick={(e) => { e.stopPropagation(); if (source.url) window.open(source.url, '_blank'); }}
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm border"
+                          style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)' }}>
+                          <div style={{ width: '3px', height: '12px', borderRadius: '1.5px', backgroundColor: barColor, flexShrink: 0 }} />
+                          <span style={{ fontFamily: 'JetBrains Mono', fontSize: '10px', color: '#E2EAF4', textTransform: 'uppercase', letterSpacing: '0.02em', fontWeight: 600 }}>{domainName}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              <div className="rounded-xl p-3.5" style={{ background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.25)' }}>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <Sparkles className="w-4 h-4" style={{ color: '#A78BFA' }} />
+                  <span style={{ fontFamily: 'var(--mono)', fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#A78BFA', fontWeight: 600 }}>Sintesi Algoritmica</span>
+                </div>
+                <p style={{ fontSize: '13px', color: 'var(--txt-2)', lineHeight: 1.5 }}>Sintesi automatica basata su fonti pubbliche; NoParrot non è una testata giornalistica. Non è fact-checking: apri le fonti per verificare il contesto.</p>
+              </div>
+            </div>
+          }
+        />
+      )}
     </div>
   );
 };
@@ -500,6 +567,7 @@ interface EditorialSlideProps {
   onLike: (reactionType?: ReactionType) => void;
   onBookmark: () => void;
   onOpenReactionsSheet?: () => void;
+  boxHidden?: boolean;
 }
 
 const EditorialSlideInner = ({
@@ -519,6 +587,7 @@ const EditorialSlideInner = ({
   onLike,
   onBookmark,
   onOpenReactionsSheet,
+  boxHidden,
 }: EditorialSlideProps) => {
   // Track renders via ref increment (no useEffect deps issue)
   const renderCountRef = useRef(0);
@@ -593,6 +662,7 @@ const EditorialSlideInner = ({
     >
       <div
         ref={boxRef}
+        data-punto-box={index}
         className="np-glass relative z-10 w-full pointer-events-none"
         style={{
           margin: 'auto',
@@ -601,7 +671,9 @@ const EditorialSlideInner = ({
           overflow: 'visible',
           scrollSnapAlign: snapAlign,
           scrollMarginTop: 'calc(56px + env(safe-area-inset-top))',
-          scrollMarginBottom: 'calc(88px + env(safe-area-inset-bottom))'
+          scrollMarginBottom: 'calc(88px + env(safe-area-inset-bottom))',
+          opacity: boxHidden ? 0 : 1,
+          transition: boxHidden ? 'opacity 0.25s ease' : 'none',
         }}
       >
         <CardShell>
