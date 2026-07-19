@@ -2382,3 +2382,58 @@ html:not(.light) .liquid-glass-navbar {
   flex-direction: column;
 }
 
+/* ═══ NP GLASS SYSTEM (design A+B, dose sottile) ═══ */
+:root {
+  --np-glass-fill: rgba(15, 22, 35, 0.52);
+  --np-amb-opacity: 0.75; /* dose ambient "sottile" approvata */
+}
+
+/* Materiale vetro: fill + blur + highlight interno + ombra a 2 livelli.
+   Il border-radius resta del componente. Richiede position relative sul host. */
+.np-glass {
+  position: relative;
+  background: var(--np-glass-fill);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  backdrop-filter: blur(22px) saturate(150%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 24px 48px -24px rgba(0, 0, 0, 0.7),
+    0 4px 12px -6px rgba(0, 0, 0, 0.5);
+}
+
+/* Bordo a gradiente "luce dall'alto" (sostituisce il bordo 1px uniforme) */
+.np-glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, 0.28) 0%,
+    rgba(255, 255, 255, 0.05) 38%,
+    rgba(255, 255, 255, 0.12) 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+/* Grana sottile: materialità + niente banding sui gradienti */
+.np-grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Layer ambient per-contenuto: opacità governata dalla dose */
+.np-ambient {
+  position: absolute;
+  inset: 0;
+  opacity: var(--np-amb-opacity);
+  transition: opacity 0.35s;
+}
+
+
