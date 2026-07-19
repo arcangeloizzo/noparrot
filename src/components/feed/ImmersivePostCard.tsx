@@ -430,7 +430,6 @@ const ImmersivePostCardInner = ({
   const [showFullText, setShowFullText] = useState(false);
   const [fullTextMode, setFullTextMode] = useState<'description' | 'transcript'>('description');
   const openFullTextDrawer = (mode: 'description' | 'transcript' = 'description') => {
-    alert('TAP OK — drawer mode: ' + mode);
     setFullTextMode(mode);
     setShowFullText(true);
   };

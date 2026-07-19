@@ -1,4 +1,5 @@
 import { memo, useRef, useState, useCallback, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Heart, MessageCircle, Bookmark, ExternalLink, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/logo";
@@ -452,7 +453,7 @@ const FullTextModalInner = ({
   
   const sheetTransition = isDragging ? 'none' : 'transform 250ms ease-out';
 
-  return (
+  return createPortal(
     <>
       {/* Overlay backdrop */}
       <div 
@@ -512,7 +513,8 @@ const FullTextModalInner = ({
           <div style={{ height: 'calc(24px + env(safe-area-inset-bottom, 0px))' }} />
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 };
 
