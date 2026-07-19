@@ -2164,7 +2164,12 @@ const ImmersivePostCardInner = ({
       <div
         ref={registerRef('card-container')}
         className="w-full flex-[1_0_auto] relative bg-immersive transition-colors duration-500 flex flex-col items-center"
-        style={{ isolation: 'isolate', contain: 'layout style' }}
+        style={{
+          isolation: 'isolate',
+          contain: 'layout style',
+          paddingTop: 'calc(56px + env(safe-area-inset-top))',
+          paddingBottom: 'calc(88px + env(safe-area-inset-bottom))'
+        }}
         onClick={handleDoubleTap}
       >
         <AmbientLayer {...getAmbientProps()} isActive={isActive} />
