@@ -50,6 +50,7 @@ interface FullTextModalProps {
   durationSeconds?: number;    // optional audio duration in seconds
   imageUrl?: string;           // NUOVA: URL dell'immagine allegata
   youtubeVideoId?: string;     // NEW: YouTube video ID for playable embed
+  accentColor?: string;        // NEW: category accent color
 }
 
 const FullTextModalInner = ({
@@ -71,12 +72,15 @@ const FullTextModalInner = ({
   durationSeconds,
   imageUrl,
   youtubeVideoId,
+  accentColor,
 }: FullTextModalProps) => {
+  const accent = accentColor || '#0A7AFF';
   const isCaption = variant === 'caption';
   const sheetRef = useRef<HTMLDivElement>(null);
   const [dragY, setDragY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
+  const [readPct, setReadPct] = useState(0);
   const touchStartY = useRef(0);
   const scrollTopAtStart = useRef(0);
   const isDraggingRef = useRef(false);
@@ -195,44 +199,21 @@ const FullTextModalInner = ({
 
     if (author) {
       return (
-        <div className="flex items-center justify-between mb-4 mt-2">
-          <div className="flex items-center gap-2">
-            {author.avatar ? (
-              <img
-                src={author.avatar}
-                alt=""
-                width={26}
-                height={26}
-                loading="lazy"
-                decoding="async"
-                className="w-[26px] h-[26px] rounded-full object-cover border border-border"
-              />
-            ) : (
-              <div className="w-[26px] h-[26px] rounded-full bg-gradient-to-br from-primary/40 to-primary/20 flex items-center justify-center border border-border">
-                <span className="text-primary-foreground font-semibold text-[10px]">
-                  {author.name?.[0]?.toUpperCase() || '?'}
-                </span>
-              </div>
-            )}
-            <div className="flex items-baseline gap-1" style={{ fontFamily: 'Inter, sans-serif' }}>
-              <span className="text-[12px] font-bold text-white">
-                {author.name}
-              </span>
-              {author.username && (
-                <span className="text-[11px] text-white/50">
-                  @{author.username}
-                </span>
-              )}
-            </div>
+        <>
+          <div className="flex items-center justify-between mb-3 mt-1">
+            <span style={{ fontFamily: 'var(--mono)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--txt-3)' }}>
+              {author.name}{author.username ? ` · @${author.username}` : ''}
+            </span>
+            <button
+              onClick={handleClose}
+              className="w-[28px] h-[28px] flex items-center justify-center rounded-full"
+              style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
+            >
+              <X className="w-4 h-4 text-white/70" />
+            </button>
           </div>
-          <button 
-            onClick={handleClose}
-            className="w-[28px] h-[28px] flex items-center justify-center rounded-full"
-            style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
-          >
-            <X className="w-4 h-4 text-white/70" />
-          </button>
-        </div>
+          <div style={{ width: '46px', height: '5px', borderRadius: '3px', background: accent, marginBottom: '16px' }} />
+        </>
       );
     }
 
@@ -262,8 +243,8 @@ const FullTextModalInner = ({
             className="uppercase mb-4"
             style={{
               fontFamily: "'Anton', 'Impact', sans-serif",
-              fontSize: '18px',
-              lineHeight: 1.2,
+              fontSize: '30px',
+              lineHeight: 1.06,
               color: '#FFFFFF',
               margin: '0 0 16px 0',
             }}
@@ -344,11 +325,11 @@ const FullTextModalInner = ({
           {paragraphs.map((paragraph, idx) => (
             <div key={idx} className={cn(idx > 0 && "mt-5")}>
               <p
-                className="font-normal leading-[1.55] tracking-[0.01em] whitespace-pre-wrap"
+                className="font-normal leading-[1.7] tracking-[0.01em] whitespace-pre-wrap"
                 style={{
                   fontFamily: 'Inter, sans-serif',
-                  fontSize: '15px',
-                  color: 'rgba(255, 255, 255, 0.8)',
+                  fontSize: idx === 0 ? '18px' : '17px',
+                  color: idx === 0 ? '#FFFFFF' : 'rgba(255, 255, 255, 0.8)',
                 }}
               >
                 <MentionText content={paragraph} />
@@ -365,8 +346,7 @@ const FullTextModalInner = ({
     if (!post || !actions) return null;
 
     return (
-      <div className="mt-8 pt-6 border-t border-white/[0.06]">
-        <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3">
           {actions.onShare && (
             <button
               onClick={(e) => {
@@ -374,9 +354,10 @@ const FullTextModalInner = ({
                 handleClose();
                 setTimeout(() => actions.onShare?.(), 300);
               }}
-              className="liquid-share-pill"
+              className="flex items-center gap-2 h-11 px-5 rounded-full font-semibold text-white active:scale-[0.97] transition-transform"
+              style={{ background: 'linear-gradient(135deg, #0A7AFF 0%, #0862CC 100%)', boxShadow: '0 6px 18px -6px rgba(10,122,255,0.55)' }}
             >
-              <Logo variant="icon" size="sm" className="h-4 w-4" />
+              <Logo variant="icon" size="sm" className="h-5 w-5" />
               <span className="text-sm font-semibold leading-none">Condividi</span>
               {(post.shares_count ?? 0) > 0 && (
                 <span className="text-xs opacity-70">({post.shares_count})</span>
@@ -422,7 +403,6 @@ const FullTextModalInner = ({
               </button>
             )}
           </div>
-        </div>
       </div>
     );
   };
@@ -476,15 +456,25 @@ const FullTextModalInner = ({
           background: 'rgba(20, 28, 44, 0.88)',
           backdropFilter: 'blur(24px) saturate(150%)',
           WebkitBackdropFilter: 'blur(24px) saturate(150%)',
-          borderRadius: '24px 24px 0 0',
-          maxHeight: '85vh',
+          borderRadius: '28px 28px 0 0',
+          height: '94svh',
           transform: sheetTransform,
           transition: sheetTransition,
           willChange: 'transform',
           boxShadow: '0 1px 0 rgba(255,255,255,0.09) inset, 0 -24px 60px rgba(0,0,0,0.55)',
         }}
       >
-        <div className="sheet-scroll-area flex-1 overflow-y-auto px-5 pb-6">
+        {/* Ambient interno */}
+        <div style={{ position: 'absolute', inset: 0, borderRadius: 'inherit', overflow: 'hidden', pointerEvents: 'none', background: `radial-gradient(120% 50% at 50% 0%, ${accent}3D 0%, transparent 60%)` }} />
+        {/* Progress lettura */}
+        <div style={{ position: 'absolute', top: 0, left: 0, height: '3px', width: `${Math.round(readPct * 100)}%`, background: accent, zIndex: 6, transition: 'width 80ms linear' }} />
+        <div
+          className="sheet-scroll-area flex-1 overflow-y-auto px-5 pb-6 relative"
+          onScroll={(e) => {
+            const el = e.currentTarget;
+            setReadPct(el.scrollTop / Math.max(1, el.scrollHeight - el.clientHeight));
+          }}
+        >
           {/* 1. Handle */}
           <div 
             style={{
@@ -510,12 +500,27 @@ const FullTextModalInner = ({
           {/* External link for caption variant */}
           {renderExternalLink()}
 
-          {/* Action bar */}
-          {renderActionBar()}
-
           {/* Padding bottom for safe area */}
           <div style={{ height: 'calc(24px + env(safe-area-inset-bottom, 0px))' }} />
         </div>
+
+        {/* Dock fisso action bar */}
+        {post && actions && (
+          <div
+            className="px-5 pt-3"
+            style={{
+              paddingBottom: 'calc(14px + env(safe-area-inset-bottom))',
+              position: 'relative',
+              zIndex: 5,
+              background: 'rgba(12,18,30,0.6)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+              boxShadow: '0 -1px 0 rgba(255,255,255,0.06)',
+            }}
+          >
+            {renderActionBar()}
+          </div>
+        )}
       </div>
     </>,
     document.body

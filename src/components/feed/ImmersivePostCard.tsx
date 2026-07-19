@@ -3550,6 +3550,7 @@ const ImmersivePostCardInner = ({
             avatar: post.author.avatar_url,
           }}
           variant="post"
+          accentColor={getCategoryColor(post.category)}
           linkCard={
             isSpotifyEpisode && post.shared_url ? (
               <SpotifyPodcastCompactCard
