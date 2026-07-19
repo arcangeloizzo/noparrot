@@ -50,6 +50,7 @@ interface FullTextModalProps {
   durationSeconds?: number;    // optional audio duration in seconds
   imageUrl?: string;           // NUOVA: URL dell'immagine allegata
   youtubeVideoId?: string;     // NEW: YouTube video ID for playable embed
+  accentColor?: string;        // NEW: category accent color
 }
 
 const FullTextModalInner = ({
@@ -71,12 +72,15 @@ const FullTextModalInner = ({
   durationSeconds,
   imageUrl,
   youtubeVideoId,
+  accentColor,
 }: FullTextModalProps) => {
+  const accent = accentColor || '#0A7AFF';
   const isCaption = variant === 'caption';
   const sheetRef = useRef<HTMLDivElement>(null);
   const [dragY, setDragY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
+  const [readPct, setReadPct] = useState(0);
   const touchStartY = useRef(0);
   const scrollTopAtStart = useRef(0);
   const isDraggingRef = useRef(false);
