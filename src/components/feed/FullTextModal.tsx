@@ -199,44 +199,21 @@ const FullTextModalInner = ({
 
     if (author) {
       return (
-        <div className="flex items-center justify-between mb-4 mt-2">
-          <div className="flex items-center gap-2">
-            {author.avatar ? (
-              <img
-                src={author.avatar}
-                alt=""
-                width={26}
-                height={26}
-                loading="lazy"
-                decoding="async"
-                className="w-[26px] h-[26px] rounded-full object-cover border border-border"
-              />
-            ) : (
-              <div className="w-[26px] h-[26px] rounded-full bg-gradient-to-br from-primary/40 to-primary/20 flex items-center justify-center border border-border">
-                <span className="text-primary-foreground font-semibold text-[10px]">
-                  {author.name?.[0]?.toUpperCase() || '?'}
-                </span>
-              </div>
-            )}
-            <div className="flex items-baseline gap-1" style={{ fontFamily: 'Inter, sans-serif' }}>
-              <span className="text-[12px] font-bold text-white">
-                {author.name}
-              </span>
-              {author.username && (
-                <span className="text-[11px] text-white/50">
-                  @{author.username}
-                </span>
-              )}
-            </div>
+        <>
+          <div className="flex items-center justify-between mb-3 mt-1">
+            <span style={{ fontFamily: 'var(--mono)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--txt-3)' }}>
+              {author.name}{author.username ? ` · @${author.username}` : ''}
+            </span>
+            <button
+              onClick={handleClose}
+              className="w-[28px] h-[28px] flex items-center justify-center rounded-full"
+              style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
+            >
+              <X className="w-4 h-4 text-white/70" />
+            </button>
           </div>
-          <button 
-            onClick={handleClose}
-            className="w-[28px] h-[28px] flex items-center justify-center rounded-full"
-            style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
-          >
-            <X className="w-4 h-4 text-white/70" />
-          </button>
-        </div>
+          <div style={{ width: '46px', height: '5px', borderRadius: '3px', background: accent, marginBottom: '16px' }} />
+        </>
       );
     }
 
