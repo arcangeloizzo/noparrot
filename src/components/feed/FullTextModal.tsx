@@ -243,8 +243,8 @@ const FullTextModalInner = ({
             className="uppercase mb-4"
             style={{
               fontFamily: "'Anton', 'Impact', sans-serif",
-              fontSize: '18px',
-              lineHeight: 1.2,
+              fontSize: '30px',
+              lineHeight: 1.06,
               color: '#FFFFFF',
               margin: '0 0 16px 0',
             }}
@@ -325,11 +325,11 @@ const FullTextModalInner = ({
           {paragraphs.map((paragraph, idx) => (
             <div key={idx} className={cn(idx > 0 && "mt-5")}>
               <p
-                className="font-normal leading-[1.55] tracking-[0.01em] whitespace-pre-wrap"
+                className="font-normal leading-[1.7] tracking-[0.01em] whitespace-pre-wrap"
                 style={{
                   fontFamily: 'Inter, sans-serif',
-                  fontSize: '15px',
-                  color: 'rgba(255, 255, 255, 0.8)',
+                  fontSize: idx === 0 ? '18px' : '17px',
+                  color: idx === 0 ? '#FFFFFF' : 'rgba(255, 255, 255, 0.8)',
                 }}
               >
                 <MentionText content={paragraph} />
