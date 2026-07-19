@@ -2194,7 +2194,9 @@ const ImmersivePostCardInner = ({
             overflow: 'visible',
             scrollSnapAlign: snapAlign,
             scrollMarginTop: 'calc(56px + env(safe-area-inset-top))',
-            scrollMarginBottom: 'calc(88px + env(safe-area-inset-bottom))'
+            scrollMarginBottom: 'calc(88px + env(safe-area-inset-bottom))',
+            opacity: showFullText ? 0 : 1,
+            transition: 'opacity 0.25s ease',
           }}
         >
           {/* Wrapper Header dentro il box */}
@@ -3551,6 +3553,7 @@ const ImmersivePostCardInner = ({
           }}
           variant="post"
           accentColor={getCategoryColor(post.category)}
+          getOriginRect={() => boxRef.current?.getBoundingClientRect() ?? null}
           linkCard={
             isSpotifyEpisode && post.shared_url ? (
               <SpotifyPodcastCompactCard
