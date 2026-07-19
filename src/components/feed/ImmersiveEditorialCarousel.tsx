@@ -231,8 +231,8 @@ const ImmersiveEditorialCarouselInner = ({
 
   return (
     <div className="w-full h-full relative flex flex-col overflow-hidden">
-      {/* Editorial Background - transparent to inherit app bg (no color mismatch) */}
-      <div className="absolute inset-0 z-0" style={{ background: 'transparent' }} />
+      {/* Editorial Background - deep navy wrapping slot */}
+      <div className="absolute inset-0 z-0" style={{ background: '#0A1420' }} />
 
       {/* Content Layer */}
       <div className="relative z-10 w-full h-full flex flex-col">
@@ -576,7 +576,7 @@ const EditorialSlideInner = ({
           width: 'calc(100% - 40px)',
           borderRadius: '24px',
           border: '1px solid rgba(255,255,255,0.08)',
-          background: 'hsl(var(--card))',
+          background: 'linear-gradient(180deg, #12233A 0%, #0D1B2A 100%)',
           boxShadow: '0 8px 24px -12px rgba(0,0,0,0.5)',
           overflow: 'visible',
           scrollSnapAlign: snapAlign,
