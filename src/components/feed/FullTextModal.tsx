@@ -1,8 +1,7 @@
 import { memo, useRef, useState, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Heart, MessageCircle, Bookmark, ExternalLink, X } from "lucide-react";
+import { Heart, MessageCircle, Bookmark, ExternalLink, X, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Logo } from "@/components/ui/logo";
 import { MentionText } from "./MentionText";
 import { VoicePlayer } from "@/components/media/VoicePlayer";
 
@@ -341,68 +340,34 @@ const FullTextModalInner = ({
     );
   };
 
-  // Render action bar
-  const renderActionBar = () => {
+  // Render action rail
+  const renderActionRail = () => {
     if (!post || !actions) return null;
 
     return (
-      <div className="flex items-center justify-between gap-3">
-          {actions.onShare && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleClose();
-                setTimeout(() => actions.onShare?.(), 300);
-              }}
-              className="flex items-center gap-2 h-11 px-5 rounded-full font-semibold text-white active:scale-[0.97] transition-transform"
-              style={{ background: 'linear-gradient(135deg, #0A7AFF 0%, #0862CC 100%)', boxShadow: '0 6px 18px -6px rgba(10,122,255,0.55)' }}
-            >
-              <Logo variant="icon" size="sm" className="h-5 w-5" />
-              <span className="text-sm font-semibold leading-none">Condividi</span>
-              {(post.shares_count ?? 0) > 0 && (
-                <span className="text-xs opacity-70">({post.shares_count})</span>
-              )}
-            </button>
-          )}
-
-          <div className="flex items-center gap-5">
-            {actions.onHeart && (
-              <button
-                className="flex items-center justify-center gap-1.5 h-full px-2"
-                onClick={(e) => { e.stopPropagation(); actions.onHeart?.(e); }}
-              >
-                <Heart
-                  className={cn("w-6 h-6 transition-transform active:scale-90", post.user_reactions?.has_hearted ? "text-red-500 fill-red-500" : "text-white")}
-                  fill={post.user_reactions?.has_hearted ? "currentColor" : "none"}
-                  style={{ filter: 'drop-shadow(0 2px 7px rgba(0,0,0,0.8))' }}
-                />
-                <span className="text-xs font-bold text-white" style={{ fontFamily: 'var(--mono)' }}>{post.reactions?.hearts || 0}</span>
-              </button>
-            )}
-
-            {actions.onComment && (
-              <button
-                className="flex items-center justify-center gap-1.5 h-full px-2"
-                onClick={(e) => { e.stopPropagation(); handleClose(); setTimeout(() => actions.onComment?.(), 300); }}
-              >
-                <MessageCircle className="w-6 h-6 text-white transition-transform active:scale-90" style={{ filter: 'drop-shadow(0 2px 7px rgba(0,0,0,0.8))' }} />
-                <span className="text-xs font-bold text-white" style={{ fontFamily: 'var(--mono)' }}>{post.reactions?.comments || 0}</span>
-              </button>
-            )}
-
-            {actions.onBookmark && (
-              <button
-                className="flex items-center justify-center h-full px-2"
-                onClick={(e) => { e.stopPropagation(); actions.onBookmark?.(e); }}
-              >
-                <Bookmark
-                  className={cn("w-6 h-6 transition-transform active:scale-90", post.user_reactions?.has_bookmarked ? "text-blue-400 fill-blue-400" : "text-white")}
-                  fill={post.user_reactions?.has_bookmarked ? "currentColor" : "none"}
-                  style={{ filter: 'drop-shadow(0 2px 7px rgba(0,0,0,0.8))' }}
-                />
-              </button>
-            )}
-          </div>
+      <div className="absolute z-[7] flex flex-col items-center gap-6" style={{ right: '10px', top: '50%', transform: 'translateY(-50%)' }}>
+        {actions.onHeart && (
+          <button className="flex flex-col items-center gap-1" onClick={(e)=>{e.stopPropagation(); actions.onHeart?.(e);}}>
+            <Heart className={cn("w-7 h-7 transition-transform active:scale-90", post.user_reactions?.has_hearted ? "text-red-500 fill-red-500" : "text-white")} fill={post.user_reactions?.has_hearted ? "currentColor" : "none"} style={{ filter: 'drop-shadow(0 2px 7px rgba(0,0,0,0.8))' }} />
+            <span className="text-xs font-bold text-white" style={{ fontFamily: 'var(--mono)' }}>{post.reactions?.hearts || 0}</span>
+          </button>
+        )}
+        {actions.onComment && (
+          <button className="flex flex-col items-center gap-1" onClick={(e)=>{e.stopPropagation(); handleClose(); setTimeout(()=>actions.onComment?.(),300);}}>
+            <MessageCircle className="w-7 h-7 text-white transition-transform active:scale-90" style={{ filter: 'drop-shadow(0 2px 7px rgba(0,0,0,0.8))' }} />
+            <span className="text-xs font-bold text-white" style={{ fontFamily: 'var(--mono)' }}>{post.reactions?.comments || 0}</span>
+          </button>
+        )}
+        {actions.onBookmark && (
+          <button className="flex items-center justify-center" onClick={(e)=>{e.stopPropagation(); actions.onBookmark?.(e);}}>
+            <Bookmark className={cn("w-7 h-7 transition-transform active:scale-90", post.user_reactions?.has_bookmarked ? "text-blue-400 fill-blue-400" : "text-white")} fill={post.user_reactions?.has_bookmarked ? "currentColor" : "none"} style={{ filter: 'drop-shadow(0 2px 7px rgba(0,0,0,0.8))' }} />
+          </button>
+        )}
+        {actions.onShare && (
+          <button className="flex items-center justify-center" onClick={(e)=>{e.stopPropagation(); handleClose(); setTimeout(()=>actions.onShare?.(),300);}}>
+            <Send className="w-7 h-7 text-white transition-transform active:scale-90" style={{ filter: 'drop-shadow(0 2px 7px rgba(0,0,0,0.8))' }} />
+          </button>
+        )}
       </div>
     );
   };
@@ -469,7 +434,7 @@ const FullTextModalInner = ({
         {/* Progress lettura */}
         <div style={{ position: 'absolute', top: 0, left: 0, height: '3px', width: `${Math.round(readPct * 100)}%`, background: accent, zIndex: 6, transition: 'width 80ms linear' }} />
         <div
-          className="sheet-scroll-area flex-1 overflow-y-auto px-5 pb-6 relative"
+          className="sheet-scroll-area flex-1 overflow-y-auto pl-5 pr-14 pb-6 relative"
           onScroll={(e) => {
             const el = e.currentTarget;
             setReadPct(el.scrollTop / Math.max(1, el.scrollHeight - el.clientHeight));
@@ -504,23 +469,8 @@ const FullTextModalInner = ({
           <div style={{ height: 'calc(24px + env(safe-area-inset-bottom, 0px))' }} />
         </div>
 
-        {/* Dock fisso action bar */}
-        {post && actions && (
-          <div
-            className="px-5 pt-3"
-            style={{
-              paddingBottom: 'calc(14px + env(safe-area-inset-bottom))',
-              position: 'relative',
-              zIndex: 5,
-              background: 'rgba(12,18,30,0.6)',
-              backdropFilter: 'blur(16px)',
-              WebkitBackdropFilter: 'blur(16px)',
-              boxShadow: '0 -1px 0 rgba(255,255,255,0.06)',
-            }}
-          >
-            {renderActionBar()}
-          </div>
-        )}
+        {/* Action rail */}
+        {renderActionRail()}
       </div>
     </>,
     document.body
