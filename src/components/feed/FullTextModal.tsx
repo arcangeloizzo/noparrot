@@ -1,4 +1,5 @@
 import { memo, useRef, useState, useCallback, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Heart, MessageCircle, Bookmark, ExternalLink, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/logo";
