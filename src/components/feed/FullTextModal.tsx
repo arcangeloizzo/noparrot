@@ -50,6 +50,7 @@ interface FullTextModalProps {
   imageUrl?: string;           // NUOVA: URL dell'immagine allegata
   youtubeVideoId?: string;     // NEW: YouTube video ID for playable embed
   accentColor?: string;        // NEW: category accent color
+  getOriginRect?: () => DOMRect | null;
 }
 
 const FullTextModalInner = ({
@@ -72,6 +73,7 @@ const FullTextModalInner = ({
   imageUrl,
   youtubeVideoId,
   accentColor,
+  getOriginRect,
 }: FullTextModalProps) => {
   const accent = accentColor || '#0A7AFF';
   const isCaption = variant === 'caption';
@@ -84,6 +86,9 @@ const FullTextModalInner = ({
   const scrollTopAtStart = useRef(0);
   const isDraggingRef = useRef(false);
   const dragYRef = useRef(0);
+  type MorphPhase = 'idle' | 'from' | 'open' | 'exit';
+  const [morph, setMorph] = useState<MorphPhase>('idle');
+  const originRef = useRef<{top:number;left:number;width:number;height:number} | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -92,22 +97,47 @@ const FullTextModalInner = ({
       setIsClosing(false);
       isDraggingRef.current = false;
       dragYRef.current = 0;
+      const r = getOriginRect?.();
+      if (r && r.width > 0) {
+        originRef.current = { top: r.top, left: r.left, width: r.width, height: r.height };
+        setMorph('from');
+        requestAnimationFrame(() => requestAnimationFrame(() => setMorph('open')));
+      } else {
+        originRef.current = null;
+        setMorph('open');
+      }
     } else {
       document.body.style.overflow = 'unset';
+      setMorph('idle');
     }
     return () => { document.body.style.overflow = 'unset'; };
-  }, [isOpen]);
+  }, [isOpen, getOriginRect]);
 
   const handleClose = useCallback(() => {
-    setIsClosing(true);
-    setTimeout(() => {
-      onClose();
-      setIsClosing(false);
-      setDragY(0);
-      isDraggingRef.current = false;
-      dragYRef.current = 0;
-    }, 250);
-  }, [onClose]);
+    const r = getOriginRect?.();
+    if (originRef.current && r && r.width > 0) {
+      originRef.current = { top: r.top, left: r.left, width: r.width, height: r.height };
+      setMorph('exit');
+      setIsClosing(true);
+      setTimeout(() => {
+        onClose();
+        setIsClosing(false);
+        setDragY(0);
+        setMorph('idle');
+        isDraggingRef.current = false;
+        dragYRef.current = 0;
+      }, 430);
+    } else {
+      setIsClosing(true);
+      setTimeout(() => {
+        onClose();
+        setIsClosing(false);
+        setDragY(0);
+        isDraggingRef.current = false;
+        dragYRef.current = 0;
+      }, 250);
+    }
+  }, [onClose, getOriginRect]);
 
   // Use native event listeners with { passive: false } so e.preventDefault() works
   useEffect(() => {
