@@ -243,20 +243,20 @@ const ImmersiveEditorialCarouselInner = ({
   if (!items.length) return null;
 
   return (
-    <div data-m="root" className="w-full flex-1 self-stretch min-h-0 relative flex flex-col overflow-hidden" style={{ outline: '3px solid red' }}>
+    <div data-m="root" className="w-full flex-1 self-stretch relative flex flex-col overflow-hidden" style={{ outline: '3px solid red' }}>
       <pre id="__hmeter" style={{ position:'fixed', top:'70px', left:'8px', zIndex:9999, background:'rgba(0,0,0,0.8)', color:'#0f0', font:'11px monospace', padding:'6px', margin:0, whiteSpace:'pre', pointerEvents:'none' }} />
       {/* Editorial Background - deep navy wrapping slot */}
       <div className="absolute inset-0 z-0" style={{ background: '#0A1420' }} />
 
       {/* Content Layer */}
-      <div data-m="content" className="relative z-10 w-full h-full flex flex-col" style={{ outline: '3px solid lime' }}>
+      <div data-m="content" className="relative z-10 w-full flex-1 min-h-0 flex flex-col" style={{ outline: '3px solid lime' }}>
 
         {/* Carousel Container */}
         <div
           data-m="carousel"
           ref={emblaRef}
-        className="flex-1 overflow-x-hidden touch-pan-y"
-        style={{ outline: '3px solid cyan' }}
+          className="flex-1 min-h-0 overflow-x-hidden touch-pan-y"
+          style={{ outline: '3px solid cyan' }}
         >
           <div data-m="track" className="flex h-full will-change-transform transform-gpu" style={{ outline: '3px solid magenta' }}>
             {items.map((item, index) => (
