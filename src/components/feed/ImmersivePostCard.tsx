@@ -2196,8 +2196,8 @@ const ImmersivePostCardInner = ({
             scrollSnapAlign: snapAlign,
             scrollMarginTop: 'calc(56px + env(safe-area-inset-top))',
             scrollMarginBottom: 'calc(88px + env(safe-area-inset-bottom))',
-            opacity: showFullText ? 0 : 1,
-            transition: showFullText ? 'opacity 0.25s ease' : 'none',
+            opacity: showFullText && !readerExiting ? 0 : 1,
+            transition: showFullText && !readerExiting ? 'opacity 0.25s ease' : 'none',
           }}
         >
           {/* Wrapper Header dentro il box */}
