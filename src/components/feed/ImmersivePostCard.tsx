@@ -3501,6 +3501,7 @@ const ImmersivePostCardInner = ({
           isOpen={showFullText}
           onClose={() => {
             setShowFullText(false);
+            setReaderExiting(false);
             setFullTextMode('description');
           }}
           title={
@@ -3555,6 +3556,7 @@ const ImmersivePostCardInner = ({
           variant="post"
           accentColor={getCategoryColor(post.category)}
           getOriginRect={() => boxRef.current?.getBoundingClientRect() ?? null}
+          onExitStart={() => setReaderExiting(true)}
           linkCard={
             isSpotifyEpisode && post.shared_url ? (
               <SpotifyPodcastCompactCard
