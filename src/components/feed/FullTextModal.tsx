@@ -437,25 +437,35 @@ const FullTextModalInner = ({
         className="fixed inset-0 z-50" 
         style={{ 
           backgroundColor: 'rgba(0, 0, 0, 0.55)',
-          opacity: isClosing ? 0 : isDragging ? Math.max(0.3, 1 - dragY / 300) : 1,
-          transition: isDragging ? 'none' : 'opacity 250ms ease-out',
+          opacity: isClosing ? 0 : (morph === 'from' ? 0 : isDragging ? Math.max(0.3, 1 - dragY / 300) : 1),
+          transition: isDragging ? 'none' : 'opacity 300ms ease',
         }} 
         onClick={handleClose} 
       />
 
       {/* Bottom sheet */}
+      {(() => {
+        const hasOrigin = !!originRef.current;
+        const R = originRef.current;
+        return (
       <div 
         ref={sheetRef}
-        className="fixed left-0 right-0 bottom-0 z-[51] flex flex-col"
+        className={cn("fixed z-[51] flex flex-col", !hasOrigin && "left-0 right-0 bottom-0")}
         style={{
+          ...(hasOrigin && (morph === 'from' || morph === 'exit') && R
+            ? { top: R.top, left: R.left, width: R.width, height: R.height, borderRadius: '26px' }
+            : hasOrigin
+              ? { top: 0, left: 0, width: '100vw', height: '100svh', borderRadius: '0px' }
+              : { height: '94svh', borderRadius: '28px 28px 0 0' }),
           background: 'rgba(20, 28, 44, 0.88)',
           backdropFilter: 'blur(24px) saturate(150%)',
           WebkitBackdropFilter: 'blur(24px) saturate(150%)',
-          borderRadius: '28px 28px 0 0',
-          height: '94svh',
           transform: sheetTransform,
-          transition: sheetTransition,
+          transition: morph === 'from' ? 'none'
+            : hasOrigin ? 'top .48s cubic-bezier(0.32,0.72,0,1), left .48s cubic-bezier(0.32,0.72,0,1), width .48s cubic-bezier(0.32,0.72,0,1), height .48s cubic-bezier(0.32,0.72,0,1), border-radius .48s cubic-bezier(0.32,0.72,0,1)'
+            : sheetTransition,
           willChange: 'transform',
+          overflow: 'hidden',
           boxShadow: '0 1px 0 rgba(255,255,255,0.09) inset, 0 -24px 60px rgba(0,0,0,0.55)',
         }}
       >
@@ -463,6 +473,7 @@ const FullTextModalInner = ({
         <div style={{ position: 'absolute', inset: 0, borderRadius: 'inherit', overflow: 'hidden', pointerEvents: 'none', background: `radial-gradient(120% 50% at 50% 0%, ${accent}3D 0%, transparent 60%)` }} />
         {/* Progress lettura */}
         <div style={{ position: 'absolute', top: 0, left: 0, height: '3px', width: `${Math.round(readPct * 100)}%`, background: accent, zIndex: 6, transition: 'width 80ms linear' }} />
+        <div className="flex-1 flex flex-col min-h-0" style={{ opacity: morph === 'open' ? 1 : 0, transition: 'opacity .25s ease .1s' }}>
         <div
           className="sheet-scroll-area flex-1 overflow-y-auto pl-5 pr-14 pb-6 relative"
           onScroll={(e) => {
@@ -501,7 +512,10 @@ const FullTextModalInner = ({
 
         {/* Action rail */}
         {renderActionRail()}
+        </div>
       </div>
+        );
+      })()}
     </>,
     document.body
   );
