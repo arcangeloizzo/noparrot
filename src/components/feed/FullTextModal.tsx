@@ -471,13 +471,15 @@ const FullTextModalInner = ({
         ref={sheetRef}
         className="fixed left-0 right-0 bottom-0 z-[51] flex flex-col"
         style={{
-          backgroundColor: '#111d2e',
-          borderRadius: '16px 16px 0 0',
-          borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+          background: 'rgba(20, 28, 44, 0.88)',
+          backdropFilter: 'blur(24px) saturate(150%)',
+          WebkitBackdropFilter: 'blur(24px) saturate(150%)',
+          borderRadius: '24px 24px 0 0',
           maxHeight: '85vh',
           transform: sheetTransform,
           transition: sheetTransition,
           willChange: 'transform',
+          boxShadow: '0 1px 0 rgba(255,255,255,0.09) inset, 0 -24px 60px rgba(0,0,0,0.55)',
         }}
       >
         <div className="sheet-scroll-area flex-1 overflow-y-auto px-5 pb-6">
