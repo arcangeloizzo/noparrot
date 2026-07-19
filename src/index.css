@@ -6,7 +6,7 @@
 
 /* ===== BLOCK 1 — Unified design tokens (NoParrot Feed UI Spec v1 §1) ===== */
 :root {
-  --base: #050810;
+  --base: #0E1522;
   --feed-viewport-h: calc(var(--vh, 1vh) * 100);
   --blue: #0A7AFF;
   --blue-l: #4DA3FF;
@@ -2384,7 +2384,7 @@ html:not(.light) .liquid-glass-navbar {
 
 /* ═══ NP GLASS SYSTEM (design A+B, dose sottile) ═══ */
 :root {
-  --np-glass-fill: rgba(15, 22, 35, 0.52);
+  --np-glass-fill: rgba(9, 13, 22, 0.82);
   --np-amb-opacity: 0.75; /* dose ambient "sottile" approvata */
 }
 
@@ -2396,7 +2396,7 @@ html:not(.light) .liquid-glass-navbar {
   -webkit-backdrop-filter: blur(22px) saturate(150%);
   backdrop-filter: blur(22px) saturate(150%);
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.05) inset,
+    0 1px 0 rgba(255, 255, 255, 0.09) inset,
     0 32px 64px -24px rgba(0, 0, 0, 0.75),
     0 12px 24px -12px rgba(0, 0, 0, 0.55);
 }

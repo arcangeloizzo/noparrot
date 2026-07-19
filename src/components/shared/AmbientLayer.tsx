@@ -83,7 +83,7 @@ export function AmbientLayer({
   if (!isActive) {
     const resolvedColor = category && category.startsWith('#') ? category : null;
     const gradient = resolvedColor
-      ? `radial-gradient(ellipse 95% 60% at 70% 18%, ${resolvedColor}29 0%, transparent 62%), radial-gradient(ellipse 85% 60% at 18% 70%, ${resolvedColor}17 0%, transparent 65%), linear-gradient(180deg, #0A0E14 0%, color-mix(in srgb, ${resolvedColor} 8%, #0A0E14) 45%, #0A0E14 100%)`
+      ? `radial-gradient(ellipse 95% 60% at 70% 18%, ${resolvedColor}29 0%, transparent 62%), radial-gradient(ellipse 85% 60% at 18% 70%, ${resolvedColor}17 0%, transparent 65%), linear-gradient(180deg, #0E1522 0%, color-mix(in srgb, ${resolvedColor} 8%, #0E1522) 45%, #0E1522 100%)`
       : `radial-gradient(ellipse 90% 55% at 70% 25%, rgba(255,255,255,0.04) 0%, transparent 65%), radial-gradient(ellipse 70% 45% at 20% 80%, rgba(255,255,255,0.02) 0%, transparent 60%)`;
 
     return (
@@ -168,7 +168,7 @@ export function AmbientLayer({
   // 4. Category Present (S3 preset) or Fallback (no image loaded yet or no media)
   const resolvedColor = category && category.startsWith('#') ? category : null;
   const gradient = resolvedColor
-    ? `radial-gradient(ellipse 95% 60% at 70% 18%, ${resolvedColor}52 0%, transparent 62%), radial-gradient(ellipse 85% 60% at 18% 70%, ${resolvedColor}2E 0%, transparent 65%), linear-gradient(180deg, #0A0E14 0%, color-mix(in srgb, ${resolvedColor} 14%, #0A0E14) 45%, #0A0E14 100%)`
+    ? `radial-gradient(ellipse 95% 60% at 70% 18%, ${resolvedColor}52 0%, transparent 62%), radial-gradient(ellipse 85% 60% at 18% 70%, ${resolvedColor}2E 0%, transparent 65%), linear-gradient(180deg, #0E1522 0%, color-mix(in srgb, ${resolvedColor} 14%, #0E1522) 45%, #0E1522 100%)`
     : `radial-gradient(ellipse 90% 55% at 70% 25%, rgba(255,255,255,0.04) 0%, transparent 65%), radial-gradient(ellipse 70% 45% at 20% 80%, rgba(255,255,255,0.02) 0%, transparent 60%)`;
 
   return (
