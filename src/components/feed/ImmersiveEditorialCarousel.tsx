@@ -258,7 +258,7 @@ const ImmersiveEditorialCarouselInner = ({
           className="flex-1 min-h-0 overflow-x-hidden touch-pan-y"
           style={{ outline: '3px solid cyan' }}
         >
-          <div data-m="track" className="flex h-full will-change-transform transform-gpu" style={{ outline: '3px solid magenta' }}>
+          <div data-m="track" className="flex min-h-full items-stretch will-change-transform transform-gpu" style={{ outline: '3px solid magenta' }}>
             {items.map((item, index) => (
               <EditorialSlide
                 key={item.id}
