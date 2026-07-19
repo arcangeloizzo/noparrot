@@ -243,7 +243,7 @@ const ImmersiveEditorialCarouselInner = ({
   if (!items.length) return null;
 
   return (
-    <div data-m="root" className="w-full h-full relative flex flex-col overflow-hidden" style={{ outline: '3px solid red' }}>
+    <div data-m="root" className="w-full flex-1 self-stretch min-h-0 relative flex flex-col overflow-hidden" style={{ outline: '3px solid red' }}>
       <pre id="__hmeter" style={{ position:'fixed', top:'70px', left:'8px', zIndex:9999, background:'rgba(0,0,0,0.8)', color:'#0f0', font:'11px monospace', padding:'6px', margin:0, whiteSpace:'pre', pointerEvents:'none' }} />
       {/* Editorial Background - deep navy wrapping slot */}
       <div className="absolute inset-0 z-0" style={{ background: '#0A1420' }} />
