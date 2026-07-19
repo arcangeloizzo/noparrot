@@ -568,6 +568,7 @@ const EditorialSlideInner = ({
     <div
       className="flex-[0_0_100%] min-w-0 h-full relative cursor-pointer transform-gpu will-change-transform flex flex-col"
       onClick={onClick}
+      style={{ outline: '3px solid yellow' }}
     >
       <div
         ref={boxRef}
@@ -582,7 +583,8 @@ const EditorialSlideInner = ({
           overflow: 'visible',
           scrollSnapAlign: snapAlign,
           scrollMarginTop: 'calc(56px + env(safe-area-inset-top))',
-          scrollMarginBottom: 'calc(88px + env(safe-area-inset-bottom))'
+          scrollMarginBottom: 'calc(88px + env(safe-area-inset-bottom))',
+          outline: '3px solid orange'
         }}
       >
         <CardShell>
