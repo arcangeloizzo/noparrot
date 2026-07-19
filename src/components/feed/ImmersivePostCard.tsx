@@ -2543,7 +2543,7 @@ const ImmersivePostCardInner = ({
                           <div className="flex-shrink-0 mt-2 mb-3 text-left">
                             <button
                               onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
-                              className="text-sm text-primary font-semibold hover:underline block"
+                              className="text-sm text-primary font-semibold hover:underline block pointer-events-auto"
                             >
                               Approfondisci
                             </button>
@@ -2869,7 +2869,7 @@ const ImmersivePostCardInner = ({
                     <div className="flex-shrink-0 mt-2 mb-3 text-left">
                       <button
                         onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
-                        className="text-sm text-primary font-semibold hover:underline block"
+                        className="text-sm text-primary font-semibold hover:underline block pointer-events-auto"
                       >
                         Approfondisci
                       </button>
