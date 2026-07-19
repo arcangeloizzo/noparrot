@@ -227,10 +227,23 @@ const ImmersiveEditorialCarouselInner = ({
     pendingShareItemRef.current = null;
   };
 
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      const nodes = Array.from(document.querySelectorAll('[data-m]')) as HTMLElement[];
+      const lines = nodes.map(n => `${n.dataset.m}: ${Math.round(n.getBoundingClientRect().height)}`);
+      const scroller = document.querySelector('[data-slide-scroll]') as HTMLElement | null;
+      lines.unshift(`win: ${window.innerHeight}`);
+      if (scroller) lines.splice(1, 0, `scroller: ${Math.round(scroller.getBoundingClientRect().height)}`);
+      const el = document.getElementById('__hmeter');
+      if (el) el.textContent = lines.join('\n');
+    });
+    return () => cancelAnimationFrame(id);
+  });
+
   if (!items.length) return null;
 
   return (
-    <div className="w-full h-full relative flex flex-col overflow-hidden" style={{ outline: '3px solid red' }}>
+    <div data-m="root" className="w-full h-full relative flex flex-col overflow-hidden" style={{ outline: '3px solid red' }}>
       {/* Editorial Background - deep navy wrapping slot */}
       <div className="absolute inset-0 z-0" style={{ background: '#0A1420' }} />
 
