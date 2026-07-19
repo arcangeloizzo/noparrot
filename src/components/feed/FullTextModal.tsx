@@ -76,6 +76,8 @@ const FullTextModalInner = ({
   getOriginRect,
 }: FullTextModalProps) => {
   const accent = accentColor || '#0A7AFF';
+  const getOriginRectRef = useRef(getOriginRect);
+  getOriginRectRef.current = getOriginRect;
   const isCaption = variant === 'caption';
   const sheetRef = useRef<HTMLDivElement>(null);
   const [dragY, setDragY] = useState(0);

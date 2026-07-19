@@ -2196,7 +2196,7 @@ const ImmersivePostCardInner = ({
             scrollMarginTop: 'calc(56px + env(safe-area-inset-top))',
             scrollMarginBottom: 'calc(88px + env(safe-area-inset-bottom))',
             opacity: showFullText ? 0 : 1,
-            transition: 'opacity 0.25s ease',
+            transition: showFullText ? 'opacity 0.25s ease' : 'none',
           }}
         >
           {/* Wrapper Header dentro il box */}
@@ -2538,7 +2538,7 @@ const ImmersivePostCardInner = ({
                           <div className="flex-shrink-0 mt-2 mb-3 text-left">
                             <button
                               onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
-                              className="text-sm text-primary font-semibold hover:underline block pointer-events-auto"
+                               className="text-sm text-primary font-semibold block pointer-events-auto active:opacity-60 transition-opacity"
                             >
                               Approfondisci
                             </button>
@@ -2864,7 +2864,7 @@ const ImmersivePostCardInner = ({
                     <div className="flex-shrink-0 mt-2 mb-3 text-left">
                       <button
                         onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
-                        className="text-sm text-primary font-semibold hover:underline block pointer-events-auto"
+                        className="text-sm text-primary font-semibold block pointer-events-auto active:opacity-60 transition-opacity"
                       >
                         Approfondisci
                       </button>
