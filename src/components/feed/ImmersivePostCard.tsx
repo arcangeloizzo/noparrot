@@ -428,6 +428,7 @@ const ImmersivePostCardInner = ({
 
   // Full text modal for long posts
   const [showFullText, setShowFullText] = useState(false);
+  const [readerExiting, setReaderExiting] = useState(false);
   const [fullTextMode, setFullTextMode] = useState<'description' | 'transcript'>('description');
   const openFullTextDrawer = (mode: 'description' | 'transcript' = 'description') => {
     setFullTextMode(mode);
