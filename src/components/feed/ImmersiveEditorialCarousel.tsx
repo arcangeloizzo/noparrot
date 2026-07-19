@@ -228,42 +228,35 @@ const ImmersiveEditorialCarouselInner = ({
   };
 
   useEffect(() => {
-    const id = requestAnimationFrame(() => {
-      const nodes = Array.from(document.querySelectorAll('[data-m]')) as HTMLElement[];
-      const lines = nodes.map(n => `${n.dataset.m}: ${Math.round(n.getBoundingClientRect().height)}`);
-      const scroller = document.querySelector('[data-slide-scroll]') as HTMLElement | null;
-      lines.unshift(`win: ${window.innerHeight}`);
-      if (scroller) lines.splice(1, 0, `scroller: ${Math.round(scroller.getBoundingClientRect().height)}`);
+    const sync = () => {
       const carouselEl = document.querySelector('[data-m="carousel"]') as HTMLElement | null;
       const trackEl = document.querySelector('[data-m="track"]') as HTMLElement | null;
       if (carouselEl && trackEl) {
         trackEl.style.height = carouselEl.getBoundingClientRect().height + 'px';
       }
-      const el = document.getElementById('__hmeter');
-      if (el) el.textContent = lines.join('\n');
-    });
-    return () => cancelAnimationFrame(id);
+    };
+    const id = requestAnimationFrame(sync);
+    window.addEventListener('resize', sync);
+    return () => { cancelAnimationFrame(id); window.removeEventListener('resize', sync); };
   });
 
   if (!items.length) return null;
 
   return (
-    <div data-m="root" className="w-full flex-1 self-stretch relative flex flex-col overflow-hidden" style={{ outline: '3px solid red' }}>
-      <pre id="__hmeter" style={{ position:'fixed', top:'70px', left:'8px', zIndex:9999, background:'rgba(0,0,0,0.8)', color:'#0f0', font:'11px monospace', padding:'6px', margin:0, whiteSpace:'pre', pointerEvents:'none' }} />
+    <div className="w-full flex-1 self-stretch relative flex flex-col overflow-hidden">
       {/* Editorial Background - deep navy wrapping slot */}
       <div className="absolute inset-0 z-0" style={{ background: '#0A1420' }} />
 
       {/* Content Layer */}
-      <div data-m="content" className="relative z-10 w-full flex-1 min-h-0 flex flex-col" style={{ outline: '3px solid lime' }}>
+      <div className="relative z-10 w-full flex-1 min-h-0 flex flex-col">
 
         {/* Carousel Container */}
         <div
           data-m="carousel"
           ref={emblaRef}
           className="flex-1 min-h-0 overflow-x-hidden touch-pan-y"
-          style={{ outline: '3px solid cyan' }}
         >
-          <div data-m="track" className="flex min-h-full items-stretch will-change-transform transform-gpu" style={{ outline: '3px solid magenta' }}>
+          <div data-m="track" className="flex min-h-full items-stretch will-change-transform transform-gpu">
             {items.map((item, index) => (
               <EditorialSlide
                 key={item.id}
@@ -586,13 +579,10 @@ const EditorialSlideInner = ({
 
   return (
     <div
-      data-m="slide"
       className="flex-[0_0_100%] min-w-0 h-full relative cursor-pointer transform-gpu will-change-transform flex flex-col"
       onClick={onClick}
-      style={{ outline: '3px solid yellow' }}
     >
       <div
-        data-m="box"
         ref={boxRef}
         className="relative z-10 w-full pointer-events-none"
         style={{
@@ -605,8 +595,7 @@ const EditorialSlideInner = ({
           overflow: 'visible',
           scrollSnapAlign: snapAlign,
           scrollMarginTop: 'calc(56px + env(safe-area-inset-top))',
-          scrollMarginBottom: 'calc(88px + env(safe-area-inset-bottom))',
-          outline: '3px solid orange'
+          scrollMarginBottom: 'calc(88px + env(safe-area-inset-bottom))'
         }}
       >
         <CardShell>
