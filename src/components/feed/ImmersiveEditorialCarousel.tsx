@@ -587,14 +587,11 @@ const EditorialSlideInner = ({
     >
       <div
         ref={boxRef}
-        className="relative z-10 w-full pointer-events-none"
+        className="np-glass relative z-10 w-full pointer-events-none"
         style={{
           margin: 'auto',
           width: 'calc(100% - 40px)',
           borderRadius: '24px',
-          border: '1px solid rgba(255,255,255,0.08)',
-          background: 'linear-gradient(180deg, #12233A 0%, #0D1B2A 100%)',
-          boxShadow: '0 8px 24px -12px rgba(0,0,0,0.5)',
           overflow: 'visible',
           scrollSnapAlign: snapAlign,
           scrollMarginTop: 'calc(56px + env(safe-area-inset-top))',

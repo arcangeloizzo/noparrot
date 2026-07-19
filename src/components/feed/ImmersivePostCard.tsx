@@ -2188,16 +2188,11 @@ const ImmersivePostCardInner = ({
         {/* Box Flottante */}
         <div
           ref={boxRef}
-          className="relative z-10 w-full pointer-events-none"
+          className="np-glass relative z-10 w-full pointer-events-none"
           style={{
             margin: 'auto',
             width: 'calc(100% - 40px)',
             borderRadius: '24px',
-            border: '1px solid rgba(255,255,255,0.11)',
-            background: 'rgba(12,16,26,0.55)',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
-            boxShadow: '0 24px 60px -22px rgba(0,0,0,0.8)',
             overflow: 'visible',
             scrollSnapAlign: snapAlign,
             scrollMarginTop: 'calc(56px + env(safe-area-inset-top))',
