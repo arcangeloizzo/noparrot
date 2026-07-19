@@ -456,15 +456,25 @@ const FullTextModalInner = ({
           background: 'rgba(20, 28, 44, 0.88)',
           backdropFilter: 'blur(24px) saturate(150%)',
           WebkitBackdropFilter: 'blur(24px) saturate(150%)',
-          borderRadius: '24px 24px 0 0',
-          maxHeight: '85vh',
+          borderRadius: '28px 28px 0 0',
+          height: '94svh',
           transform: sheetTransform,
           transition: sheetTransition,
           willChange: 'transform',
           boxShadow: '0 1px 0 rgba(255,255,255,0.09) inset, 0 -24px 60px rgba(0,0,0,0.55)',
         }}
       >
-        <div className="sheet-scroll-area flex-1 overflow-y-auto px-5 pb-6">
+        {/* Ambient interno */}
+        <div style={{ position: 'absolute', inset: 0, borderRadius: 'inherit', overflow: 'hidden', pointerEvents: 'none', background: `radial-gradient(120% 50% at 50% 0%, ${accent}3D 0%, transparent 60%)` }} />
+        {/* Progress lettura */}
+        <div style={{ position: 'absolute', top: 0, left: 0, height: '3px', width: `${Math.round(readPct * 100)}%`, background: accent, zIndex: 6, transition: 'width 80ms linear' }} />
+        <div
+          className="sheet-scroll-area flex-1 overflow-y-auto px-5 pb-6 relative"
+          onScroll={(e) => {
+            const el = e.currentTarget;
+            setReadPct(el.scrollTop / Math.max(1, el.scrollHeight - el.clientHeight));
+          }}
+        >
           {/* 1. Handle */}
           <div 
             style={{
@@ -490,12 +500,27 @@ const FullTextModalInner = ({
           {/* External link for caption variant */}
           {renderExternalLink()}
 
-          {/* Action bar */}
-          {renderActionBar()}
-
           {/* Padding bottom for safe area */}
           <div style={{ height: 'calc(24px + env(safe-area-inset-bottom, 0px))' }} />
         </div>
+
+        {/* Dock fisso action bar */}
+        {post && actions && (
+          <div
+            className="px-5 pt-3"
+            style={{
+              paddingBottom: 'calc(14px + env(safe-area-inset-bottom))',
+              position: 'relative',
+              zIndex: 5,
+              background: 'rgba(12,18,30,0.6)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+              boxShadow: '0 -1px 0 rgba(255,255,255,0.06)',
+            }}
+          >
+            {renderActionBar()}
+          </div>
+        )}
       </div>
     </>,
     document.body
