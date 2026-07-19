@@ -234,6 +234,11 @@ const ImmersiveEditorialCarouselInner = ({
       const scroller = document.querySelector('[data-slide-scroll]') as HTMLElement | null;
       lines.unshift(`win: ${window.innerHeight}`);
       if (scroller) lines.splice(1, 0, `scroller: ${Math.round(scroller.getBoundingClientRect().height)}`);
+      const carouselEl = document.querySelector('[data-m="carousel"]') as HTMLElement | null;
+      const trackEl = document.querySelector('[data-m="track"]') as HTMLElement | null;
+      if (carouselEl && trackEl) {
+        trackEl.style.height = carouselEl.getBoundingClientRect().height + 'px';
+      }
       const el = document.getElementById('__hmeter');
       if (el) el.textContent = lines.join('\n');
     });
