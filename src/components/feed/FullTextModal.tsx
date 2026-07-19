@@ -346,8 +346,7 @@ const FullTextModalInner = ({
     if (!post || !actions) return null;
 
     return (
-      <div className="mt-8 pt-6 border-t border-white/[0.06]">
-        <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3">
           {actions.onShare && (
             <button
               onClick={(e) => {
@@ -355,9 +354,10 @@ const FullTextModalInner = ({
                 handleClose();
                 setTimeout(() => actions.onShare?.(), 300);
               }}
-              className="liquid-share-pill"
+              className="flex items-center gap-2 h-11 px-5 rounded-full font-semibold text-white active:scale-[0.97] transition-transform"
+              style={{ background: 'linear-gradient(135deg, #0A7AFF 0%, #0862CC 100%)', boxShadow: '0 6px 18px -6px rgba(10,122,255,0.55)' }}
             >
-              <Logo variant="icon" size="sm" className="h-4 w-4" />
+              <Logo variant="icon" size="sm" className="h-5 w-5" />
               <span className="text-sm font-semibold leading-none">Condividi</span>
               {(post.shares_count ?? 0) > 0 && (
                 <span className="text-xs opacity-70">({post.shares_count})</span>
@@ -403,7 +403,6 @@ const FullTextModalInner = ({
               </button>
             )}
           </div>
-        </div>
       </div>
     );
   };
