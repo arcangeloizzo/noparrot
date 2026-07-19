@@ -244,10 +244,10 @@ const ImmersiveEditorialCarouselInner = ({
 
   return (
     <div className="w-full flex-1 self-stretch relative flex flex-col overflow-hidden">
-      {/* Editorial Background - navy slot fading to app background at edges */}
+      {/* Editorial Background - electric blue glow fading to app background at edges */}
       <div
         className="absolute inset-0 z-0"
-        style={{ background: 'linear-gradient(180deg, #0A0E14 0%, #0A1420 22%, #0A1420 78%, #0A0E14 100%)' }}
+        style={{ background: 'radial-gradient(100% 65% at 50% 25%, rgba(10,122,255,0.30) 0%, transparent 62%), radial-gradient(80% 60% at 85% 80%, rgba(13,27,42,0.9) 0%, transparent 70%), linear-gradient(180deg, #0A0E14 0%, #0B1626 45%, #0A0E14 100%)' }}
       />
 
       {/* Content Layer */}
