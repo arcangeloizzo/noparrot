@@ -230,19 +230,20 @@ const ImmersiveEditorialCarouselInner = ({
   if (!items.length) return null;
 
   return (
-    <div className="w-full h-full relative flex flex-col overflow-hidden">
+    <div className="w-full h-full relative flex flex-col overflow-hidden" style={{ outline: '3px solid red' }}>
       {/* Editorial Background - deep navy wrapping slot */}
       <div className="absolute inset-0 z-0" style={{ background: '#0A1420' }} />
 
       {/* Content Layer */}
-      <div className="relative z-10 w-full h-full flex flex-col">
+      <div className="relative z-10 w-full h-full flex flex-col" style={{ outline: '3px solid lime' }}>
 
         {/* Carousel Container */}
         <div
           ref={emblaRef}
         className="flex-1 overflow-x-hidden touch-pan-y"
+        style={{ outline: '3px solid cyan' }}
         >
-          <div className="flex h-full will-change-transform transform-gpu">
+          <div className="flex h-full will-change-transform transform-gpu" style={{ outline: '3px solid magenta' }}>
             {items.map((item, index) => (
               <EditorialSlide
                 key={item.id}
