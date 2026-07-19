@@ -187,7 +187,7 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate, class
               {((quotedPost.title ? (quotedPost.body_text || "") : content).length > 200 || (quotedPost.title && content.length > 100)) && (
                 <button
                   onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
-                  className="mt-2 text-xs text-primary font-semibold hover:underline"
+                  className="mt-2 text-xs text-primary font-semibold active:opacity-60 transition-opacity"
                 >
                   Approfondisci
                 </button>
@@ -333,7 +333,7 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate, class
               {((quotedPost.title ? (quotedPost.body_text || "") : content).length > 280) && (
                 <button
                   onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
-                  className="mt-1 text-xs text-primary font-semibold hover:underline"
+                  className="mt-1 text-xs text-primary font-semibold active:opacity-60 transition-opacity"
                 >
                   Approfondisci
                 </button>

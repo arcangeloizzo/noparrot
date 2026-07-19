@@ -124,7 +124,7 @@ const ExpandableTextInner = ({
           <button
             onClick={handleExpandClick}
             className={cn(
-              "mt-2 text-sm text-primary font-semibold hover:underline inline-flex items-center gap-1.5 transition-colors",
+              "mt-2 text-sm text-primary font-semibold active:opacity-60 transition-opacity inline-flex items-center gap-1.5 transition-colors",
               buttonClassName
             )}
           >

@@ -305,7 +305,7 @@ const DynamicClampBodyInner = ({
             onShowFull();
           }}
           className={cn(
-            "mt-2 inline-flex items-center gap-1.5 text-sm text-primary font-semibold hover:underline",
+            "mt-2 inline-flex items-center gap-1.5 text-sm text-primary font-semibold active:opacity-60 transition-opacity",
             buttonClassName
           )}
         >

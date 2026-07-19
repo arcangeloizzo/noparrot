@@ -701,7 +701,7 @@ const EditorialSlideInner = ({
                           e.stopPropagation();
                           onClick();
                         }}
-                        className="text-sm font-bold text-[#0A7AFF] cursor-pointer hover:underline transition-all outline-none"
+                        className="text-sm font-bold text-[#0A7AFF] cursor-pointer active:opacity-60 transition-opacity transition-all outline-none"
                       >
                         Approfondisci
                       </button>

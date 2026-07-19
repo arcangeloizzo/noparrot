@@ -379,7 +379,7 @@ const YouTubeShortEmbedInner = ({
                 e.stopPropagation();
                 onOpenFullText("description");
               }}
-              className="text-sm font-semibold hover:underline block text-[#FF0000]"
+              className="text-sm font-semibold active:opacity-60 transition-opacity block text-[#FF0000]"
             >
               Approfondisci
             </button>
@@ -509,7 +509,7 @@ const YouTubeShortEmbedInner = ({
                 e.stopPropagation();
                 onOpenFullText("description");
               }}
-              className="text-sm font-semibold hover:underline block text-[#FF0000]"
+              className="text-sm font-semibold active:opacity-60 transition-opacity block text-[#FF0000]"
             >
               Approfondisci
             </button>
@@ -633,7 +633,7 @@ const YouTubeShortEmbedInner = ({
                   e.stopPropagation();
                   onOpenFullText("description");
                 }}
-                className="text-sm font-semibold hover:underline block text-[#FF0000]"
+                className="text-sm font-semibold active:opacity-60 transition-opacity block text-[#FF0000]"
               >
                 Approfondisci
               </button>
