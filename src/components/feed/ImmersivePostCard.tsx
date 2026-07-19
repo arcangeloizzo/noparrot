@@ -3553,6 +3553,7 @@ const ImmersivePostCardInner = ({
           }}
           variant="post"
           accentColor={getCategoryColor(post.category)}
+          getOriginRect={() => boxRef.current?.getBoundingClientRect() ?? null}
           linkCard={
             isSpotifyEpisode && post.shared_url ? (
               <SpotifyPodcastCompactCard
