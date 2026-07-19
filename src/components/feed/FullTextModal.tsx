@@ -51,6 +51,7 @@ interface FullTextModalProps {
   youtubeVideoId?: string;     // NEW: YouTube video ID for playable embed
   accentColor?: string;        // NEW: category accent color
   getOriginRect?: () => DOMRect | null;
+  onExitStart?: () => void;
 }
 
 const FullTextModalInner = ({
@@ -74,10 +75,13 @@ const FullTextModalInner = ({
   youtubeVideoId,
   accentColor,
   getOriginRect,
+  onExitStart,
 }: FullTextModalProps) => {
   const accent = accentColor || '#0A7AFF';
   const getOriginRectRef = useRef(getOriginRect);
   getOriginRectRef.current = getOriginRect;
+  const onExitStartRef = useRef(onExitStart);
+  onExitStartRef.current = onExitStart;
   const isCaption = variant === 'caption';
   const sheetRef = useRef<HTMLDivElement>(null);
   const [dragY, setDragY] = useState(0);
@@ -121,6 +125,7 @@ const FullTextModalInner = ({
     if (originRef.current && r && r.width > 0) {
       originRef.current = { top: r.top, left: r.left, width: r.width, height: r.height };
       setMorph('exit');
+      onExitStartRef.current?.();
       setIsClosing(true);
       setTimeout(() => {
         onClose();
