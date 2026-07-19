@@ -2384,7 +2384,7 @@ html:not(.light) .liquid-glass-navbar {
 
 /* ═══ NP GLASS SYSTEM (design A+B, dose sottile) ═══ */
 :root {
-  --np-glass-fill: rgba(9, 13, 22, 0.82);
+  --np-glass-fill: rgba(26, 35, 54, 0.72);
   --np-amb-opacity: 0.75; /* dose ambient "sottile" approvata */
 }
 
