@@ -251,7 +251,13 @@ const ImmersiveEditorialCarouselInner = ({
       />
 
       {/* Content Layer */}
-      <div className="relative z-10 w-full flex-1 min-h-0 flex flex-col">
+      <div
+        className="relative z-10 w-full flex-1 min-h-0 flex flex-col"
+        style={{
+          paddingTop: 'calc(56px + env(safe-area-inset-top))',
+          paddingBottom: 'calc(88px + env(safe-area-inset-bottom))'
+        }}
+      >
 
         {/* Carousel Container */}
         <div

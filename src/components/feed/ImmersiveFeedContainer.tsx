@@ -30,8 +30,6 @@ const FeedWrapper = React.memo(({ isVisible, registerRef, children }: FeedWrappe
       ref={registerRef}
       style={{
         minHeight: '100%',
-        paddingTop: 'calc(56px + env(safe-area-inset-top))',
-        paddingBottom: 'calc(88px + env(safe-area-inset-bottom))',
       }}
       className="w-full shrink-0 relative flex flex-col"
     >
