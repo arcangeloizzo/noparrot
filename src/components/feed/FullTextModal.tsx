@@ -99,7 +99,7 @@ const FullTextModalInner = ({
       setIsClosing(false);
       isDraggingRef.current = false;
       dragYRef.current = 0;
-      const r = getOriginRect?.();
+      const r = getOriginRectRef.current?.();
       if (r && r.width > 0) {
         originRef.current = { top: r.top, left: r.left, width: r.width, height: r.height };
         setMorph('from');
@@ -113,10 +113,10 @@ const FullTextModalInner = ({
       setMorph('idle');
     }
     return () => { document.body.style.overflow = 'unset'; };
-  }, [isOpen, getOriginRect]);
+  }, [isOpen]);
 
   const handleClose = useCallback(() => {
-    const r = getOriginRect?.();
+    const r = getOriginRectRef.current?.();
     if (originRef.current && r && r.width > 0) {
       originRef.current = { top: r.top, left: r.left, width: r.width, height: r.height };
       setMorph('exit');
@@ -128,7 +128,7 @@ const FullTextModalInner = ({
         setMorph('idle');
         isDraggingRef.current = false;
         dragYRef.current = 0;
-      }, 430);
+      }, 500);
     } else {
       setIsClosing(true);
       setTimeout(() => {
@@ -139,7 +139,7 @@ const FullTextModalInner = ({
         dragYRef.current = 0;
       }, 250);
     }
-  }, [onClose, getOriginRect]);
+  }, [onClose]);
 
   // Use native event listeners with { passive: false } so e.preventDefault() works
   useEffect(() => {
