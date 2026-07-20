@@ -609,7 +609,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                     }}
                     placeholder={
                       selectedCommentType === null && requiresGateChoice
-                        ? "Scegli come entrare..."
+                        ? "Entra nella conversazione…"
                         : "Scrivi un commento..."
                     }
                     className={cn(
