@@ -560,10 +560,9 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                 
                 {/* Input with inline media icon */}
                 <div className={cn(
-                  "flex-1 flex items-center gap-2 rounded-full border transition-all duration-200",
-                  "bg-secondary border-border/50",
+                  "flex-1 flex items-center gap-2 rounded-full transition-all duration-200",
                   "focus-within:border-primary/30"
-                )}>
+                )} style={{ background:'rgba(255,255,255,0.07)', boxShadow:'0 1px 0 rgba(255,255,255,0.07) inset' }}>
                   <textarea
                     ref={textareaRef}
                     value={newComment}
