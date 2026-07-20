@@ -317,6 +317,7 @@ const ImmersivePostCardInner = ({
     return () => ro.disconnect();
   }, []);
   const [selectedMediaIndex, setSelectedMediaIndex] = useState<number | null>(null);
+  const mediaOriginElRef = useRef<HTMLElement | null>(null);
   const [carouselIndex, setCarouselIndex] = useState(0);
   const createThread = useCreateThread();
   const sendMessage = useSendMessage();
