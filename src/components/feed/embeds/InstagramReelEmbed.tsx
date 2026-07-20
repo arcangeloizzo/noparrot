@@ -122,15 +122,221 @@ const InstagramReelEmbedInner = ({
         />
       )}
 
-      {/* Content wrapper: row for mini layout, column for tall layout */}
-      <div
-        className={cn(
-          shouldRenderMini ? "vstage-row w-full flex gap-4" : "w-full flex flex-col gap-3"
-        )}
-        style={shouldRenderMini ? { minHeight: 192, flexShrink: 0 } : undefined}
-      >
-        <div className={cn(shouldRenderMini ? "v-col flex-1 min-w-0 flex flex-col" : "w-full flex flex-col")}>
-          {/* User Comment */}
+      {shouldRenderMini ? (
+        <div className="vstage-row w-full flex gap-4" style={{ minHeight: 192, flexShrink: 0 }}>
+          <div className="v-col flex-1 min-w-0 flex flex-col">
+            {postContent && postContent.trim().length > 0 && (
+              <p
+                ref={(el) => {
+                  if (bodyRef) {
+                    if (typeof bodyRef === "function") bodyRef(el);
+                    else (bodyRef as any).current = el;
+                  }
+                  if (bodyTextRef) {
+                    if (typeof bodyTextRef === "function") bodyTextRef(el);
+                    else (bodyTextRef as any).current = el;
+                  }
+                }}
+                className="self-start text-sm text-white/90 leading-relaxed mb-3 text-left flex-shrink-0 w-full"
+                style={{
+                  display: "-webkit-box",
+                  WebkitLineClamp: bodyLineClamp,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                }}
+              >
+                <MentionText content={postContent} />
+              </p>
+            )}
+            {flexiblesStatus["flexible-text"]?.step !== "hidden" && sharedTitle && (
+              <p
+                ref={(el) => {
+                  registerRef("flexible-text")(el);
+                  if (captionTextRef) {
+                    if (typeof captionTextRef === "function") captionTextRef(el);
+                    else (captionTextRef as any).current = el;
+                  }
+                }}
+                className={cn(
+                  "self-start leading-relaxed mb-3 text-left flex-shrink-0 w-full text-xs text-white/60",
+                  flexiblesStatus["flexible-text"]?.step === "compact"
+                    ? "line-clamp-2"
+                    : "line-clamp-4"
+                )}
+              >
+                <MentionText content={sharedTitle} />
+              </p>
+            )}
+            {shouldShowApprofondisci && (
+              <div className="flex-shrink-0 mt-2 mb-3 text-left self-start">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenFullText("description");
+                  }}
+                  className="text-sm font-semibold active:opacity-60 transition-opacity block text-primary"
+                >
+                  Approfondisci
+                </button>
+              </div>
+            )}
+          </div>
+          <div
+            ref={(node) => {
+              registerRef("flexible-image")(node);
+              if (mediaRef) {
+                if (typeof mediaRef === "function") mediaRef(node);
+                else (mediaRef as any).current = node;
+              }
+            }}
+            className={cn("flex-shrink-0", !hasValidMedia && "h-0 w-0 overflow-hidden")}
+            style={hasValidMedia ? { alignSelf: "flex-start" } : undefined}
+          >
+            {hasValidMedia && mediaForFrame && (
+              <MediaFrame
+                media={mediaForFrame}
+                variant="mini"
+                onTap={() => { if (sharedUrl) window.open(sharedUrl, '_blank', 'noopener,noreferrer'); }}
+              >
+                <>
+                  <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 42, height: 42, borderRadius: '50%', background: 'rgba(10,14,22,0.55)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.2)', pointerEvents: 'none', zIndex: 2 }}>
+                    <Play className="text-white fill-white" style={{ width: 16, height: 16, marginLeft: 2 }} />
+                  </div>
+                  <div style={{ position: 'absolute', left: 8, bottom: 8, display: 'flex', alignItems: 'center', gap: '6px', fontFamily: "'JetBrains Mono', monospace", fontSize: '9px', letterSpacing: '0.08em', fontWeight: 600, color: '#fff', background: 'rgba(10,14,22,0.65)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', padding: '4px 9px', borderRadius: '999px', pointerEvents: 'none', zIndex: 2 }}>
+                    <span style={{ width: '10px', height: '10px', borderRadius: '3px', background: 'linear-gradient(45deg, #F58529, #DD2A7B, #8134AF)', display: 'block' }} />
+                    REEL
+                  </div>
+                </>
+              </MediaFrame>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="w-full flex flex-col gap-3">
+          {/* STAGE VERTICALE full-bleed */}
+          <div
+            ref={(node) => {
+              registerRef("flexible-image")(node);
+              if (mediaRef) {
+                if (typeof mediaRef === "function") mediaRef(node);
+                else (mediaRef as any).current = node;
+              }
+            }}
+            className={cn("flex-shrink-0", hasValidMedia ? "w-full mb-1" : "h-0 w-0 overflow-hidden")}
+          >
+            {hasValidMedia && mediaForFrame && (
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (sharedUrl) window.open(sharedUrl, '_blank', 'noopener,noreferrer');
+                }}
+                className="relative"
+                style={{
+                  marginLeft: "-18px",
+                  marginRight: "-18px",
+                  height: "min(64svh, 560px)",
+                  overflow: "hidden",
+                  background: "#07090f",
+                  cursor: "pointer",
+                }}
+              >
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    backgroundImage: `url(${mediaForFrame.src})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    filter: "blur(28px) brightness(0.5) saturate(130%)",
+                    transform: "scale(1.15)",
+                  }}
+                />
+                <img
+                  src={mediaForFrame.src}
+                  loading="lazy"
+                  alt=""
+                  style={{
+                    position: "relative",
+                    zIndex: 1,
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "contain",
+                    display: "block",
+                  }}
+                />
+                {/* Play glass */}
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "50%",
+                    left: "50%",
+                    transform: "translate(-50%, -50%)",
+                    width: "66px",
+                    height: "66px",
+                    borderRadius: "50%",
+                    background: "rgba(10,14,22,0.55)",
+                    backdropFilter: "blur(10px)",
+                    WebkitBackdropFilter: "blur(10px)",
+                    border: "1px solid rgba(255,255,255,0.25)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+                    pointerEvents: "none",
+                    zIndex: 2,
+                  }}
+                >
+                  <Play className="w-6 h-6 text-white fill-white" style={{ marginLeft: "2px" }} />
+                </div>
+                {/* Chip REEL */}
+                <span
+                  style={{
+                    position: "absolute",
+                    left: "10px",
+                    bottom: "10px",
+                    zIndex: 2,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontSize: "10px",
+                    letterSpacing: "0.08em",
+                    fontWeight: 600,
+                    color: "#fff",
+                    background: "rgba(10,14,22,0.65)",
+                    backdropFilter: "blur(8px)",
+                    WebkitBackdropFilter: "blur(8px)",
+                    padding: "4px 9px",
+                    borderRadius: "999px",
+                    pointerEvents: "none",
+                  }}
+                >
+                  <span style={{ width: "10px", height: "10px", borderRadius: "3px", background: "linear-gradient(45deg, #F58529, #DD2A7B, #8134AF)", display: "block" }} />
+                  REEL
+                </span>
+              </div>
+            )}
+          </div>
+          {/* META */}
+          {hasValidMedia && (
+            <div ref={slotBottomRef} className="flex items-center justify-between mt-3">
+              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "10.5px", letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>
+                INSTAGRAM REEL
+              </span>
+              {sharedUrl && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); window.open(sharedUrl, '_blank', 'noopener,noreferrer'); }}
+                  className="inline-flex items-center gap-1.5 active:opacity-60 transition-opacity"
+                >
+                  <span style={{ width: "11px", height: "11px", borderRadius: "3px", background: "linear-gradient(45deg, #F58529, #DD2A7B, #8134AF)", display: "block" }} />
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "10.5px", letterSpacing: "0.08em", fontWeight: 600, background: "linear-gradient(45deg, #F58529, #DD2A7B, #8134AF)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>
+                    APRI SU INSTAGRAM
+                  </span>
+                </button>
+              )}
+            </div>
+          )}
+          {/* Body / Caption / Approfondisci */}
           {postContent && postContent.trim().length > 0 && (
             <p
               ref={(el) => {
@@ -154,8 +360,6 @@ const InstagramReelEmbedInner = ({
               <MentionText content={postContent} />
             </p>
           )}
-
-          {/* Caption / Description */}
           {flexiblesStatus["flexible-text"]?.step !== "hidden" && sharedTitle && (
             <p
               ref={(el) => {
@@ -166,8 +370,7 @@ const InstagramReelEmbedInner = ({
                 }
               }}
               className={cn(
-                "self-start leading-relaxed mb-3 text-left flex-shrink-0 w-full",
-                shouldRenderMini ? "text-xs text-white/60" : "text-sm text-white/80",
+                "self-start leading-relaxed mb-3 text-left flex-shrink-0 w-full text-sm text-white/80",
                 flexiblesStatus["flexible-text"]?.step === "compact"
                   ? "line-clamp-2"
                   : "line-clamp-4"
@@ -176,7 +379,6 @@ const InstagramReelEmbedInner = ({
               <MentionText content={sharedTitle} />
             </p>
           )}
-
           {shouldShowApprofondisci && (
             <div className="flex-shrink-0 mt-2 mb-3 text-left self-start">
               <button
@@ -190,58 +392,8 @@ const InstagramReelEmbedInner = ({
               </button>
             </div>
           )}
-
         </div>
-
-        {/* MediaWrapper: remains stable in DOM layout to prevent image unmounting and reloading */}
-        <div
-          ref={(node) => {
-            registerRef("flexible-image")(node);
-            if (mediaRef) {
-              if (typeof mediaRef === "function") mediaRef(node);
-              else (mediaRef as any).current = node;
-            }
-          }}
-          className={cn(
-            "flex-shrink-0",
-            hasValidMedia 
-              ? (shouldRenderMini ? "" : "w-full mb-1") 
-              : "h-0 w-0 overflow-hidden"
-          )}
-          style={hasValidMedia && shouldRenderMini ? { alignSelf: "flex-start" } : hasValidMedia ? { order: -1 } : undefined}
-        >
-          {hasValidMedia && mediaForFrame && (
-            <MediaFrame
-              media={mediaForFrame}
-              variant={shouldRenderMini ? "mini" : "tall"}
-              onTap={() => { if (sharedUrl) window.open(sharedUrl, '_blank', 'noopener,noreferrer'); }}
-            >
-              <>
-                {/* Play glass (decorativo: il tap lo gestisce MediaFrame) */}
-                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: shouldRenderMini ? 42 : 58, height: shouldRenderMini ? 42 : 58, borderRadius: '50%', background: 'rgba(10,14,22,0.55)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.2)', pointerEvents: 'none', zIndex: 2 }}>
-                  <Play className="text-white fill-white" style={{ width: shouldRenderMini ? 16 : 24, height: shouldRenderMini ? 16 : 24, marginLeft: 2 }} />
-                </div>
-                {/* Chip REEL basso-sx */}
-                <div style={{ position: 'absolute', left: shouldRenderMini ? 8 : 10, bottom: shouldRenderMini ? 8 : 10, display: 'flex', alignItems: 'center', gap: '6px', fontFamily: "'JetBrains Mono', monospace", fontSize: shouldRenderMini ? '9px' : '10px', letterSpacing: '0.08em', fontWeight: 600, color: '#fff', background: 'rgba(10,14,22,0.65)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', padding: '4px 9px', borderRadius: '999px', pointerEvents: 'none', zIndex: 2 }}>
-                  <span style={{ width: '10px', height: '10px', borderRadius: '3px', background: 'linear-gradient(45deg, #F58529, #DD2A7B, #8134AF)', display: 'block' }} />
-                  REEL
-                </div>
-              </>
-            </MediaFrame>
-          )}
-          {hasValidMedia && !shouldRenderMini && (
-            <div ref={slotBottomRef} className="mt-3 flex items-center justify-between">
-              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10.5px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', fontWeight: 600 }}>Instagram Reel</span>
-              {sharedUrl && (
-                <button onClick={(e) => { e.stopPropagation(); window.open(sharedUrl, '_blank', 'noopener,noreferrer'); }} className="inline-flex items-center gap-1.5 active:opacity-60 transition-opacity">
-                  <span style={{ width: '11px', height: '11px', borderRadius: '3px', background: 'linear-gradient(45deg, #F58529, #DD2A7B, #8134AF)', display: 'block' }} />
-                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10.5px', letterSpacing: '0.08em', fontWeight: 600, background: 'linear-gradient(45deg, #F58529, #DD2A7B, #8134AF)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>APRI SU INSTAGRAM</span>
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
+      )}
     </div>
   );
 };
