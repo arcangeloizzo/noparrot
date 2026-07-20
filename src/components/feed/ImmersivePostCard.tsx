@@ -566,6 +566,9 @@ const ImmersivePostCardInner = ({
       ? reelVirtualMedia 
       : (quotedPost?.media?.length ? quotedPost.media : originalSource?.media));
 
+  // AI institutional profile flag (previously derived alongside trust score)
+  const isAiAuthor = !!post.author.is_ai_institutional;
+
   // Reaction picker state
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const likeButtonRef = useRef<HTMLButtonElement>(null);
