@@ -385,7 +385,8 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
             </DrawerTitle>
             
             {/* Post Preview - Compact card */}
-            <div className="mx-2 p-2.5 rounded-xl bg-muted/30 border border-border/50">
+            <div className="mx-2 p-3 rounded-2xl flex gap-2.5 items-stretch" style={{ background:`${accent}12`, border:`1px solid ${accent}2E` }}>
+              <div style={{ width:'4px', borderRadius:'2px', background:accent, flexShrink:0 }} />
               <div className="flex gap-2.5">
                 <div className="flex-shrink-0">
                   {getUserAvatar(post.author.avatar_url, post.author.full_name || post.author.username)}
@@ -422,7 +423,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                         href={post.shared_url} 
                         target="_blank" 
                         rel="noopener noreferrer"
-                        className="text-primary hover:underline text-[11px] font-medium inline-block"
+                        className="text-primary active:opacity-60 transition-opacity text-[11px] font-medium inline-block"
                       >
                         Leggi articolo originale →
                       </a>
