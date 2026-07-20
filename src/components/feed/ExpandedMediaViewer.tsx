@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Heart, MessageCircle, Bookmark, Send, X } from 'lucide-react';
-import type { MediaFrameItem } from './MediaFrame';
+import type { MediaFrameItem } from './MediaMosaic';
 
 export type { MediaFrameItem };
 
