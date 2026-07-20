@@ -2,11 +2,9 @@ import React, { memo, useMemo } from "react";
 import { ClampedTitle } from "@/components/shared/ClampedTitle";
 import { MentionText } from "../MentionText";
 import { QuotedEditorialCard } from "../QuotedEditorialCard";
-import { SourceImageWithFallback } from "../SourceImageWithFallback";
-import { MediaFrame } from "@/components/shared/MediaFrame";
 import { ExternalLink } from "lucide-react";
 import { cn, decodeHTMLEntities } from "@/lib/utils";
-import { countPostWords, calculateMediaLayout, getCardImageUrl } from "@/lib/mediaUtils";
+import { countPostWords, getCardImageUrl } from "@/lib/mediaUtils";
 
 interface GenericArticleEmbedProps {
   postId: string;
@@ -29,7 +27,6 @@ interface GenericArticleEmbedProps {
   articleStep: "full" | "compact" | "pill" | "hidden";
   isEditorialFocus: boolean;
   editorialSummary?: string | null;
-  displayTrustScore?: any;
   hasUserMedia: boolean;
   flexiblesStatus: any;
   normalizedMedias: any[];
@@ -72,7 +69,6 @@ const GenericArticleEmbedInner = ({
   articleStep,
   isEditorialFocus,
   editorialSummary,
-  displayTrustScore,
   hasUserMedia,
   flexiblesStatus,
   normalizedMedias,
@@ -88,17 +84,8 @@ const GenericArticleEmbedInner = ({
     return countPostWords(postTitle || "", postContent || "");
   }, [postTitle, postContent]);
 
-  // Check for article mini layout configuration
-  const linkPreviewMedia = useMemo(() => {
-    return normalizedMedias.find((m) => m.source === "link_preview");
-  }, [normalizedMedias]);
-
-  const hasPreviewMetadataTopLevel = false && !!linkPreviewMedia;
-  const isArticleMiniActive =
-    !hasUserMedia &&
-    hasPreviewMetadataTopLevel &&
-    !!linkPreviewMedia &&
-    calculateMediaLayout(linkPreviewMedia, wordCount) === "mini";
+  // Article mini layout was gated behind a KILL SWITCH (dead branch), keep flag as false.
+  const isArticleMiniActive = false;
 
   return (
     <div
@@ -126,49 +113,7 @@ const GenericArticleEmbedInner = ({
         />
       )}
 
-      {/* Body text */}
-      {!useStackLayout && !isArticleMiniActive && postContent && postContent.trim().length > 0 && (
-        <div
-          ref={(el) => {
-            if (bodyRef) {
-              if (typeof bodyRef === "function") bodyRef(el);
-              else (bodyRef as any).current = el;
-            }
-            if (bodyTextRef) {
-              if (typeof bodyTextRef === "function") bodyTextRef(el);
-              else (bodyTextRef as any).current = el;
-            }
-          }}
-          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
-          style={{
-            fontFamily: "Inter, sans-serif",
-            lineHeight: 1.55,
-            textAlign: "left",
-            display: "-webkit-box",
-            WebkitLineClamp: bodyLineClamp,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
-          }}
-        >
-          <MentionText content={postContent} />
-        </div>
-      )}
-
-      {/* Approfondisci */}
-      {!useStackLayout && !isArticleMiniActive && shouldShowApprofondisci && (
-        <div className="flex-shrink-0 mt-2 mb-3">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenFullText("description");
-            }}
-            className="text-sm text-primary font-semibold active:opacity-60 transition-opacity block"
-          >
-            Approfondisci
-          </button>
-        </div>
-      )}
-
+      {/* SOURCE embed — moved above body (Title → FONTE → Body → Approfondisci) */}
       <div className="slot-bottom" ref={slotBottomRef}>
         {/* Embed content */}
         {articleStep === "full" && (
@@ -186,7 +131,7 @@ const GenericArticleEmbedInner = ({
                   }
                 : undefined
             }
-            className="w-full mt-auto flex-shrink-0"
+            className="w-full flex-shrink-0 mb-1"
           >
             {isEditorialFocus ? (
               <QuotedEditorialCard
@@ -206,119 +151,142 @@ const GenericArticleEmbedInner = ({
               />
             ) : (
               (() => {
-                // KILL SWITCH 16/06: branch MediaFrame articoli generici ha edge case multipli su iPhone SE.
-                const hasPreviewMetadata = false && !!linkPreviewMedia;
-                const layoutMode =
-                  hasPreviewMetadata && linkPreviewMedia
-                    ? calculateMediaLayout(linkPreviewMedia, wordCount)
-                    : null;
-                const hasImage = !!linkPreviewMedia;
-                const mediaForFrame = linkPreviewMedia || null;
+                const heroImg = articlePreview?.image || previewImg;
+                const hostname = getHostnameFromUrl(sharedUrl).replace("www.", "");
+                const open = (e: React.MouseEvent) => {
+                  e.stopPropagation();
+                  if (sharedUrl) window.open(sharedUrl, "_blank", "noopener,noreferrer");
+                };
 
-                return (
+                return heroImg && !hasUserMedia ? (
                   <div
-                    className="cursor-pointer active:scale-[0.98] transition-transform w-full flex flex-col items-start"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (sharedUrl) {
-                        window.open(sharedUrl, "_blank", "noopener,noreferrer");
-                      }
-                    }}
+                    className="relative cursor-pointer overflow-hidden active:opacity-95 transition-opacity"
+                    style={{ marginLeft: "-18px", marginRight: "-18px", background: "#0a0f18" }}
+                    onClick={open}
                   >
-                    {hasImage && !hasUserMedia && (
-                      hasPreviewMetadata && mediaForFrame ? (
-                        layoutMode === "mini" ? (
-                          <div className="vstage-row w-full mb-3">
-                            <div className="v-col">
-                              {postContent && postContent.trim().length > 0 && (
-                                <div
-                                  className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
-                                  style={{
-                                    fontFamily: "Inter, sans-serif",
-                                    lineHeight: 1.55,
-                                    textAlign: "left",
-                                    display: "-webkit-box",
-                                    WebkitLineClamp: bodyLineClamp,
-                                    WebkitBoxOrient: "vertical",
-                                    overflow: "hidden",
-                                  }}
-                                >
-                                  <MentionText content={postContent} />
-                                </div>
-                              )}
-                              {shouldShowApprofondisci && (
-                                <div className="flex-shrink-0 mt-2 mb-3">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      onOpenFullText("description");
-                                    }}
-                                    className="text-sm text-primary font-semibold active:opacity-60 transition-opacity block"
-                                  >
-                                    Approfondisci
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                            <div
-                              className="flex-shrink-0 animate-fade-in"
-                              style={{ alignSelf: "flex-start" }}
-                            >
-                              <MediaFrame
-                                media={mediaForFrame}
-                                variant="mini"
-                                onTap={() => {
-                                  if (sharedUrl) {
-                                    window.open(sharedUrl, "_blank", "noopener,noreferrer");
-                                  }
-                                }}
-                              />
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="w-full mb-3 animate-fade-in">
-                            <MediaFrame
-                              media={mediaForFrame}
-                              variant={layoutMode}
-                              onTap={() => {
-                                if (sharedUrl) {
-                                  window.open(sharedUrl, "_blank", "noopener,noreferrer");
-                                }
-                              }}
-                            />
-                          </div>
-                        )
-                      ) : (
-                        <div className="w-full h-[140px] flex items-center justify-center mb-3 overflow-hidden rounded-xl">
-                          <SourceImageWithFallback
-                            src={getCardImageUrl(articlePreview?.image || previewImg, 600, 75)}
-                            sharedUrl={sharedUrl}
-                            isIntent={false}
-                            trustScore={displayTrustScore}
-                            hideOverlay={true}
-                            platform={articlePreview?.platform}
-                            hostname={getHostnameFromUrl(sharedUrl)}
-                            className="h-full w-full object-cover rounded-xl"
-                          />
-                        </div>
-                      )
-                    )}
-
-                    <div className="w-12 h-1 bg-slate-200 dark:bg-white/30 rounded-full mb-3 shrink-0" />
-
-                    <div className="mb-2 shrink-0 text-left w-full">
-                      <p className="text-base font-semibold text-slate-900 dark:text-white/90 leading-snug line-clamp-2">
-                        {decodeHTMLEntities(
-                          articlePreview?.title || sharedTitle || getHostnameFromUrl(sharedUrl)
-                        )}
-                      </p>
+                    <img
+                      src={getCardImageUrl(heroImg, 1000, 75)}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                      style={{ width: "100%", aspectRatio: "16 / 9", objectFit: "cover", display: "block" }}
+                    />
+                    <div
+                      style={{
+                        position: "absolute",
+                        inset: 0,
+                        background:
+                          "linear-gradient(0deg, rgba(6,10,17,0.88) 0%, rgba(6,10,17,0.25) 45%, transparent 70%)",
+                      }}
+                    />
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "12px",
+                        right: "12px",
+                        width: "32px",
+                        height: "32px",
+                        borderRadius: "50%",
+                        background: "rgba(10,14,22,0.55)",
+                        backdropFilter: "blur(8px)",
+                        WebkitBackdropFilter: "blur(8px)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 text-white" />
                     </div>
-
-                    <div className="flex items-center text-slate-500 dark:text-white/70 mb-1 gap-2 shrink-0">
-                      <ExternalLink className="w-3 h-3" />
-                      <span className="uppercase font-bold tracking-widest text-[10px]">
-                        {getHostnameFromUrl(sharedUrl)}
+                    <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "14px 16px" }}>
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          fontFamily: "'JetBrains Mono', monospace",
+                          fontSize: "10px",
+                          letterSpacing: "0.1em",
+                          textTransform: "uppercase",
+                          fontWeight: 600,
+                          color: "#fff",
+                          background: "rgba(10,14,22,0.6)",
+                          backdropFilter: "blur(8px)",
+                          WebkitBackdropFilter: "blur(8px)",
+                          padding: "5px 10px",
+                          borderRadius: "999px",
+                          marginBottom: "9px",
+                        }}
+                      >
+                        <i
+                          style={{
+                            width: "6px",
+                            height: "6px",
+                            borderRadius: "50%",
+                            background: "#10B981",
+                            display: "block",
+                          }}
+                        />
+                        {hostname}
                       </span>
+                      <div
+                        style={{
+                          fontSize: "16.5px",
+                          fontWeight: 700,
+                          lineHeight: 1.3,
+                          color: "#fff",
+                          display: "-webkit-box",
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: "vertical",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {decodeHTMLEntities(articlePreview?.title || sharedTitle || hostname)}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    className="cursor-pointer active:opacity-90 transition-opacity"
+                    style={{
+                      borderRadius: "16px",
+                      padding: "13px 15px",
+                      display: "flex",
+                      gap: "11px",
+                      alignItems: "stretch",
+                      background: "rgba(16,185,129,0.07)",
+                      border: "1px solid rgba(16,185,129,0.2)",
+                    }}
+                    onClick={open}
+                  >
+                    <div style={{ width: "4px", borderRadius: "2px", background: "#10B981", flexShrink: 0 }} />
+                    <div style={{ minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontFamily: "'JetBrains Mono', monospace",
+                          fontSize: "10px",
+                          letterSpacing: "0.1em",
+                          textTransform: "uppercase",
+                          color: "rgba(255,255,255,0.5)",
+                          fontWeight: 600,
+                          marginBottom: "5px",
+                        }}
+                      >
+                        {hostname}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "15px",
+                          fontWeight: 700,
+                          lineHeight: 1.3,
+                          display: "-webkit-box",
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: "vertical",
+                          overflow: "hidden",
+                          color: "rgba(236,241,247,0.96)",
+                        }}
+                      >
+                        {decodeHTMLEntities(articlePreview?.title || sharedTitle || hostname)}
+                      </div>
                     </div>
                   </div>
                 );
@@ -342,7 +310,7 @@ const GenericArticleEmbedInner = ({
                   }
                 : undefined
             }
-            className="w-full mt-auto flex-shrink-0"
+            className="w-full flex-shrink-0 mb-1"
           >
             <div
               className="flex flex-row items-center gap-2 bg-[rgba(255,255,255,0.06)] rounded-[8px] p-[8px_10px] w-full cursor-pointer"
@@ -387,7 +355,7 @@ const GenericArticleEmbedInner = ({
                 ? registerRef("flexible-reshare-link-body")
                 : registerRef("essential-article")
             }
-            className="flex-shrink-0 mt-auto text-left"
+            className="flex-shrink-0 text-left mb-3"
             style={{ height: "36px" }}
           >
             <button
@@ -414,6 +382,50 @@ const GenericArticleEmbedInner = ({
           />
         )}
       </div>
+
+      {/* Body text */}
+      {!useStackLayout && !isArticleMiniActive && postContent && postContent.trim().length > 0 && (
+        <div
+          ref={(el) => {
+            if (bodyRef) {
+              if (typeof bodyRef === "function") bodyRef(el);
+              else (bodyRef as any).current = el;
+            }
+            if (bodyTextRef) {
+              if (typeof bodyTextRef === "function") bodyTextRef(el);
+              else (bodyTextRef as any).current = el;
+            }
+          }}
+          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
+          style={{
+            fontFamily: "Inter, sans-serif",
+            lineHeight: 1.55,
+            textAlign: "left",
+            display: "-webkit-box",
+            WebkitLineClamp: bodyLineClamp,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+          }}
+        >
+          <MentionText content={postContent} />
+        </div>
+      )}
+
+      {/* Approfondisci */}
+      {!useStackLayout && !isArticleMiniActive && shouldShowApprofondisci && (
+        <div className="flex-shrink-0 mt-2 mb-3">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenFullText("description");
+            }}
+            className="text-sm text-primary font-semibold active:opacity-60 transition-opacity block"
+          >
+            Approfondisci
+          </button>
+        </div>
+      )}
+
     </div>
   );
 };
@@ -439,8 +451,6 @@ export const GenericArticleEmbed = memo(GenericArticleEmbedInner, (prevProps, ne
     prevProps.articlePreview?.description === nextProps.articlePreview?.description &&
     prevProps.articlePreview?.image === nextProps.articlePreview?.image &&
     prevProps.articlePreview?.platform === nextProps.articlePreview?.platform &&
-    prevProps.displayTrustScore?.band === nextProps.displayTrustScore?.band &&
-    prevProps.displayTrustScore?.score === nextProps.displayTrustScore?.score &&
     prevProps.flexiblesStatus?.["flexible-reshare-link-body"]?.height ===
       nextProps.flexiblesStatus?.["flexible-reshare-link-body"]?.height &&
     (prevProps.normalizedMedias === nextProps.normalizedMedias ||
