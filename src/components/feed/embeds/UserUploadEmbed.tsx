@@ -1,8 +1,8 @@
-import React, { memo, useState, useMemo } from "react";
+import React, { memo, useState, useMemo, useRef } from "react";
 import { ClampedTitle } from "@/components/shared/ClampedTitle";
 import { MentionText } from "../MentionText";
-import { MediaGallery } from "@/components/media/MediaGallery";
 import { MediaFrame } from "@/components/shared/MediaFrame";
+import { MediaMosaic } from "../MediaMosaic";
 import { Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { countPostWords, calculateMediaLayout, getCardImageUrl } from "@/lib/mediaUtils";
@@ -26,7 +26,7 @@ interface UserUploadEmbedProps {
   // Callbacks
   onOpenFullText: (mode: "description" | "transcript") => void;
   registerRef: (id: string) => (node: HTMLElement | null) => void;
-  onMediaTap?: (index: number) => void;
+  onMediaTap?: (index: number, el?: HTMLElement | null) => void;
 
   // Refs
   titleRef?: React.RefObject<any> | ((node: any) => void);
@@ -59,6 +59,7 @@ const UserUploadEmbedInner = ({
 }: UserUploadEmbedProps) => {
   // Localized carousel state
   const [carouselIndex, setCarouselIndex] = useState(0);
+  const frameNodeRef = useRef<HTMLElement | null>(null);
 
   const wordCount = useMemo(() => {
     return countPostWords(postTitle || "", postContent || "");
@@ -135,51 +136,7 @@ const UserUploadEmbedInner = ({
         />
       )}
 
-      {/* Body text — unico flessibile o primo flessibile (renderizzato qui solo se NON mini layout) */}
-      {!shouldRenderMini && postContent && postContent.trim().length > 0 && (
-        <div
-          ref={(el) => {
-            registerRef("essential-description")(el);
-            if (bodyRef) {
-              if (typeof bodyRef === "function") bodyRef(el);
-              else (bodyRef as any).current = el;
-            }
-            if (bodyTextRef) {
-              if (typeof bodyTextRef === "function") bodyTextRef(el);
-              else (bodyTextRef as any).current = el;
-            }
-          }}
-          className={cn("whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]", isPoster && "text-center")}
-          style={{
-            fontFamily: "Inter, sans-serif",
-            lineHeight: 1.55,
-            textAlign: isPoster ? "center" : "left",
-            display: "-webkit-box",
-            WebkitLineClamp: bodyLineClamp,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
-          }}
-        >
-          <MentionText content={postContent} />
-        </div>
-      )}
-
-      {/* Approfondisci (subito dopo il body text - renderizzato qui solo se NON mini layout) */}
-      {!shouldRenderMini && shouldShowApprofondisci && (
-        <div className="flex-shrink-0 mt-2 mb-3">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenFullText("description");
-            }}
-            className="text-sm text-primary font-semibold active:opacity-60 transition-opacity block"
-          >
-            Approfondisci
-          </button>
-        </div>
-      )}
-
-      {/* Image/Media — secondo flessibile (se presente) */}
+      {/* Image/Media — spostato SUBITO DOPO il titolo (ordine: Title → MEDIA → Body → Approfondisci) */}
       {hasMedia && (
         <>
           {/* Caso singolo upload immagine utente con matrice §5.1 */}
@@ -195,6 +152,7 @@ const UserUploadEmbedInner = ({
                   <div
                     ref={(node) => {
                       registerRef("flexible-image")(node);
+                      frameNodeRef.current = node;
                       if (mediaRef) {
                         if (typeof mediaRef === "function") mediaRef(node);
                         else (mediaRef as any).current = node;
@@ -206,7 +164,7 @@ const UserUploadEmbedInner = ({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        onMediaTap?.(0);
+                        onMediaTap?.(0, frameNodeRef.current);
                       }}
                       className="inline-flex h-9 items-center gap-1.5 bg-white/10 hover:bg-white/20 border border-white/10 px-4 rounded-full text-white text-xs font-bold"
                     >
@@ -221,6 +179,7 @@ const UserUploadEmbedInner = ({
                   <div
                     ref={(node) => {
                       registerRef("flexible-image")(node);
+                      frameNodeRef.current = node;
                       if (mediaRef) {
                         if (typeof mediaRef === "function") mediaRef(node);
                         else (mediaRef as any).current = node;
@@ -279,6 +238,7 @@ const UserUploadEmbedInner = ({
                     <div
                       ref={(node) => {
                         registerRef("flexible-image")(node);
+                        frameNodeRef.current = node;
                         if (mediaRef) {
                           if (typeof mediaRef === "function") mediaRef(node);
                           else (mediaRef as any).current = node;
@@ -291,7 +251,7 @@ const UserUploadEmbedInner = ({
                         media={mediaForFrame}
                         variant="mini"
                         height={flexiblesStatus?.["flexible-image"]?.height}
-                        onTap={() => onMediaTap?.(0)}
+                        onTap={() => onMediaTap?.(0, frameNodeRef.current)}
                       >
                         <div
                           style={{
@@ -322,6 +282,7 @@ const UserUploadEmbedInner = ({
                 <div
                   ref={(node) => {
                     registerRef("flexible-image")(node);
+                    frameNodeRef.current = node;
                     if (mediaRef) {
                       if (typeof mediaRef === "function") mediaRef(node);
                       else (mediaRef as any).current = node;
@@ -333,7 +294,7 @@ const UserUploadEmbedInner = ({
                     media={mediaForFrame}
                     variant={layout}
                     height={imageStep === "mini" ? flexiblesStatus?.["flexible-image"]?.height : undefined}
-                    onTap={() => onMediaTap?.(0)}
+                    onTap={() => onMediaTap?.(0, frameNodeRef.current)}
                   >
                     <div
                       style={{
@@ -365,61 +326,25 @@ const UserUploadEmbedInner = ({
                 <div
                   ref={(node) => {
                     registerRef("flexible-image")(node);
+                    frameNodeRef.current = node;
                     if (mediaRef) {
                       if (typeof mediaRef === "function") mediaRef(node);
                       else (mediaRef as any).current = node;
                     }
                   }}
-                  className="relative flex-shrink-0 w-full flex items-center justify-center overflow-hidden mb-3 rounded-xl border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.3)] cursor-pointer"
-                  style={{ height: `${flexiblesStatus["flexible-image"].height}px` }}
-                  onClick={
-                    postMedia.length === 1
-                      ? (e) => {
-                          e.stopPropagation();
-                          onMediaTap?.(0);
-                        }
-                      : undefined
-                  }
+                  className="flex-shrink-0 mb-3"
+                  style={{ marginLeft: '-18px', marginRight: '-18px' }}
                 >
-                  {postMedia.length === 1 ? (
-                    isVideoMedia ? (
-                      <div className="relative w-full h-full flex items-center justify-center">
-                        <img
-                          src={downscaledPostMedia?.[0]?.thumbnail_url || downscaledMediaUrl}
-                          alt=""
-                          width={postMedia?.[0]?.width || 1080}
-                          height={postMedia?.[0]?.height || 1080}
-                          loading="lazy"
-                          decoding="async"
-                          className="w-full h-full object-contain"
-                        />
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="bg-white p-3 rounded-full shadow-lg">
-                            <Play className="w-5 h-5 text-black fill-black ml-0.5" />
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <img
-                        src={downscaledMediaUrl}
-                        alt=""
-                        width={postMedia?.[0]?.width || 1080}
-                        height={postMedia?.[0]?.height || 1080}
-                        loading="lazy"
-                        decoding="async"
-                        className="w-full h-full object-contain"
-                      />
-                    )
-                  ) : (
-                    <MediaGallery
-                      media={downscaledPostMedia}
-                      onClick={(_, index) => onMediaTap?.(index)}
-                      initialIndex={carouselIndex}
-                      onIndexChange={setCarouselIndex}
-                      className="h-full w-full object-contain"
-                      isActive={isActive}
-                    />
-                  )}
+                  <MediaMosaic
+                    media={downscaledPostMedia.map((m: any, i: number) => ({
+                      url: m.url,
+                      type: m.type === 'video' ? 'video' : 'image',
+                      orientation: postMedia?.[i]?.orientation ?? null,
+                      ratio: postMedia?.[i]?.ratio ?? null,
+                      thumbnail_url: m.thumbnail_url ?? null,
+                    }))}
+                    onMediaClick={(idx, el) => onMediaTap?.(idx, el)}
+                  />
                 </div>
               )}
 
@@ -427,6 +352,7 @@ const UserUploadEmbedInner = ({
                 <div
                   ref={(node) => {
                     registerRef("flexible-image")(node);
+                    frameNodeRef.current = node;
                     if (mediaRef) {
                       if (typeof mediaRef === "function") mediaRef(node);
                       else (mediaRef as any).current = node;
@@ -438,7 +364,7 @@ const UserUploadEmbedInner = ({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      onMediaTap?.(0);
+                      onMediaTap?.(0, frameNodeRef.current);
                     }}
                     className="inline-flex h-9 items-center gap-1.5 bg-white/10 hover:bg-white/20 border border-white/10 px-4 rounded-full text-white text-xs font-bold"
                   >
@@ -451,6 +377,7 @@ const UserUploadEmbedInner = ({
                 <div
                   ref={(node) => {
                     registerRef("flexible-image")(node);
+                    frameNodeRef.current = node;
                     if (mediaRef) {
                       if (typeof mediaRef === "function") mediaRef(node);
                       else (mediaRef as any).current = node;
@@ -462,6 +389,50 @@ const UserUploadEmbedInner = ({
             </>
           )}
         </>
+      )}
+
+      {/* Body text — unico flessibile o primo flessibile (renderizzato qui solo se NON mini layout) */}
+      {!shouldRenderMini && postContent && postContent.trim().length > 0 && (
+        <div
+          ref={(el) => {
+            registerRef("essential-description")(el);
+            if (bodyRef) {
+              if (typeof bodyRef === "function") bodyRef(el);
+              else (bodyRef as any).current = el;
+            }
+            if (bodyTextRef) {
+              if (typeof bodyTextRef === "function") bodyTextRef(el);
+              else (bodyTextRef as any).current = el;
+            }
+          }}
+          className={cn("whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]", isPoster && "text-center")}
+          style={{
+            fontFamily: "Inter, sans-serif",
+            lineHeight: 1.55,
+            textAlign: isPoster ? "center" : "left",
+            display: "-webkit-box",
+            WebkitLineClamp: bodyLineClamp,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+          }}
+        >
+          <MentionText content={postContent} />
+        </div>
+      )}
+
+      {/* Approfondisci (subito dopo il body text - renderizzato qui solo se NON mini layout) */}
+      {!shouldRenderMini && shouldShowApprofondisci && (
+        <div className="flex-shrink-0 mt-2 mb-3">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenFullText("description");
+            }}
+            className="text-sm text-primary font-semibold active:opacity-60 transition-opacity block"
+          >
+            Approfondisci
+          </button>
+        </div>
       )}
     </div>
   );

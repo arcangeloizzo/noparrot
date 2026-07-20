@@ -59,6 +59,7 @@ import { SpotifyPodcastCompactCard } from "./SpotifyPodcastCompactCard";
 import { SpotifyTrackEmbed } from "./embeds/SpotifyTrackEmbed";
 import { SpotifyEpisodeEmbed } from "./embeds/SpotifyEpisodeEmbed";
 import { UserUploadEmbed } from "./embeds/UserUploadEmbed";
+import { ExpandedMediaViewer } from "./ExpandedMediaViewer";
 import { TwitterTweetEmbed } from "./embeds/TwitterTweetEmbed";
 import { LinkedInEmbedCard } from "./embeds/LinkedInEmbedCard";
 import { YouTubeShortEmbed } from "./embeds/YouTubeShortEmbed";
@@ -78,7 +79,6 @@ import { usePollForPost } from "@/hooks/usePollVote";
 
 // Media Components
 import { MediaGallery } from "@/components/media/MediaGallery";
-import { MediaViewer } from "@/components/media/MediaViewer";
 import { AmbientLayer } from "@/components/shared/AmbientLayer";
 import { MediaFrame } from "@/components/shared/MediaFrame";
 
@@ -317,6 +317,7 @@ const ImmersivePostCardInner = ({
     return () => ro.disconnect();
   }, []);
   const [selectedMediaIndex, setSelectedMediaIndex] = useState<number | null>(null);
+  const mediaOriginElRef = useRef<HTMLElement | null>(null);
   const [carouselIndex, setCarouselIndex] = useState(0);
   const createThread = useCreateThread();
   const sendMessage = useSendMessage();
@@ -3377,37 +3378,29 @@ const ImmersivePostCardInner = ({
       {/* Media Viewer */}
       {
         selectedMediaIndex !== null && finalSourceMedia && (
-          <div className="fixed inset-0 z-[10080]">
-            <MediaViewer
-              media={finalSourceMedia}
-              initialIndex={selectedMediaIndex}
-              postTitle={post.title}
-              minimal={shouldUseBlurredBg}
-              onClose={(finalIndex) => {
-                if (finalIndex !== undefined) {
-                  setCarouselIndex(finalIndex);
-                }
-                setSelectedMediaIndex(null);
-              }}
-              postActions={{
-                onShare: () => {
-                  setSelectedMediaIndex(null);
-                  setShowShareSheet(true);
-                },
-                onHeart: () => handleHeart(undefined, 'heart'),
-                onComment: () => {
-                  setSelectedMediaIndex(null);
-                  setShowComments(true);
-                },
-                onBookmark: () => toggleReaction.mutate({ postId: post.id, reactionType: 'bookmark' }),
-                hasHearted: post.user_reactions?.has_hearted ?? false,
-                hasBookmarked: post.user_reactions?.has_bookmarked ?? false,
-                heartsCount: post.reactions?.hearts ?? 0,
-                commentsCount: post.reactions?.comments ?? 0,
-                sharesCount: post.shares_count ?? 0,
-              }}
-            />
-          </div>
+          <ExpandedMediaViewer
+            isOpen={selectedMediaIndex !== null}
+            onClose={() => setSelectedMediaIndex(null)}
+            media={(finalSourceMedia as any[]).map((m: any) => ({
+              url: m.url,
+              type: m.type === 'video' ? 'video' : 'image',
+              orientation: m.orientation ?? null,
+              ratio: m.ratio ?? null,
+              thumbnail_url: m.thumbnail_url ?? null,
+            }))}
+            initialIndex={selectedMediaIndex}
+            authorLabel={post.author.full_name || post.author.username || ''}
+            caption={post.content || undefined}
+            accentColor={getCategoryColor(post.category)}
+            getOriginRect={() => mediaOriginElRef.current?.getBoundingClientRect() ?? null}
+            heartsCount={post.reactions?.hearts || 0}
+            hasHearted={post.user_reactions?.has_hearted}
+            hasBookmarked={post.user_reactions?.has_bookmarked}
+            onHeart={() => handleHeart(undefined, 'heart')}
+            onComment={() => { setSelectedMediaIndex(null); setShowComments(true); }}
+            onBookmark={() => toggleReaction.mutate({ postId: post.id, reactionType: 'bookmark' })}
+            onShare={() => { setSelectedMediaIndex(null); setShowShareSheet(true); }}
+          />
         )
       }
 

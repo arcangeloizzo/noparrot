@@ -76,7 +76,7 @@ const renderMediaEl = (m: MediaFrameItem, contain: boolean) => {
   return <img src={m.url} loading="lazy" style={commonStyle} alt="" />;
 };
 
-export const MediaFrame = ({ media, onMediaClick }: MediaFrameProps) => {
+export const MediaMosaic = ({ media, onMediaClick }: MediaFrameProps) => {
   if (!media || media.length === 0) return null;
 
   const handleTileClick = (i: number) => (e: React.MouseEvent<HTMLElement>) => {
@@ -246,4 +246,4 @@ export const MediaFrame = ({ media, onMediaClick }: MediaFrameProps) => {
   );
 };
 
-export default MediaFrame;
+export default MediaMosaic;
