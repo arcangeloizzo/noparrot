@@ -516,7 +516,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
           </div>
 
           {/* Fixed Bottom Composer - Compact inline style */}
-          <div className={cn("sticky bottom-0 bg-card border-t border-border/50 z-30", !isKeyboardOpen && "pb-[env(safe-area-inset-bottom)]")}>
+          <div className={cn("sticky bottom-0 z-30", !isKeyboardOpen && "pb-[env(safe-area-inset-bottom)]")} style={{ background:'rgba(12,18,30,0.75)', backdropFilter:'blur(16px)', WebkitBackdropFilter:'blur(16px)', boxShadow:'0 -1px 0 rgba(255,255,255,0.06)' }}>
             <div className="px-3 py-3">
               {/* Reply indicator */}
               {replyingTo && (
