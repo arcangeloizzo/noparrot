@@ -601,15 +601,289 @@ const YouTubeShortEmbedInner = ({
         />
       )}
 
-      {/* Content wrapper: row for mini layout, column for tall layout */}
-      <div
-        className={cn(
-          shouldRenderMini ? "vstage-row w-full flex gap-4" : "w-full flex flex-col gap-3"
-        )}
-        style={shouldRenderMini ? { minHeight: 192, flexShrink: 0 } : undefined}
-      >
-        <div className={cn(shouldRenderMini ? "v-col flex-1 min-w-0 flex flex-col" : "w-full flex flex-col")}>
-          {/* User Comment */}
+      {shouldRenderMini ? (
+        <div
+          className="vstage-row w-full flex gap-4"
+          style={{ minHeight: 192, flexShrink: 0 }}
+        >
+          <div className="v-col flex-1 min-w-0 flex flex-col">
+            {postContent && postContent.trim().length > 0 && (
+              <p
+                ref={(el) => {
+                  if (bodyRef) {
+                    if (typeof bodyRef === "function") bodyRef(el);
+                    else (bodyRef as any).current = el;
+                  }
+                  if (bodyTextRef) {
+                    if (typeof bodyTextRef === "function") bodyTextRef(el);
+                    else (bodyTextRef as any).current = el;
+                  }
+                }}
+                className="self-start text-sm text-white/90 leading-relaxed mb-3 text-left flex-shrink-0 w-full"
+                style={{
+                  display: "-webkit-box",
+                  WebkitLineClamp: bodyLineClamp,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                }}
+              >
+                <MentionText content={postContent} />
+              </p>
+            )}
+            {flexiblesStatus["flexible-text"]?.step !== "hidden" && articlePreview?.title && (
+              <p
+                ref={captionTextRef}
+                className={cn(
+                  "self-start leading-relaxed mb-3 text-left flex-shrink-0 w-full text-xs text-white/60",
+                  flexiblesStatus["flexible-text"]?.step === "compact"
+                    ? "line-clamp-2"
+                    : "line-clamp-4"
+                )}
+              >
+                <MentionText content={decodeHTMLEntities(articlePreview.title)} />
+              </p>
+            )}
+            {shouldShowApprofondisci && (
+              <div className="flex-shrink-0 mt-2 mb-3 text-left self-start">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenFullText("description");
+                  }}
+                  className="text-sm font-semibold active:opacity-60 transition-opacity block text-primary"
+                >
+                  Approfondisci
+                </button>
+              </div>
+            )}
+          </div>
+          <div
+            ref={(node) => {
+              registerRef("flexible-image")(node);
+              if (mediaRef) {
+                if (typeof mediaRef === "function") mediaRef(node);
+                else (mediaRef as any).current = node;
+              }
+            }}
+            className="flex-shrink-0"
+            style={{ alignSelf: "flex-start" }}
+          >
+            <MediaFrame
+              media={mediaForFrame}
+              variant="mini"
+              onTap={() => onMediaTap?.(0)}
+              onLoad={handleImageLoad}
+              onError={handleImageError}
+            >
+              {mediaOverlay}
+            </MediaFrame>
+          </div>
+        </div>
+      ) : (
+        <div className="w-full flex flex-col gap-3">
+          {/* STAGE VERTICALE full-bleed */}
+          <div
+            ref={(node) => {
+              registerRef("flexible-image")(node);
+              if (mediaRef) {
+                if (typeof mediaRef === "function") mediaRef(node);
+                else (mediaRef as any).current = node;
+              }
+            }}
+            className="w-full mb-1 flex-shrink-0"
+          >
+            <div
+              className="relative"
+              style={{
+                marginLeft: "-18px",
+                marginRight: "-18px",
+                height: "min(64svh, 560px)",
+                overflow: "hidden",
+                background: "#07090f",
+              }}
+            >
+              {/* Fianchi sfumati con stesso poster */}
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  backgroundImage: `url(${imgSrc})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                  filter: "blur(28px) brightness(0.5) saturate(130%)",
+                  transform: "scale(1.15)",
+                }}
+              />
+              {!isPlaying ? (
+                <>
+                  <img
+                    src={imgSrc}
+                    onLoad={handleImageLoad}
+                    onError={handleImageError}
+                    loading="lazy"
+                    alt=""
+                    style={{
+                      position: "relative",
+                      zIndex: 1,
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "contain",
+                      display: "block",
+                    }}
+                  />
+                  {imageStatus === "placeholder" && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        inset: 0,
+                        zIndex: 1,
+                        background: "linear-gradient(135deg, #0f0f13 0%, #1e0a0d 100%)",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                        pointerEvents: "none",
+                      }}
+                    >
+                      <svg
+                        className="w-10 h-10"
+                        viewBox="0 0 24 24"
+                        fill="#FF0000"
+                        style={{ filter: "drop-shadow(0 2px 8px rgba(255,0,0,0.3))" }}
+                      >
+                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z" />
+                        <polygon fill="white" points="9.545,15.568 15.818,12 9.545,8.432" />
+                      </svg>
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: "bold",
+                          color: "rgba(255, 255, 255, 0.6)",
+                          letterSpacing: "0.05em",
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        YouTube Shorts
+                      </span>
+                    </div>
+                  )}
+                  {/* Play glass */}
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsPlaying(true);
+                    }}
+                    style={{
+                      position: "absolute",
+                      top: "50%",
+                      left: "50%",
+                      transform: "translate(-50%, -50%)",
+                      width: "66px",
+                      height: "66px",
+                      borderRadius: "50%",
+                      background: "rgba(10,14,22,0.55)",
+                      backdropFilter: "blur(10px)",
+                      WebkitBackdropFilter: "blur(10px)",
+                      border: "1px solid rgba(255,255,255,0.25)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+                      cursor: "pointer",
+                      zIndex: 2,
+                    }}
+                  >
+                    <Play className="w-6 h-6 text-white fill-white" style={{ marginLeft: "2px" }} />
+                  </div>
+                  {/* Bottone theater */}
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTheaterOpen(true);
+                    }}
+                    style={{
+                      position: "absolute",
+                      top: "12px",
+                      right: "12px",
+                      width: "32px",
+                      height: "32px",
+                      borderRadius: "50%",
+                      background: "rgba(10,14,22,0.55)",
+                      backdropFilter: "blur(8px)",
+                      WebkitBackdropFilter: "blur(8px)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "white",
+                      cursor: "pointer",
+                      zIndex: 2,
+                    }}
+                  >
+                    <Maximize2 className="w-4 h-4 text-white" />
+                  </div>
+                </>
+              ) : (
+                <div
+                  style={{
+                    position: "relative",
+                    zIndex: 1,
+                    height: "100%",
+                    display: "flex",
+                    justifyContent: "center",
+                  }}
+                >
+                  <iframe
+                    src={videoId ? `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&playsinline=1&rel=0` : ""}
+                    style={{ height: "100%", aspectRatio: "9 / 16", border: 0 }}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
+                    title="YouTube Short"
+                  />
+                </div>
+              )}
+              {shortsChipTall}
+            </div>
+          </div>
+          {/* META */}
+          <div ref={slotBottomRef} className="flex items-center justify-between mt-3">
+            <span
+              style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: "10.5px",
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                color: "rgba(255,255,255,0.5)",
+                fontWeight: 600,
+              }}
+            >
+              YOUTUBE SHORTS
+            </span>
+            {sharedUrl && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open(sharedUrl, "_blank", "noopener,noreferrer");
+                }}
+                className="inline-flex items-center gap-1.5 active:opacity-60 transition-opacity"
+                style={{
+                  fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: "10.5px",
+                  letterSpacing: "0.08em",
+                  fontWeight: 600,
+                  color: "#ff6b7f",
+                }}
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z" />
+                  <polygon fill="#ff6b7f" points="9.545,15.568 15.818,12 9.545,8.432" />
+                </svg>
+                APRI SU YOUTUBE
+              </button>
+            )}
+          </div>
+          {/* Body / Caption / Approfondisci */}
           {postContent && postContent.trim().length > 0 && (
             <p
               ref={(el) => {
@@ -633,14 +907,11 @@ const YouTubeShortEmbedInner = ({
               <MentionText content={postContent} />
             </p>
           )}
-
-          {/* Caption / Description */}
           {flexiblesStatus["flexible-text"]?.step !== "hidden" && articlePreview?.title && (
             <p
               ref={captionTextRef}
               className={cn(
-                "self-start leading-relaxed mb-3 text-left flex-shrink-0 w-full",
-                shouldRenderMini ? "text-xs text-white/60" : "text-sm text-white/80",
+                "self-start leading-relaxed mb-3 text-left flex-shrink-0 w-full text-sm text-white/80",
                 flexiblesStatus["flexible-text"]?.step === "compact"
                   ? "line-clamp-2"
                   : "line-clamp-4"
@@ -649,7 +920,6 @@ const YouTubeShortEmbedInner = ({
               <MentionText content={decodeHTMLEntities(articlePreview.title)} />
             </p>
           )}
-
           {shouldShowApprofondisci && (
             <div className="flex-shrink-0 mt-2 mb-3 text-left self-start">
               <button
@@ -664,68 +934,7 @@ const YouTubeShortEmbedInner = ({
             </div>
           )}
         </div>
-
-        {/* MediaWrapper: remains stable in DOM layout to prevent image unmounting and reloading */}
-        <div
-          ref={(node) => {
-            registerRef("flexible-image")(node);
-            if (mediaRef) {
-              if (typeof mediaRef === "function") mediaRef(node);
-              else (mediaRef as any).current = node;
-            }
-          }}
-          className={cn("flex-shrink-0", shouldRenderMini ? "" : "w-full mb-1")}
-          style={shouldRenderMini ? { alignSelf: "flex-start" } : { order: -1 }}
-        >
-          <MediaFrame
-            media={mediaForFrame}
-            variant={shouldRenderMini ? "mini" : "tall"}
-            onTap={shouldRenderMini ? () => onMediaTap?.(0) : () => setIsPlaying(true)}
-            onLoad={handleImageLoad}
-            onError={handleImageError}
-          >
-            {mediaOverlay}
-          </MediaFrame>
-          {!shouldRenderMini && (
-            <div ref={slotBottomRef} className="mt-3 flex items-center justify-between">
-              <span
-                style={{
-                  fontFamily: "'JetBrains Mono', monospace",
-                  fontSize: "10.5px",
-                  letterSpacing: "0.1em",
-                  textTransform: "uppercase",
-                  color: "rgba(255,255,255,0.5)",
-                  fontWeight: 600,
-                }}
-              >
-                YouTube Shorts
-              </span>
-              {sharedUrl && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    window.open(sharedUrl, "_blank", "noopener,noreferrer");
-                  }}
-                  className="inline-flex items-center gap-1.5 active:opacity-60 transition-opacity"
-                  style={{
-                    fontFamily: "'JetBrains Mono', monospace",
-                    fontSize: "10.5px",
-                    letterSpacing: "0.08em",
-                    fontWeight: 600,
-                    color: "#ff6b7f",
-                  }}
-                >
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z" />
-                    <polygon fill="#ff6b7f" points="9.545,15.568 15.818,12 9.545,8.432" />
-                  </svg>
-                  APRI SU YOUTUBE
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
+      )}
     </div>
     {theaterOpen && videoId && createPortal(
       <div className="fixed inset-0 z-[70]" style={{ background: '#070b12' }} onClick={(e) => e.stopPropagation()}>
