@@ -2227,6 +2227,15 @@ html:not(.light) .liquid-glass-navbar {
   pointer-events: none;
 }
 
+/* Collassa lo zone-badge quando non contiene alcuna badge visibile
+   (es. post media-utente senza AI/Voicecast/Challenge/Trust).
+   Elimina il vuoto verticale header→titolo senza toccare gli altri rami. */
+.zone-badge:empty {
+  display: none;
+  min-height: 0;
+  margin-top: 0;
+}
+
 .zone-mid {
   flex: 0 0 auto;
   min-height: 0;            /* permette flex children con overflow corretto */
