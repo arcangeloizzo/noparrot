@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Heart, MessageCircle } from 'lucide-react';
+import { Heart, MessageCircle, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -38,6 +38,8 @@ import { ReactionPicker, type ReactionType, reactionToEmoji } from '@/components
 import { ReactionSummary, getReactionCounts } from '@/components/feed/ReactionSummary';
 import { haptics } from '@/lib/haptics';
 import { CommentItem } from './CommentItem';
+import { getCategoryColor } from '@/config/categories';
+
 
 interface CommentsDrawerProps {
   post: Post;
@@ -59,6 +61,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
   );
   const postHasSource = !!post.shared_url || !!postMediaWithExtractedText;
   const isFocusContent = post.shared_url === 'focus://internal';
+  const accent = getCategoryColor((post as any).category) || '#0A7AFF';
 
   // [GATE ALIGNMENT] Post text-only senza fonte: se >30 parole, attiva gate
   // sulle parole del post stesso (allineato al reshare in ComposerModal).
@@ -359,10 +362,17 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
       <Drawer open={isOpen} onOpenChange={(open) => !open && onClose()} repositionInputs={false}>
         <DrawerContent 
           className={cn(
-            "max-h-[90vh] bg-background/95 backdrop-blur-xl border-t border-border rounded-t-3xl",
+            "max-h-[90vh] rounded-t-3xl",
             !isKeyboardOpen && "pb-[env(safe-area-inset-bottom)]"
           )}
-          style={{ paddingBottom: isKeyboardOpen ? Math.max(0, keyboardOffset) : undefined, zIndex: 60 }}
+          style={{ 
+            paddingBottom: isKeyboardOpen ? Math.max(0, keyboardOffset) : undefined, 
+            zIndex: 60,
+            background:'rgba(18,26,42,0.92)', 
+            backdropFilter:'blur(26px) saturate(150%)', 
+            WebkitBackdropFilter:'blur(26px) saturate(150%)', 
+            boxShadow:'0 1px 0 rgba(255,255,255,0.09) inset, 0 -24px 60px rgba(0,0,0,0.6)' 
+          }}
         >
           {/* Drawer handle */}
           <div className="flex justify-center pt-3 pb-1">
@@ -370,13 +380,14 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
           </div>
           
           {/* Header */}
-          <DrawerHeader className="border-b border-border/50 sticky top-0 bg-background/95 backdrop-blur-xl z-20 pt-2 pb-4">
+          <DrawerHeader className="sticky top-0 z-20 pt-2 pb-4" style={{ boxShadow:'0 1px 0 rgba(255,255,255,0.06)' }}>
             <DrawerTitle className="text-center text-lg font-semibold text-foreground mb-4">
-              Commenti
+              Commenti <span style={{ fontFamily:'var(--mono)', fontSize:'12px', color:'var(--txt-3)', fontWeight:600 }}>· {comments.length}</span>
             </DrawerTitle>
             
             {/* Post Preview - Compact card */}
-            <div className="mx-2 p-2.5 rounded-xl bg-muted/30 border border-border/50">
+            <div className="mx-2 p-3 rounded-2xl flex gap-2.5 items-stretch" style={{ background:`${accent}12`, border:`1px solid ${accent}2E` }}>
+              <div style={{ width:'4px', borderRadius:'2px', background:accent, flexShrink:0 }} />
               <div className="flex gap-2.5">
                 <div className="flex-shrink-0">
                   {getUserAvatar(post.author.avatar_url, post.author.full_name || post.author.username)}
@@ -413,7 +424,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                         href={post.shared_url} 
                         target="_blank" 
                         rel="noopener noreferrer"
-                        className="text-primary hover:underline text-[11px] font-medium inline-block"
+                        className="text-primary active:opacity-60 transition-opacity text-[11px] font-medium inline-block"
                       >
                         Leggi articolo originale →
                       </a>
@@ -505,7 +516,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
           </div>
 
           {/* Fixed Bottom Composer - Compact inline style */}
-          <div className={cn("sticky bottom-0 bg-card border-t border-border/50 z-30", !isKeyboardOpen && "pb-[env(safe-area-inset-bottom)]")}>
+          <div className={cn("sticky bottom-0 z-30", !isKeyboardOpen && "pb-[env(safe-area-inset-bottom)]")} style={{ background:'rgba(12,18,30,0.75)', backdropFilter:'blur(16px)', WebkitBackdropFilter:'blur(16px)', boxShadow:'0 -1px 0 rgba(255,255,255,0.06)' }}>
             <div className="px-3 py-3">
               {/* Reply indicator */}
               {replyingTo && (
@@ -549,10 +560,9 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                 
                 {/* Input with inline media icon */}
                 <div className={cn(
-                  "flex-1 flex items-center gap-2 rounded-full border transition-all duration-200",
-                  "bg-secondary border-border/50",
+                  "flex-1 flex items-center gap-2 rounded-full transition-all duration-200",
                   "focus-within:border-primary/30"
-                )}>
+                )} style={{ background:'rgba(255,255,255,0.07)', boxShadow:'0 1px 0 rgba(255,255,255,0.07) inset' }}>
                   <textarea
                     ref={textareaRef}
                     value={newComment}
@@ -599,7 +609,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                     }}
                     placeholder={
                       selectedCommentType === null && requiresGateChoice
-                        ? "Scegli come entrare..."
+                        ? "Entra nella conversazione…"
                         : "Scrivi un commento..."
                     }
                     className={cn(
@@ -630,15 +640,14 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                   disabled={(!newComment.trim() && uploadedMedia.length === 0) || addComment.isPending}
                   size="sm"
                   className={cn(
-                    "rounded-full px-5 h-[42px] font-semibold text-sm",
-                    "bg-primary/90 hover:bg-primary",
-                    "disabled:opacity-40 disabled:bg-primary/40"
+                    "rounded-full w-[42px] h-[42px] p-0 flex-shrink-0 disabled:opacity-40"
                   )}
+                  style={{ background:'linear-gradient(135deg,#0A7AFF,#0862CC)', boxShadow:'0 6px 16px -6px rgba(10,122,255,0.55)' }}
                 >
                   {addComment.isPending ? (
                     <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
                   ) : (
-                    'Invia'
+                    <Send className="w-[18px] h-[18px] text-white" />
                   )}
                 </Button>
               </div>
