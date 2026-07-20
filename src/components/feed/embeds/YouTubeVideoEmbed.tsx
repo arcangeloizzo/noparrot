@@ -1,9 +1,9 @@
 import React, { memo, useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { ClampedTitle } from "@/components/shared/ClampedTitle";
 import { MentionText } from "../MentionText";
-import { CardExternalCTA } from "../CardExternalCTA";
 import { cn, decodeHTMLEntities } from "@/lib/utils";
-import { Play, ExternalLink } from "lucide-react";
+import { Play, ExternalLink, Maximize2, X } from "lucide-react";
 import { extractYoutubeVideoId } from "@/lib/mediaUtils";
 
 interface YouTubeVideoEmbedProps {
@@ -64,16 +64,19 @@ const YouTubeVideoEmbedInner = ({
 }: YouTubeVideoEmbedProps) => {
   // Localized YouTube embed states
   const [youtubeEmbedActive, setYoutubeEmbedActive] = useState(false);
+  const [theaterOpen, setTheaterOpen] = useState(false);
   const prevPostIdRef = useRef(postId);
 
   useEffect(() => {
     if (prevPostIdRef.current !== postId) {
       setYoutubeEmbedActive(false);
+      setTheaterOpen(false);
       prevPostIdRef.current = postId;
     }
   }, [postId]);
 
   return (
+    <>
     <div
       className={cn(
         "flex-1 min-h-0 flex flex-col justify-start w-full",
@@ -107,55 +110,6 @@ const YouTubeVideoEmbedInner = ({
         />
       )}
 
-      {/* Body text */}
-      {!useStackLayout && postContent && postContent.trim().length > 0 && (
-        <div
-          ref={(el) => {
-            if (bodyRef) {
-              if (typeof bodyRef === "function") {
-                bodyRef(el);
-              } else {
-                (bodyRef as any).current = el;
-              }
-            }
-            if (bodyTextRef) {
-              if (typeof bodyTextRef === "function") {
-                bodyTextRef(el);
-              } else {
-                (bodyTextRef as any).current = el;
-              }
-            }
-          }}
-          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
-          style={{
-            fontFamily: "Inter, sans-serif",
-            lineHeight: 1.55,
-            textAlign: "left",
-            display: "-webkit-box",
-            WebkitLineClamp: bodyLineClamp,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
-          }}
-        >
-          <MentionText content={postContent} />
-        </div>
-      )}
-
-      {/* Approfondisci */}
-      {!useStackLayout && shouldShowApprofondisci && (
-        <div className="flex-shrink-0 mt-2 mb-3">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenFullText("description");
-            }}
-            className="text-sm text-primary font-semibold active:opacity-60 transition-opacity block"
-          >
-            Approfondisci
-          </button>
-        </div>
-      )}
-
       <div className="slot-bottom" ref={slotBottomRef}>
         {/* YouTube embed */}
         {youtubeEmbedStep === "full" && (
@@ -173,64 +127,142 @@ const YouTubeVideoEmbedInner = ({
                   }
                 : undefined
             }
-            className="w-full mt-auto flex-shrink-0"
+            className="w-full flex-shrink-0 mb-1"
           >
             {!hasUserMedia && (
               <>
                 {!youtubeEmbedActive ? (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setYoutubeEmbedActive(true);
-                    }}
-                    className="relative w-full rounded-2xl overflow-hidden border border-white/10 active:scale-[0.98] transition-transform"
+                  <div
+                    className="relative"
+                    style={{ marginLeft: "-18px", marginRight: "-18px", background: "#000" }}
                   >
-                    <img
-                      src={
-                        articlePreview?.image ||
-                        postPreviewImg ||
-                        (sharedUrl
-                          ? `https://img.youtube.com/vi/${extractYoutubeVideoId(
-                              sharedUrl
-                            )}/maxresdefault.jpg`
-                          : "")
-                      }
-                      alt=""
-                      width={1280}
-                      height={720}
-                      loading="lazy"
-                      decoding="async"
-                      className="w-full aspect-video object-cover"
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                      <div className="bg-red-600 p-4 rounded-full">
-                        <Play className="w-8 h-8 text-white fill-white" />
-                      </div>
-                    </div>
-                    <div className="absolute bottom-3 left-3 bg-black/90 px-3 py-1.5 rounded-full flex items-center gap-2">
-                      <svg
-                        className="w-4 h-4 text-red-600"
-                        viewBox="0 0 24 24"
-                        fill="currentColor"
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setYoutubeEmbedActive(true);
+                      }}
+                      className="relative w-full block active:opacity-95 transition-opacity"
+                    >
+                      <img
+                        src={
+                          articlePreview?.image ||
+                          postPreviewImg ||
+                          (sharedUrl
+                            ? `https://img.youtube.com/vi/${extractYoutubeVideoId(
+                                sharedUrl
+                              )}/maxresdefault.jpg`
+                            : "")
+                        }
+                        alt=""
+                        width={1280}
+                        height={720}
+                        loading="lazy"
+                        decoding="async"
+                        className="w-full aspect-video object-cover block"
+                      />
+                      <div
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
                       >
-                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z" />
-                        <polygon fill="white" points="9.545,15.568 15.818,12 9.545,8.432" />
-                      </svg>
-                      <span className="text-white text-xs font-medium">YouTube</span>
-                    </div>
-                  </button>
+                        <div
+                          style={{
+                            width: "66px",
+                            height: "66px",
+                            borderRadius: "50%",
+                            background: "rgba(10,14,22,0.55)",
+                            backdropFilter: "blur(10px)",
+                            WebkitBackdropFilter: "blur(10px)",
+                            border: "1px solid rgba(255,255,255,0.25)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <Play className="w-6 h-6 text-white fill-white ml-0.5" />
+                        </div>
+                      </div>
+                      <span
+                        style={{
+                          position: "absolute",
+                          left: "10px",
+                          bottom: "10px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          fontFamily: "'JetBrains Mono', monospace",
+                          fontSize: "10px",
+                          letterSpacing: "0.08em",
+                          fontWeight: 600,
+                          color: "#fff",
+                          background: "rgba(10,14,22,0.65)",
+                          backdropFilter: "blur(8px)",
+                          WebkitBackdropFilter: "blur(8px)",
+                          padding: "4px 9px",
+                          borderRadius: "999px",
+                        }}
+                      >
+                        <svg
+                          className="w-3.5 h-3.5 text-red-600"
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                        >
+                          <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z" />
+                          <polygon fill="white" points="9.545,15.568 15.818,12 9.545,8.432" />
+                        </svg>
+                        YouTube
+                      </span>
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTheaterOpen(true);
+                      }}
+                      style={{
+                        position: "absolute",
+                        top: "10px",
+                        right: "10px",
+                        width: "32px",
+                        height: "32px",
+                        borderRadius: "50%",
+                        background: "rgba(10,14,22,0.55)",
+                        backdropFilter: "blur(8px)",
+                        WebkitBackdropFilter: "blur(8px)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        zIndex: 3,
+                        border: "none",
+                      }}
+                    >
+                      <Maximize2 className="w-4 h-4 text-white" />
+                    </button>
+                  </div>
                 ) : (
-                  <div className="w-full rounded-2xl overflow-hidden border border-white/10">
+                  <div
+                    className="w-full"
+                    style={{
+                      marginLeft: "-18px",
+                      marginRight: "-18px",
+                      width: "calc(100% + 36px)",
+                      background: "#000",
+                    }}
+                  >
                     <div className="aspect-video">
                       <iframe
                         src={
                           sharedUrl
                             ? `https://www.youtube.com/embed/${extractYoutubeVideoId(
                                 sharedUrl
-                              )}?autoplay=1&mute=1&cc_load_policy=1&rel=0`
+                              )}?autoplay=1&mute=1&cc_load_policy=1&rel=0&playsinline=1`
                             : ""
                         }
                         className="w-full h-full"
+                        style={{ border: 0 }}
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         allowFullScreen
                         sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
@@ -240,11 +272,64 @@ const YouTubeVideoEmbedInner = ({
                   </div>
                 )}
 
-                {postTitle && postTitle.trim().length > 0 && (
-                  <h1 className="text-xs font-semibold text-immersive-foreground line-clamp-1 mt-2 mb-1 text-left">
-                    {decodeHTMLEntities(articlePreview?.title || sharedTitle)}
-                  </h1>
-                )}
+                <div className="mt-3">
+                  <div
+                    style={{
+                      fontSize: "15px",
+                      fontWeight: 700,
+                      lineHeight: 1.35,
+                      color: "rgba(236,241,247,0.96)",
+                      display: "-webkit-box",
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: "vertical",
+                      overflow: "hidden",
+                      marginBottom: "6px",
+                      textAlign: "left",
+                    }}
+                  >
+                    {decodeHTMLEntities(articlePreview?.title || sharedTitle || "Video")}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span
+                      style={{
+                        fontFamily: "'JetBrains Mono', monospace",
+                        fontSize: "10.5px",
+                        letterSpacing: "0.1em",
+                        textTransform: "uppercase",
+                        color: "rgba(255,255,255,0.5)",
+                        fontWeight: 600,
+                      }}
+                    >
+                      YouTube
+                    </span>
+                    {sharedUrl && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.open(sharedUrl, "_blank", "noopener,noreferrer");
+                        }}
+                        className="inline-flex items-center gap-1.5 active:opacity-60 transition-opacity"
+                        style={{
+                          fontFamily: "'JetBrains Mono', monospace",
+                          fontSize: "10.5px",
+                          letterSpacing: "0.08em",
+                          fontWeight: 600,
+                          color: "#ff6b7f",
+                        }}
+                      >
+                        <svg
+                          className="w-3.5 h-3.5"
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                        >
+                          <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z" />
+                          <polygon fill="white" points="9.545,15.568 15.818,12 9.545,8.432" />
+                        </svg>
+                        APRI SU YOUTUBE
+                      </button>
+                    )}
+                  </div>
+                </div>
               </>
             )}
 
@@ -385,17 +470,141 @@ const YouTubeVideoEmbedInner = ({
             style={{ height: 0, overflow: "hidden" }}
           />
         )}
-
-        {!useStackLayout && sharedUrl && (
-          <CardExternalCTA
-            platform="youtube"
-            url={sharedUrl}
-            mode="flow"
-            ref={registerRef("essential-external-cta")}
-          />
-        )}
       </div>
+
+      {/* Body text */}
+      {!useStackLayout && postContent && postContent.trim().length > 0 && (
+        <div
+          ref={(el) => {
+            if (bodyRef) {
+              if (typeof bodyRef === "function") {
+                bodyRef(el);
+              } else {
+                (bodyRef as any).current = el;
+              }
+            }
+            if (bodyTextRef) {
+              if (typeof bodyTextRef === "function") {
+                bodyTextRef(el);
+              } else {
+                (bodyTextRef as any).current = el;
+              }
+            }
+          }}
+          className="whitespace-pre-wrap break-words mb-3 mt-3 text-[14px] text-[#7A8FA6]"
+          style={{
+            fontFamily: "Inter, sans-serif",
+            lineHeight: 1.55,
+            textAlign: "left",
+            display: "-webkit-box",
+            WebkitLineClamp: bodyLineClamp,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+          }}
+        >
+          <MentionText content={postContent} />
+        </div>
+      )}
+
+      {/* Approfondisci */}
+      {!useStackLayout && shouldShowApprofondisci && (
+        <div className="flex-shrink-0 mt-2 mb-3">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenFullText("description");
+            }}
+            className="text-sm text-primary font-semibold active:opacity-60 transition-opacity block"
+          >
+            Approfondisci
+          </button>
+        </div>
+      )}
     </div>
+
+    {theaterOpen && sharedUrl && createPortal(
+      <div
+        className="fixed inset-0 z-[70] flex flex-col justify-center"
+        style={{ background: "#070b12" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            opacity: 0.8,
+            pointerEvents: "none",
+            background:
+              "radial-gradient(120% 60% at 50% 0%, rgba(228,30,82,0.22) 0%, transparent 60%), radial-gradient(120% 60% at 50% 100%, rgba(10,122,255,0.16) 0%, transparent 60%)",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 2,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "calc(12px + env(safe-area-inset-top)) 16px 20px",
+            background: "linear-gradient(180deg, rgba(5,8,14,0.7) 0%, transparent 100%)",
+          }}
+        >
+          <span
+            style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: "10.5px",
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              color: "rgba(255,255,255,0.5)",
+            }}
+          >
+            {decodeHTMLEntities(articlePreview?.title || sharedTitle || "YouTube")}
+          </span>
+          <button
+            onClick={() => setTheaterOpen(false)}
+            style={{
+              width: "34px",
+              height: "34px",
+              borderRadius: "50%",
+              border: "none",
+              color: "#fff",
+              background: "rgba(255,255,255,0.12)",
+              backdropFilter: "blur(10px)",
+              WebkitBackdropFilter: "blur(10px)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div
+          style={{
+            position: "relative",
+            zIndex: 1,
+            width: "100vw",
+            aspectRatio: "16 / 9",
+          }}
+        >
+          <iframe
+            src={`https://www.youtube.com/embed/${extractYoutubeVideoId(sharedUrl)}?autoplay=1&playsinline=1&rel=0`}
+            className="w-full h-full"
+            style={{ border: 0 }}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
+            title="YouTube theater"
+          />
+        </div>
+      </div>,
+      document.body
+    )}
+    </>
   );
 };
 
