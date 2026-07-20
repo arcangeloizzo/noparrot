@@ -237,14 +237,14 @@ export const CommentItem = ({
 
         {/* Header: Avatar + Name + Timestamp */}
         <div className="flex gap-3">
-          <div className="flex-shrink-0 cursor-pointer" onClick={(e) => { e.stopPropagation(); navigate(`/profile/${comment.author.id}`); }}>
+          <div className={cn("flex-shrink-0 cursor-pointer", isNested && "scale-75 origin-top-left")} onClick={(e) => { e.stopPropagation(); navigate(`/profile/${comment.author.id}`); }}>
             {getAvatar()}
           </div>
           
           <div className="flex-1 min-w-0">
             {/* Name row - compact */}
             <div className="flex items-center gap-2 flex-wrap mb-0.5">
-              <span className="font-bold text-sm text-foreground cursor-pointer" onClick={(e) => { e.stopPropagation(); navigate(`/profile/${comment.author.id}`); }}>
+              <span className={cn("font-bold cursor-pointer", isNested ? "text-[12.5px]" : "text-sm")} onClick={(e) => { e.stopPropagation(); navigate(`/profile/${comment.author.id}`); }}>
                 {comment.author.full_name || getDisplayUsername(comment.author.username)}
               </span>
               
@@ -277,7 +277,7 @@ export const CommentItem = ({
                 )
               )}
               
-              <span className="text-muted-foreground/50 text-xs">
+              <span className="text-[10px] uppercase" style={{ fontFamily:'var(--mono)', letterSpacing:'0.06em', color:'var(--txt-3)' }}>
                 · {formatDistanceToNow(new Date(comment.created_at), {
                   addSuffix: false,
                   locale: it
@@ -286,7 +286,7 @@ export const CommentItem = ({
             </div>
 
             {/* Body: Comment text */}
-            <div className="text-sm leading-relaxed text-foreground/90 mb-1">
+            <div className={cn("leading-relaxed text-foreground/90 mb-1", isNested ? "text-[13.5px]" : "text-sm")}>
               <MentionText content={comment.content} />
             </div>
 
@@ -341,7 +341,7 @@ export const CommentItem = ({
                     )} />
                   )}
                   {reactions?.likesCount && reactions.likesCount > 0 && (
-                    <span className="text-xs font-medium select-none">{reactions.likesCount}</span>
+                    <span className="select-none" style={{ fontFamily:'var(--mono)', fontSize:'10.5px', fontWeight:600 }}>{reactions.likesCount}</span>
                   )}
                 </button>
                 
@@ -367,8 +367,7 @@ export const CommentItem = ({
                 style={{ WebkitTapHighlightColor: 'transparent' }}
                 aria-label="Rispondi a questo commento"
               >
-                <MessageCircle className="w-4 h-4" />
-                <span className="text-xs font-medium select-none">Rispondi</span>
+                <span className="select-none" style={{ fontFamily:'var(--mono)', fontSize:'10.5px', letterSpacing:'0.07em', textTransform:'uppercase', fontWeight:600 }}>Rispondi</span>
               </button>
 
               {/* Share/Copy link - only for post comments */}
