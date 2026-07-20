@@ -205,32 +205,43 @@ const InstagramReelEmbedInner = ({
           className={cn(
             "flex-shrink-0",
             hasValidMedia 
-              ? (shouldRenderMini ? "" : "w-full mb-3") 
+              ? (shouldRenderMini ? "" : "w-full mb-1") 
               : "h-0 w-0 overflow-hidden"
           )}
-          style={hasValidMedia && shouldRenderMini ? { alignSelf: "flex-start" } : undefined}
+          style={hasValidMedia && shouldRenderMini ? { alignSelf: "flex-start" } : hasValidMedia ? { order: -1 } : undefined}
         >
           {hasValidMedia && mediaForFrame && (
             <MediaFrame
               media={mediaForFrame}
               variant={shouldRenderMini ? "mini" : "tall"}
-              onTap={() => onMediaTap?.(0)}
-            />
+              onTap={() => { if (sharedUrl) window.open(sharedUrl, '_blank', 'noopener,noreferrer'); }}
+            >
+              <>
+                {/* Play glass (decorativo: il tap lo gestisce MediaFrame) */}
+                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: shouldRenderMini ? 42 : 58, height: shouldRenderMini ? 42 : 58, borderRadius: '50%', background: 'rgba(10,14,22,0.55)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.2)', pointerEvents: 'none', zIndex: 2 }}>
+                  <Play className="text-white fill-white" style={{ width: shouldRenderMini ? 16 : 24, height: shouldRenderMini ? 16 : 24, marginLeft: 2 }} />
+                </div>
+                {/* Chip REEL basso-sx */}
+                <div style={{ position: 'absolute', left: shouldRenderMini ? 8 : 10, bottom: shouldRenderMini ? 8 : 10, display: 'flex', alignItems: 'center', gap: '6px', fontFamily: "'JetBrains Mono', monospace", fontSize: shouldRenderMini ? '9px' : '10px', letterSpacing: '0.08em', fontWeight: 600, color: '#fff', background: 'rgba(10,14,22,0.65)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', padding: '4px 9px', borderRadius: '999px', pointerEvents: 'none', zIndex: 2 }}>
+                  <span style={{ width: '10px', height: '10px', borderRadius: '3px', background: 'linear-gradient(45deg, #F58529, #DD2A7B, #8134AF)', display: 'block' }} />
+                  REEL
+                </div>
+              </>
+            </MediaFrame>
+          )}
+          {hasValidMedia && !shouldRenderMini && (
+            <div ref={slotBottomRef} className="mt-3 flex items-center justify-between">
+              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10.5px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', fontWeight: 600 }}>Instagram Reel</span>
+              {sharedUrl && (
+                <button onClick={(e) => { e.stopPropagation(); window.open(sharedUrl, '_blank', 'noopener,noreferrer'); }} className="inline-flex items-center gap-1.5 active:opacity-60 transition-opacity">
+                  <span style={{ width: '11px', height: '11px', borderRadius: '3px', background: 'linear-gradient(45deg, #F58529, #DD2A7B, #8134AF)', display: 'block' }} />
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10.5px', letterSpacing: '0.08em', fontWeight: 600, background: 'linear-gradient(45deg, #F58529, #DD2A7B, #8134AF)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>APRI SU INSTAGRAM</span>
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>
-
-      {/* CTA below the content wrapper (only for tall layout) */}
-      {!shouldRenderMini && !useStackLayout && sharedUrl && (
-        <div className="slot-bottom w-full mt-auto px-0" ref={slotBottomRef}>
-          <CardExternalCTA
-            platform="instagram"
-            url={sharedUrl}
-            mode="flow"
-            ref={registerRef("essential-external-cta")}
-          />
-        </div>
-      )}
     </div>
   );
 };
