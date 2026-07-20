@@ -1,10 +1,10 @@
 import React, { memo, useState, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { ClampedTitle } from "@/components/shared/ClampedTitle";
 import { MentionText } from "../MentionText";
-import { CardExternalCTA } from "../CardExternalCTA";
 import { cn, decodeHTMLEntities } from "@/lib/utils";
 import { MediaFrame } from "@/components/shared/MediaFrame";
-import { Play } from "lucide-react";
+import { Play, Maximize2, X } from "lucide-react";
 import { countPostWords, calculateMediaLayout, extractYoutubeVideoId } from "@/lib/mediaUtils";
 import type { UnifiedMedia } from "@/types/media";
 
@@ -74,12 +74,14 @@ const YouTubeShortEmbedInner = ({
 
   // Video playback state
   const [isPlaying, setIsPlaying] = useState(false);
+  const [theaterOpen, setTheaterOpen] = useState(false);
   // 3-level thumbnail fallback states
   const [imageStatus, setImageStatus] = useState<'maxres' | 'hq' | 'placeholder'>('maxres');
   const [imgSrc, setImgSrc] = useState<string>("");
 
   useEffect(() => {
     setIsPlaying(false);
+    setTheaterOpen(false);
     setImageStatus('maxres');
     if (videoId) {
       setImgSrc(`https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`);
@@ -92,6 +94,7 @@ const YouTubeShortEmbedInner = ({
   useEffect(() => {
     if (!isActive) {
       setIsPlaying(false);
+      setTheaterOpen(false);
     }
   }, [isActive]);
 
@@ -193,27 +196,38 @@ const YouTubeShortEmbedInner = ({
         </div>
       )}
 
-      {/* Chip durata alto-sx */}
+      {/* Chip SHORTS basso-sx */}
       <div
         style={{
           position: "absolute",
-          top: shouldRenderMini ? 8 : 12,
-          left: shouldRenderMini ? 8 : 12,
-          background: "rgba(0,0,0,0.6)",
-          padding: "3px 8px",
-          borderRadius: 12,
-          color: "white",
-          fontSize: shouldRenderMini ? 10 : 11,
-          fontWeight: "bold",
-          fontFamily: "Inter, sans-serif",
+          left: shouldRenderMini ? 8 : 10,
+          bottom: shouldRenderMini ? 8 : 10,
           display: "flex",
           alignItems: "center",
-          gap: 4,
+          gap: "6px",
+          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: shouldRenderMini ? "9px" : "10px",
+          letterSpacing: "0.08em",
+          fontWeight: 600,
+          color: "#fff",
+          background: "rgba(10,14,22,0.65)",
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
+          padding: "4px 9px",
+          borderRadius: "999px",
           pointerEvents: "none",
           zIndex: 2,
         }}
       >
-        <span style={{ fontSize: shouldRenderMini ? 8 : 10 }}>▶</span> SHORTS · 0:17
+        <svg
+          className="w-3.5 h-3.5"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+        >
+          <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z" />
+          <polygon fill="white" points="9.545,15.568 15.818,12 9.545,8.432" />
+        </svg>
+        SHORTS
       </div>
 
       {/* Play Overlay Glass */}
@@ -226,8 +240,9 @@ const YouTubeShortEmbedInner = ({
           width: playButtonSize,
           height: playButtonSize,
           borderRadius: "50%",
-          background: "rgba(255, 255, 255, 0.15)",
-          backdropFilter: "blur(8px)",
+          background: "rgba(10,14,22,0.55)",
+          backdropFilter: "blur(10px)",
+          WebkitBackdropFilter: "blur(10px)",
           border: "1px solid rgba(255, 255, 255, 0.25)",
           display: "flex",
           alignItems: "center",
@@ -252,32 +267,33 @@ const YouTubeShortEmbedInner = ({
       <div
         onClick={(e) => {
           e.stopPropagation();
-          onMediaTap?.(0);
+          setTheaterOpen(true);
         }}
         style={{
           position: "absolute",
           top: shouldRenderMini ? 8 : 12,
           right: shouldRenderMini ? 8 : 12,
-          width: shouldRenderMini ? 26 : 30,
-          height: shouldRenderMini ? 26 : 30,
-          borderRadius: shouldRenderMini ? 13 : 15,
-          background: "rgba(0,0,0,0.45)",
+          width: shouldRenderMini ? 26 : 32,
+          height: shouldRenderMini ? 26 : 32,
+          borderRadius: "50%",
+          background: "rgba(10,14,22,0.55)",
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           color: "white",
-          fontSize: shouldRenderMini ? 13 : 14,
           cursor: "pointer",
           pointerEvents: "auto",
           zIndex: 2,
         }}
       >
-        ⤢
+        <Maximize2 className="w-4 h-4 text-white" />
       </div>
     </>
   ) : (
     <iframe
-      src={videoId ? `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0` : ""}
+      src={videoId ? `https://www.youtube.com/embed/${videoId}?autoplay=1&playsinline=1&rel=0` : ""}
       style={{
         position: "absolute",
         top: 0,
