@@ -379,9 +379,9 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
           </div>
           
           {/* Header */}
-          <DrawerHeader className="border-b border-border/50 sticky top-0 bg-background/95 backdrop-blur-xl z-20 pt-2 pb-4">
+          <DrawerHeader className="sticky top-0 z-20 pt-2 pb-4" style={{ boxShadow:'0 1px 0 rgba(255,255,255,0.06)' }}>
             <DrawerTitle className="text-center text-lg font-semibold text-foreground mb-4">
-              Commenti
+              Commenti <span style={{ fontFamily:'var(--mono)', fontSize:'12px', color:'var(--txt-3)', fontWeight:600 }}>· {comments.length}</span>
             </DrawerTitle>
             
             {/* Post Preview - Compact card */}
