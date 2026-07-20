@@ -2429,3 +2429,12 @@ html:not(.light) .liquid-glass-navbar {
 }
 
 
+/* ═══ Spotify equalizer (capsule accent) ═══ */
+.np-eq { display:flex; align-items:flex-end; gap:2.5px; height:14px; }
+.np-eq i { width:3px; border-radius:2px; background:#1DB954; opacity:.85; animation:np-eq 1s ease-in-out infinite; }
+.np-eq i:nth-child(1){height:40%;animation-delay:0s}
+.np-eq i:nth-child(2){height:90%;animation-delay:.15s}
+.np-eq i:nth-child(3){height:60%;animation-delay:.3s}
+.np-eq i:nth-child(4){height:100%;animation-delay:.45s}
+@keyframes np-eq { 0%,100%{transform:scaleY(0.5)} 50%{transform:scaleY(1)} }
+
