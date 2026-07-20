@@ -1,8 +1,8 @@
-import React, { memo, useState, useMemo } from "react";
+import React, { memo, useState, useMemo, useRef } from "react";
 import { ClampedTitle } from "@/components/shared/ClampedTitle";
 import { MentionText } from "../MentionText";
-import { MediaGallery } from "@/components/media/MediaGallery";
 import { MediaFrame } from "@/components/shared/MediaFrame";
+import { MediaMosaic } from "../MediaMosaic";
 import { Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { countPostWords, calculateMediaLayout, getCardImageUrl } from "@/lib/mediaUtils";
@@ -26,7 +26,7 @@ interface UserUploadEmbedProps {
   // Callbacks
   onOpenFullText: (mode: "description" | "transcript") => void;
   registerRef: (id: string) => (node: HTMLElement | null) => void;
-  onMediaTap?: (index: number) => void;
+  onMediaTap?: (index: number, el?: HTMLElement | null) => void;
 
   // Refs
   titleRef?: React.RefObject<any> | ((node: any) => void);
@@ -59,6 +59,7 @@ const UserUploadEmbedInner = ({
 }: UserUploadEmbedProps) => {
   // Localized carousel state
   const [carouselIndex, setCarouselIndex] = useState(0);
+  const frameNodeRef = useRef<HTMLElement | null>(null);
 
   const wordCount = useMemo(() => {
     return countPostWords(postTitle || "", postContent || "");
