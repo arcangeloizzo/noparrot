@@ -388,50 +388,24 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
             {/* Post Preview - Compact card */}
             <div className="mx-2 p-3 rounded-2xl flex gap-2.5 items-stretch" style={{ background:`${accent}12`, border:`1px solid ${accent}2E` }}>
               <div style={{ width:'4px', borderRadius:'2px', background:accent, flexShrink:0 }} />
-              <div className="flex gap-2.5">
-                <div className="flex-shrink-0">
-                  {getUserAvatar(post.author.avatar_url, post.author.full_name || post.author.username)}
+              <div className="flex-1 min-w-0 flex flex-col justify-center">
+                <div className="line-clamp-1" style={{ fontFamily:"'Anton',sans-serif", fontSize:'13.5px', textTransform:'uppercase', letterSpacing:'0.01em', lineHeight:1.2 }}>
+                  {(post as any).title || post.author.full_name || getDisplayUsername(post.author.username)}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-sm text-foreground">
-                      {post.author.full_name || getDisplayUsername(post.author.username)}
-                    </span>
-                  </div>
-                  
-                  {post.preview_img && (
-                    <div className="flex gap-2 mt-1.5">
-                      <img 
-                        src={post.preview_img}
-                        className="w-14 h-14 object-cover rounded-lg"
-                        alt=""
-                      />
-                      <p className="text-xs text-foreground/70 line-clamp-3 leading-relaxed flex-1">
-                        <MentionText content={post.content} />
-                      </p>
-                    </div>
-                  )}
-                  
-                  {!post.preview_img && (
-                    <p className="text-xs text-foreground/70 line-clamp-2 mt-0.5 leading-relaxed">
-                      <MentionText content={post.content} />
-                    </p>
-                  )}
-
-                  {post.shared_url && !post.shared_url.startsWith('focus://') && !post.shared_url.startsWith('internal://') && (
-                    <div className="mt-2">
-                      <a 
-                        href={post.shared_url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-primary active:opacity-60 transition-opacity text-[11px] font-medium inline-block"
-                      >
-                        Leggi articolo originale →
-                      </a>
-                    </div>
-                  )}
-                </div>
+                <p className="line-clamp-1 mt-0.5" style={{ fontSize:'12px', color:'var(--txt-3)' }}>
+                  <MentionText content={post.content} />
+                </p>
+                {post.shared_url && !post.shared_url.startsWith('focus://') && !post.shared_url.startsWith('internal://') && (
+                  <a href={post.shared_url} target="_blank" rel="noopener noreferrer"
+                     className="text-primary active:opacity-60 transition-opacity mt-1 inline-block"
+                     style={{ fontFamily:'var(--mono)', fontSize:'10px', letterSpacing:'0.08em', textTransform:'uppercase', fontWeight:600 }}>
+                    Leggi la fonte →
+                  </a>
+                )}
               </div>
+              {post.preview_img && (
+                <img src={post.preview_img} className="w-11 h-11 object-cover rounded-lg flex-shrink-0 self-center" alt="" />
+              )}
             </div>
           </DrawerHeader>
 

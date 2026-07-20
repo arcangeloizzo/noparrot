@@ -210,7 +210,7 @@ export const CommentItem = ({
   };
 
   // Visual nesting with thread line
-  const indentAmount = comment.level > 0 ? Math.min(comment.level, 3) * 20 : 0;
+  const indentAmount = comment.level > 0 ? 26 : 0;
   const isNested = comment.level > 0;
 
   return (
@@ -226,36 +226,25 @@ export const CommentItem = ({
     >
       {/* Compact comment card */}
       <div className={cn(
-        "relative py-2.5 px-3 rounded-xl mb-1 transition-all duration-200",
-        "bg-white/[0.02]",
-        "border border-white/[0.04]",
-        "hover:bg-white/[0.04]",
-        isNested && "ml-2"
-      )}>
-        {/* Thread connector line for nested comments */}
+        "relative rounded-2xl transition-all duration-200",
+        isNested ? "py-2 px-2.5 mb-2" : "py-2.5 px-3 mb-2.5"
+      )}
+      style={{ background:'rgba(255,255,255,0.045)', boxShadow:'0 1px 0 rgba(255,255,255,0.06) inset' }}>
+        {/* Neutral thread line for nested comments */}
         {isNested && (
-          <div
-            className="absolute -left-3 top-5 w-3 h-0.5 bg-gradient-to-r from-primary/40 to-transparent"
-          />
-        )}
-        
-        {/* Vertical thread line */}
-        {isNested && (
-          <div
-            className="absolute -left-3 top-0 bottom-0 w-0.5 bg-gradient-to-b from-primary/30 via-primary/20 to-transparent rounded-full"
-          />
+          <div className="absolute -left-[14px] top-0 bottom-2 w-0.5 rounded-full" style={{ background:'rgba(255,255,255,0.10)' }} />
         )}
 
         {/* Header: Avatar + Name + Timestamp */}
         <div className="flex gap-3">
-          <div className="flex-shrink-0 cursor-pointer" onClick={(e) => { e.stopPropagation(); navigate(`/profile/${comment.author.id}`); }}>
+          <div className={cn("flex-shrink-0 cursor-pointer", isNested && "scale-75 origin-top-left")} onClick={(e) => { e.stopPropagation(); navigate(`/profile/${comment.author.id}`); }}>
             {getAvatar()}
           </div>
           
           <div className="flex-1 min-w-0">
             {/* Name row - compact */}
             <div className="flex items-center gap-2 flex-wrap mb-0.5">
-              <span className="font-bold text-sm text-foreground cursor-pointer" onClick={(e) => { e.stopPropagation(); navigate(`/profile/${comment.author.id}`); }}>
+              <span className={cn("font-bold cursor-pointer", isNested ? "text-[12.5px]" : "text-sm")} onClick={(e) => { e.stopPropagation(); navigate(`/profile/${comment.author.id}`); }}>
                 {comment.author.full_name || getDisplayUsername(comment.author.username)}
               </span>
               
@@ -288,7 +277,7 @@ export const CommentItem = ({
                 )
               )}
               
-              <span className="text-muted-foreground/50 text-xs">
+              <span className="text-[10px] uppercase" style={{ fontFamily:'var(--mono)', letterSpacing:'0.06em', color:'var(--txt-3)' }}>
                 · {formatDistanceToNow(new Date(comment.created_at), {
                   addSuffix: false,
                   locale: it
@@ -297,7 +286,7 @@ export const CommentItem = ({
             </div>
 
             {/* Body: Comment text */}
-            <div className="text-sm leading-relaxed text-foreground/90 mb-1">
+            <div className={cn("leading-relaxed text-foreground/90 mb-1", isNested ? "text-[13.5px]" : "text-sm")}>
               <MentionText content={comment.content} />
             </div>
 
@@ -352,7 +341,7 @@ export const CommentItem = ({
                     )} />
                   )}
                   {reactions?.likesCount && reactions.likesCount > 0 && (
-                    <span className="text-xs font-medium select-none">{reactions.likesCount}</span>
+                    <span className="select-none" style={{ fontFamily:'var(--mono)', fontSize:'10.5px', fontWeight:600 }}>{reactions.likesCount}</span>
                   )}
                 </button>
                 
@@ -378,8 +367,7 @@ export const CommentItem = ({
                 style={{ WebkitTapHighlightColor: 'transparent' }}
                 aria-label="Rispondi a questo commento"
               >
-                <MessageCircle className="w-4 h-4" />
-                <span className="text-xs font-medium select-none">Rispondi</span>
+                <span className="select-none" style={{ fontFamily:'var(--mono)', fontSize:'10.5px', letterSpacing:'0.07em', textTransform:'uppercase', fontWeight:600 }}>Rispondi</span>
               </button>
 
               {/* Share/Copy link - only for post comments */}
