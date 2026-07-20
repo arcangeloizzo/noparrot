@@ -191,17 +191,6 @@ const InstagramReelEmbedInner = ({
             </div>
           )}
 
-          {/* CTA inside left column (only for mini layout) */}
-          {shouldRenderMini && !useStackLayout && sharedUrl && (
-            <div className="slot-bottom w-full mt-auto px-0" ref={slotBottomRef}>
-              <CardExternalCTA
-                platform="instagram"
-                url={sharedUrl}
-                mode="flow"
-                ref={registerRef("essential-external-cta")}
-              />
-            </div>
-          )}
         </div>
 
         {/* MediaWrapper: remains stable in DOM layout to prevent image unmounting and reloading */}
