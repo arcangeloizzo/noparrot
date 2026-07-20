@@ -513,7 +513,7 @@ const YouTubeShortEmbedInner = ({
                 e.stopPropagation();
                 onOpenFullText("description");
               }}
-              className="text-sm font-semibold active:opacity-60 transition-opacity block text-[#FF0000]"
+              className="text-sm font-semibold active:opacity-60 transition-opacity block text-primary"
             >
               Approfondisci
             </button>
@@ -530,18 +530,6 @@ const YouTubeShortEmbedInner = ({
           }}
           style={{ height: 0, overflow: "hidden" }}
         />
-
-        {/* CTA */}
-        {!useStackLayout && sharedUrl && (
-          <div className="slot-bottom w-full mt-auto px-0" ref={slotBottomRef}>
-            <CardExternalCTA
-              platform="youtube"
-              url={sharedUrl}
-              mode="flow"
-              ref={registerRef("essential-external-cta")}
-            />
-          </div>
-        )}
       </div>
     );
   }
