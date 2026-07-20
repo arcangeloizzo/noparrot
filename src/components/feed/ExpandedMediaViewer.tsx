@@ -53,6 +53,8 @@ export const ExpandedMediaViewer = ({
   const [uiVisible, setUiVisible] = useState(true);
   const [dragging, setDragging] = useState(false);
   const [dragDx, setDragDx] = useState(0);
+  const [dragDy, setDragDy] = useState(0);
+  const axisRef = useRef<'x' | 'y' | null>(null);
 
   const getOriginRectRef = useRef(getOriginRect);
   getOriginRectRef.current = getOriginRect;
@@ -137,6 +139,10 @@ export const ExpandedMediaViewer = ({
   }, [current]);
 
   const handleClose = useCallback(() => {
+    // Azzera il drag verticale prima di applicare la geometria di uscita
+    setDragDy(0);
+    setDragDx(0);
+    axisRef.current = null;
     const rect = getOriginRectRef.current?.();
     if (rect) {
       setGeom({
@@ -163,11 +169,23 @@ export const ExpandedMediaViewer = ({
     touchStart.current = { x: t.clientX, y: t.clientY, target: e.target };
     setDragging(true);
     setDragDx(0);
+    setDragDy(0);
+    axisRef.current = null;
   };
   const onTouchMove = (e: React.TouchEvent) => {
     if (!touchStart.current) return;
     const t = e.touches[0];
-    setDragDx(t.clientX - touchStart.current.x);
+    const dx = t.clientX - touchStart.current.x;
+    const dy = t.clientY - touchStart.current.y;
+    if (axisRef.current === null && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) {
+      axisRef.current = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y';
+    }
+    if (axisRef.current === 'x') {
+      setDragDx(dx);
+    } else if (axisRef.current === 'y') {
+      setDragDx(0);
+      setDragDy(Math.max(0, dy));
+    }
   };
   const onTouchEnd = (e: React.TouchEvent) => {
     if (!touchStart.current) {
@@ -175,17 +193,34 @@ export const ExpandedMediaViewer = ({
       return;
     }
     const dx = dragDx;
+    const dy = dragDy;
+    const axis = axisRef.current;
     const tgt = touchStart.current.target as HTMLElement | null;
     const isInteractive =
       tgt && (tgt.closest('button') || tgt.tagName === 'VIDEO' || tgt.closest('video'));
     setDragging(false);
-    setDragDx(0);
     touchStart.current = null;
 
-    if (Math.abs(dx) > 50) {
+    if (axis === 'y') {
+      if (dy > 100) {
+        // handleClose azzera dragDy internamente
+        handleClose();
+        return;
+      }
+      setDragDy(0);
+      axisRef.current = null;
+      setDragDx(0);
+      return;
+    }
+
+    setDragDx(0);
+    setDragDy(0);
+    axisRef.current = null;
+
+    if (axis === 'x' && Math.abs(dx) > 50) {
       if (dx < 0 && current < media.length - 1) setCurrent(current + 1);
       else if (dx > 0 && current > 0) setCurrent(current - 1);
-    } else if (Math.abs(dx) < 8 && !isInteractive) {
+    } else if ((axis === null || Math.abs(dx) < 8) && !isInteractive) {
       setUiVisible((v) => !v);
     }
   };
@@ -197,6 +232,8 @@ export const ExpandedMediaViewer = ({
     ? `translateX(calc(${-current * 100}vw + ${dragDx}px))`
     : `translateX(${-current * 100}vw)`;
 
+  const isYDragging = dragging && axisRef.current === 'y';
+  const applyYDrag = phase === 'open' && dragDy > 0;
   const rootStyle: React.CSSProperties = {
     position: 'fixed',
     zIndex: 70,
@@ -204,6 +241,15 @@ export const ExpandedMediaViewer = ({
     overflow: 'hidden',
     transition: TRANSITION,
     ...geom,
+    ...(applyYDrag
+      ? {
+          transform: `translateY(${dragDy}px) scale(${Math.max(0.88, 1 - dragDy / 1200)})`,
+          transition: isYDragging
+            ? 'none'
+            : 'transform .3s cubic-bezier(0.32,0.72,0,1)',
+          borderRadius: 24,
+        }
+      : {}),
   };
 
   const node = (

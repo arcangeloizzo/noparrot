@@ -124,7 +124,7 @@ const UserUploadEmbedInner = ({
           text={postTitle}
           maxLines={6}
           ref={titleRef}
-          className={cn("uppercase mb-2 flex-shrink-0", isPoster && "text-center")}
+          className={cn("uppercase mb-3.5 flex-shrink-0", isPoster && "text-center")}
           style={{
             fontFamily: "'Anton', 'Impact', sans-serif",
             fontSize: isPoster ? "clamp(42px, 12vw, 58px)" : "clamp(30px, 8vw, 42px)",
@@ -158,7 +158,7 @@ const UserUploadEmbedInner = ({
                         else (mediaRef as any).current = node;
                       }
                     }}
-                    className="flex-shrink-0 mb-3"
+                    className="flex-shrink-0 mb-3.5"
                     style={{ height: "36px" }}
                   >
                     <button
@@ -288,7 +288,7 @@ const UserUploadEmbedInner = ({
                       else (mediaRef as any).current = node;
                     }
                   }}
-                  className="w-full flex-shrink-0"
+                  className="w-full flex-shrink-0 mb-3.5"
                 >
                   <MediaFrame
                     media={mediaForFrame}
@@ -332,7 +332,7 @@ const UserUploadEmbedInner = ({
                       else (mediaRef as any).current = node;
                     }
                   }}
-                  className="flex-shrink-0 mb-3"
+                  className="flex-shrink-0 mb-3.5"
                   style={{ marginLeft: '-18px', marginRight: '-18px' }}
                 >
                   <MediaMosaic
@@ -358,7 +358,7 @@ const UserUploadEmbedInner = ({
                       else (mediaRef as any).current = node;
                     }
                   }}
-                  className="flex-shrink-0 mb-3"
+                  className="flex-shrink-0 mb-3.5"
                   style={{ height: "36px" }}
                 >
                   <button
