@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Heart, MessageCircle } from 'lucide-react';
+import { Heart, MessageCircle, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -38,6 +38,8 @@ import { ReactionPicker, type ReactionType, reactionToEmoji } from '@/components
 import { ReactionSummary, getReactionCounts } from '@/components/feed/ReactionSummary';
 import { haptics } from '@/lib/haptics';
 import { CommentItem } from './CommentItem';
+import { getCategoryColor } from '@/config/categories';
+
 
 interface CommentsDrawerProps {
   post: Post;
