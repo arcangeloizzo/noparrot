@@ -61,6 +61,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
   );
   const postHasSource = !!post.shared_url || !!postMediaWithExtractedText;
   const isFocusContent = post.shared_url === 'focus://internal';
+  const accent = getCategoryColor((post as any).category) || '#0A7AFF';
 
   // [GATE ALIGNMENT] Post text-only senza fonte: se >30 parole, attiva gate
   // sulle parole del post stesso (allineato al reshare in ComposerModal).
