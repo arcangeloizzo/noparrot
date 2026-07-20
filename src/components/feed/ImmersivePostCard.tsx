@@ -9,11 +9,8 @@ import { ReportContentDialog } from "./ReportContentDialog";
 import { AdminRemoveDialog } from "./AdminRemoveDialog";
 import { AnimatedHeart } from "@/components/ui/animated-heart";
 import { useDominantColors } from "@/hooks/useDominantColors";
-import { useCachedTrustScore } from "@/hooks/useCachedTrustScore";
 import { useArticlePreview } from "@/hooks/useArticlePreview";
-import { useTrustScore } from "@/hooks/useTrustScore";
 import { PulseBadge } from "@/components/ui/pulse-badge";
-import { TrustBadgeOverlay } from "@/components/ui/trust-badge-overlay";
 import { UnanalyzableBadge } from "@/components/ui/unanalyzable-badge";
 import {
   Dialog,
@@ -568,25 +565,6 @@ const ImmersivePostCardInner = ({
     : (reelVirtualMedia 
       ? reelVirtualMedia 
       : (quotedPost?.media?.length ? quotedPost.media : originalSource?.media));
-
-  // For reshares: lookup cached trust score directly from DB (zero AI calls)
-  // Use finalSourceUrl which includes deep chain sources
-  const { data: cachedTrustScore } = useCachedTrustScore(finalSourceUrl, { enabled: isNearActive });
-
-  // Trust score via React Query hook (cached, with AI fallback)
-  const isTwitterUrl = post.shared_url?.includes('x.com') || post.shared_url?.includes('twitter.com');
-  const { data: calculatedTrustScore } = useTrustScore(post.shared_url, {
-    postText: post.content,
-    authorUsername: articlePreview?.author_username,
-    isVerified: articlePreview?.is_verified,
-    // Skip if reshare (use cached), Twitter URL without preview, or card not near active index
-    skip: !!cachedTrustScore || (isTwitterUrl && !articlePreview) || !isNearActive
-  });
-
-  // Use cached trust score for reshares, or calculated for original posts
-  // Hide trust score entirely for AI institutional profiles
-  const isAiAuthor = !!post.author.is_ai_institutional;
-  const displayTrustScore = isAiAuthor ? undefined : (cachedTrustScore || calculatedTrustScore);
 
   // Reaction picker state
   const [showReactionPicker, setShowReactionPicker] = useState(false);
@@ -2379,51 +2357,6 @@ const ImmersivePostCardInner = ({
                       </div>
                     )}
                     
-                    {hasLink && displayTrustScore && !post.shared_url?.startsWith('focus://') && (
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <button
-                            onClick={(e) => e.stopPropagation()}
-                            className="flex items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition-all flex-shrink-0 outline-none"
-                            style={{
-                              color: displayTrustScore.band === 'ALTO' ? '#FFD464' :
-                                     displayTrustScore.band === 'MEDIO' ? '#F59E0B' :
-                                     '#E41E52'
-                            }}
-                          >
-                            <ShieldCheck className="w-[26px] h-[26px] flex-shrink-0" />
-                          </button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-md">
-                          <DialogHeader>
-                            <DialogTitle>Trust Score</DialogTitle>
-                          </DialogHeader>
-                          <div className="space-y-4 text-sm text-muted-foreground">
-                            <p>
-                              Il Trust Score indica il livello di affidabilità delle fonti citate,
-                              <strong className="text-foreground"> non la verità o la qualità del contenuto</strong>.
-                            </p>
-                            <p>È calcolato automaticamente e può contenere errori.</p>
-                            {displayTrustScore.reasons && displayTrustScore.reasons.length > 0 && (
-                              <div className="pt-3 border-t border-border">
-                                <p className="font-medium text-foreground mb-2">Perché questo punteggio:</p>
-                                <ul className="space-y-1.5">
-                                  {displayTrustScore.reasons.map((reason: string, i: number) => (
-                                    <li key={i} className="flex items-start gap-2">
-                                      <span className="text-primary mt-0.5">•</span>
-                                      <span>{reason}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-                            <p className="text-xs pt-2 border-t border-border text-muted-foreground">
-                              Valuta la qualità delle fonti e la coerenza col contenuto. Non è fact-checking.
-                            </p>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-                    )}
                   </>
                 )}
               </CardShell.Badge>
@@ -3124,7 +3057,6 @@ const ImmersivePostCardInner = ({
                   articleStep={(articleStep || "full") as any}
                   isEditorialFocus={isEditorialFocus || false}
                   editorialSummary={editorialSummary}
-                  displayTrustScore={displayTrustScore}
                   hasUserMedia={hasUserMedia}
                   flexiblesStatus={flexiblesStatus}
                   normalizedMedias={normalizedMedias}
