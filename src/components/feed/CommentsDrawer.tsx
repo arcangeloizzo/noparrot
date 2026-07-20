@@ -640,15 +640,14 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                   disabled={(!newComment.trim() && uploadedMedia.length === 0) || addComment.isPending}
                   size="sm"
                   className={cn(
-                    "rounded-full px-5 h-[42px] font-semibold text-sm",
-                    "bg-primary/90 hover:bg-primary",
-                    "disabled:opacity-40 disabled:bg-primary/40"
+                    "rounded-full w-[42px] h-[42px] p-0 flex-shrink-0 disabled:opacity-40"
                   )}
+                  style={{ background:'linear-gradient(135deg,#0A7AFF,#0862CC)', boxShadow:'0 6px 16px -6px rgba(10,122,255,0.55)' }}
                 >
                   {addComment.isPending ? (
                     <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
                   ) : (
-                    'Invia'
+                    <Send className="w-[18px] h-[18px] text-white" />
                   )}
                 </Button>
               </div>
