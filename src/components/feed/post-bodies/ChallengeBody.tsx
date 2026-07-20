@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { Zap } from "lucide-react";
+import { Zap, ArrowUp } from "lucide-react";
 import { MediaGallery } from "@/components/media/MediaGallery";
 import { MentionText } from "../MentionText";
 import { VoicePlayer } from "@/components/media/VoicePlayer";
@@ -200,124 +200,216 @@ export const ChallengeBody = ({
             accentColor="#E41E52"
           />
         </div>
-       {/* Polarization bar - V2 CSS */}
-       <div className="mt-4 px-1">
-         <div className="flex items-end justify-between mb-1.5" style={{ fontFamily: 'JetBrains Mono', fontSize: '10px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-           <span style={{ color: '#0A7AFF' }}>
-             A FAVORE ({Math.round(((post.challenge!.votes_for || 0) / Math.max(1, (post.challenge!.votes_for || 0) + (post.challenge!.votes_against || 0))) * 100)}%)
-           </span>
-           <span style={{ color: '#FFD464' }}>
-             CONTRO ({Math.round(((post.challenge!.votes_against || 0) / Math.max(1, (post.challenge!.votes_for || 0) + (post.challenge!.votes_against || 0))) * 100)}%)
-           </span>
-         </div>
-         <div className="flex overflow-hidden" style={{ height: '8px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)' }}>
-           <div style={{ width: `${Math.round(((post.challenge!.votes_for || 0) / Math.max(1, (post.challenge!.votes_for || 0) + (post.challenge!.votes_against || 0))) * 100)}%`, background: 'linear-gradient(90deg, #0A7AFF, #3D9AFF)', borderRadius: '4px 0 0 4px' }} />
-           <div style={{ width: `${Math.round(((post.challenge!.votes_against || 0) / Math.max(1, (post.challenge!.votes_for || 0) + (post.challenge!.votes_against || 0))) * 100)}%`, background: 'linear-gradient(90deg, #F5C842, #FFD464)', borderRadius: '0 4px 4px 0' }} />
-         </div>
-       </div>
+       {/* ─── ARENA + META ─── */}
+       {(() => {
+         const vFor = post.challenge?.votes_for || 0;
+         const vAgainst = post.challenge?.votes_against || 0;
+         const total = vFor + vAgainst;
+         const pctFor = total === 0 ? 50 : Math.round((vFor / total) * 100);
+         const pctAgainst = total === 0 ? 50 : 100 - pctFor;
+         return (
+           <div className="mt-4 px-1">
+             {/* Arena */}
+             <div style={{ position: 'relative', height: '34px', borderRadius: '12px', overflow: 'hidden', display: 'flex', background: 'rgba(255,255,255,0.05)', boxShadow: '0 1px 0 rgba(255,255,255,0.08) inset' }}>
+               <div style={{
+                 width: `${pctFor}%`,
+                 background: 'linear-gradient(90deg, rgba(10,122,255,0.85), rgba(10,122,255,0.55))',
+                 display: 'flex', alignItems: 'center',
+               }}>
+                 <span style={{
+                   paddingLeft: '11px',
+                   fontFamily: "'JetBrains Mono', monospace",
+                   fontSize: '11.5px', fontWeight: 600, color: '#FFFFFF',
+                 }}>{pctFor}%</span>
+               </div>
+               <div style={{
+                 width: `${pctAgainst}%`, marginLeft: 'auto',
+                 background: 'linear-gradient(90deg, rgba(255,212,100,0.5), rgba(255,212,100,0.85))',
+                 display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
+               }}>
+                 <span style={{
+                   paddingRight: '11px',
+                   fontFamily: "'JetBrains Mono', monospace",
+                   fontSize: '11.5px', fontWeight: 600, color: '#1a1608',
+                 }}>{pctAgainst}%</span>
+               </div>
+               {/* VS chip */}
+               <span style={{
+                 position: 'absolute', left: `${pctFor}%`, top: '50%',
+                 transform: 'translate(-50%, -50%)',
+                 fontFamily: "'Anton', sans-serif", fontSize: '12px',
+                 background: 'rgba(10,14,22,0.85)', padding: '3px 7px',
+                 borderRadius: '6px', color: '#FFFFFF', letterSpacing: '0.04em',
+               }}>VS</span>
+             </div>
 
-       {/* Challenge Responses Button + Drawer */}
+             {/* META row */}
+             <div className="flex items-center justify-between" style={{ marginTop: '10px' }}>
+               <button
+                 onClick={(e) => {
+                   e.stopPropagation();
+                   if (challengeResponses.length > 0) setChallengeDrawerOpen(true);
+                 }}
+                 style={{
+                   fontFamily: "'JetBrains Mono', monospace",
+                   fontSize: '10.5px', letterSpacing: '0.1em', textTransform: 'uppercase',
+                   color: '#8fb8e8', fontWeight: 600,
+                 }}
+                 className="active:opacity-60 transition-opacity"
+               >
+                 {total} VOTI · {challengeResponses.length} RISPOSTE →
+               </button>
+               <span style={{
+                 fontFamily: "'JetBrains Mono', monospace",
+                 fontSize: '10.5px', letterSpacing: '0.1em', textTransform: 'uppercase',
+                 color: isChallengeExpired ? 'rgba(255,255,255,0.5)' : '#FFD464', fontWeight: 600,
+               }}>
+                 {isChallengeExpired ? 'CONCLUSA' : `⏳ SCADE TRA ${challengeCountdown}`}
+               </span>
+             </div>
+           </div>
+         );
+       })()}
+
+       {/* ─── Drawer risposte (restyled) ─── */}
        {challengeResponses.length > 0 && (
-         <div className="mt-5 flex justify-center">
-           <button
-             onClick={(e) => {
-               e.stopPropagation();
-               setChallengeDrawerOpen(true);
+         <Drawer open={challengeDrawerOpen} onOpenChange={setChallengeDrawerOpen}>
+           <DrawerContent
+             className="max-h-[85vh]"
+             style={{
+               background: 'rgba(18,26,42,0.92)',
+               backdropFilter: 'blur(26px) saturate(150%)',
+               WebkitBackdropFilter: 'blur(26px) saturate(150%)',
+               boxShadow: '0 1px 0 rgba(255,255,255,0.08) inset, 0 -20px 60px -20px rgba(0,0,0,0.6)',
+               borderTopLeftRadius: '24px', borderTopRightRadius: '24px',
+               zIndex: 60,
              }}
-             className="flex items-center justify-center gap-1.5 py-1.5 px-4 rounded-full text-sm font-semibold text-slate-300 hover:text-white transition-all hover:bg-white/5"
            >
-             <Zap className="w-3.5 h-3.5" style={{ color: '#E41E52' }} />
-             Vedi {challengeResponses.length} rispost{challengeResponses.length === 1 ? 'a' : 'e'}
-           </button>
-
-           <Drawer open={challengeDrawerOpen} onOpenChange={setChallengeDrawerOpen}>
-             <DrawerContent className="max-h-[85vh]">
-               <DrawerHeader>
-                 <DrawerTitle className="flex items-center justify-center gap-2">
-                   <Zap className="w-5 h-5" style={{ color: '#E41E52' }} />
-                   {challengeResponses.length} rispost{challengeResponses.length === 1 ? 'a' : 'e'} alla challenge
-                 </DrawerTitle>
-               </DrawerHeader>
-               <ScrollArea className="flex-1 overflow-auto px-4 pb-6" style={{ maxHeight: 'calc(85vh - 80px)' }}>
-                 <div className="space-y-3">
-                   {challengeResponses.map((resp) => (
+             <DrawerHeader style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.05)' }}>
+               <DrawerTitle
+                 className="flex items-center justify-center gap-2"
+                 style={{ color: '#FFFFFF', fontSize: '15px', fontWeight: 700 }}
+               >
+                 <span>Dibattito</span>
+                 <span style={{
+                   fontFamily: "'JetBrains Mono', monospace",
+                   fontSize: '11.5px', color: 'rgba(255,255,255,0.5)', fontWeight: 600,
+                 }}>· {challengeResponses.length} rispost{challengeResponses.length === 1 ? 'a' : 'e'}</span>
+               </DrawerTitle>
+             </DrawerHeader>
+             {/* Mini-arena */}
+             {(() => {
+               const vFor = post.challenge?.votes_for || 0;
+               const vAgainst = post.challenge?.votes_against || 0;
+               const total = vFor + vAgainst;
+               const pctFor = total === 0 ? 50 : Math.round((vFor / total) * 100);
+               const pctAgainst = total === 0 ? 50 : 100 - pctFor;
+               return (
+                 <div style={{ marginLeft: '16px', marginRight: '16px', marginBottom: '12px' }}>
+                   <div style={{ position: 'relative', height: '26px', borderRadius: '10px', overflow: 'hidden', display: 'flex', background: 'rgba(255,255,255,0.05)' }}>
+                     <div style={{ width: `${pctFor}%`, background: 'linear-gradient(90deg, rgba(10,122,255,0.85), rgba(10,122,255,0.55))', display: 'flex', alignItems: 'center' }}>
+                       <span style={{ paddingLeft: '10px', fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', fontWeight: 600, color: '#FFFFFF' }}>{pctFor}%</span>
+                     </div>
+                     <div style={{ width: `${pctAgainst}%`, marginLeft: 'auto', background: 'linear-gradient(90deg, rgba(255,212,100,0.5), rgba(255,212,100,0.85))', display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                       <span style={{ paddingRight: '10px', fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', fontWeight: 600, color: '#1a1608' }}>{pctAgainst}%</span>
+                     </div>
+                   </div>
+                 </div>
+               );
+             })()}
+             <ScrollArea className="flex-1 overflow-auto px-4 pb-6" style={{ maxHeight: 'calc(85vh - 140px)' }}>
+               <div>
+                 {challengeResponses.map((resp) => {
+                   const stanceColor = resp.stance === 'for' ? '#0A7AFF' : '#FFD464';
+                   const stanceLabelColor = resp.stance === 'for' ? '#6db1ff' : '#FFD464';
+                   const stanceBg = resp.stance === 'for' ? 'rgba(10,122,255,0.1)' : 'rgba(255,212,100,0.08)';
+                   const stanceBorder = resp.stance === 'for' ? 'rgba(10,122,255,0.45)' : 'rgba(255,212,100,0.4)';
+                   const voted = userVote?.challenge_response_id === resp.id;
+                   return (
                      <div
                        key={resp.id}
-                       className="rounded-xl p-4"
                        style={{
-                         background: 'hsl(var(--muted) / 0.5)',
-                         border: '1px solid hsl(var(--border))',
+                         borderRadius: '16px',
+                         padding: '11px 13px',
+                         marginBottom: '10px',
+                         display: 'flex',
+                         gap: '11px',
+                         alignItems: 'stretch',
+                         background: 'rgba(255,255,255,0.04)',
+                         boxShadow: '0 1px 0 rgba(255,255,255,0.06) inset',
                        }}
                      >
-                       <div className="flex items-center gap-2 mb-3">
-                         <Avatar className="w-7 h-7">
-                           <AvatarImage src={getAvatarImageUrl(resp.user.avatar_url) || undefined} />
-                           <AvatarFallback className="text-[10px] bg-muted">
-                             {(resp.user.full_name || resp.user.username).charAt(0).toUpperCase()}
-                           </AvatarFallback>
-                         </Avatar>
-                         <span className="text-sm font-semibold text-foreground">
-                           {resp.user.full_name || resp.user.username}
-                         </span>
-                         <span
-                           className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ml-auto"
-                           style={{
-                              background: resp.stance === 'for' ? 'rgba(10,122,255,0.15)' : 'rgba(255,212,100,0.15)',
-                              color: resp.stance === 'for' ? '#0A7AFF' : '#FFD464',
-                           }}
-                         >
-                           {resp.stance === 'for' ? 'A favore' : 'Contro'}
-                         </span>
+                       {/* Stance bar */}
+                       <div style={{ width: '4px', borderRadius: '2px', background: stanceColor, flexShrink: 0 }} />
+                       {/* Body */}
+                       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '9px' }}>
+                         <div className="flex items-center gap-2">
+                           <Avatar className="w-[26px] h-[26px]">
+                             <AvatarImage src={getAvatarImageUrl(resp.user.avatar_url) || undefined} />
+                             <AvatarFallback className="text-[10px] bg-muted">
+                               {(resp.user.full_name || resp.user.username).charAt(0).toUpperCase()}
+                             </AvatarFallback>
+                           </Avatar>
+                           <span style={{ fontSize: '13px', fontWeight: 700, color: '#FFFFFF' }}>
+                             {resp.user.full_name || resp.user.username}
+                           </span>
+                           <span
+                             style={{
+                               fontFamily: "'JetBrains Mono', monospace",
+                               fontSize: '9px', fontWeight: 700,
+                               padding: '2px 8px', borderRadius: '999px',
+                               textTransform: 'uppercase', letterSpacing: '0.08em',
+                               color: stanceLabelColor,
+                               border: `1px solid ${stanceBorder}`,
+                               background: stanceBg,
+                             }}
+                           >
+                             {resp.stance === 'for' ? 'A favore' : 'Contro'}
+                           </span>
+                         </div>
+                         <VoicePlayer
+                           compact
+                           audioUrl={resp.voice_post.audio_url}
+                           durationSeconds={resp.voice_post.duration_seconds}
+                           waveformData={resp.voice_post.waveform_data}
+                           transcript={resp.voice_post.transcript}
+                           transcriptStatus={resp.voice_post.transcript_status as any}
+                           accentColor={stanceColor}
+                         />
                        </div>
-                       <VoicePlayer
-                         audioUrl={resp.voice_post.audio_url}
-                         durationSeconds={resp.voice_post.duration_seconds}
-                         waveformData={resp.voice_post.waveform_data}
-                         transcript={resp.voice_post.transcript}
-                         transcriptStatus={resp.voice_post.transcript_status as any}
-                          accentColor={resp.stance === 'for' ? '#0A7AFF' : '#FFD464'}
-                       />
-                       <div className="flex items-center justify-between mt-3">
-                         <span className="text-xs text-muted-foreground">
-                           {resp.argument_votes} vot{resp.argument_votes === 1 ? 'o' : 'i'}
-                         </span>
-                         <button
-                           onClick={(e) => {
-                             e.stopPropagation();
-                             if (userVote?.challenge_response_id === resp.id) {
-                               removeVote();
-                             } else if (!userVote) {
-                               voteForResponse(resp.id);
-                             }
-                           }}
-                           disabled={!!userVote && userVote.challenge_response_id !== resp.id}
-                           className={cn(
-                             "text-xs font-semibold px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5",
-                             userVote?.challenge_response_id === resp.id
-                               ? "bg-primary/20 text-primary hover:bg-destructive/20 hover:text-destructive"
-                               : userVote
-                                 ? "bg-muted text-muted-foreground cursor-not-allowed"
-                                 : "bg-muted hover:bg-accent text-foreground"
-                           )}
-                         >
-                           {userVote?.challenge_response_id === resp.id ? (
-                             <span className="flex items-center gap-1">
-                               <span className="group-hover:hidden">✓ Votato</span>
-                               <span className="hidden group-hover:inline">✗ Rimuovi voto</span>
-                             </span>
-                           ) : (
-                             '🏆 Miglior argomento'
-                           )}
-                         </button>
-                       </div>
+                       {/* Argument vote column */}
+                       <button
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           if (voted) removeVote();
+                           else if (!userVote) voteForResponse(resp.id);
+                         }}
+                         disabled={!!userVote && !voted}
+                         style={{
+                           minWidth: '40px',
+                           borderRadius: '12px',
+                           background: voted ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.05)',
+                           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                           gap: '2px', padding: '6px 4px',
+                           opacity: !!userVote && !voted ? 0.5 : 1,
+                           cursor: !!userVote && !voted ? 'not-allowed' : 'pointer',
+                         }}
+                         className="active:scale-95 transition-transform"
+                       >
+                         <ArrowUp style={{ width: '15px', height: '15px', color: '#FFFFFF' }} />
+                         <span style={{
+                           fontFamily: "'JetBrains Mono', monospace",
+                           fontSize: '11px', color: '#FFFFFF', fontWeight: 600,
+                         }}>{resp.argument_votes}</span>
+                       </button>
                      </div>
-                   ))}
-                 </div>
-               </ScrollArea>
-             </DrawerContent>
-           </Drawer>
-         </div>
-        )}
+                   );
+                 })}
+               </div>
+             </ScrollArea>
+           </DrawerContent>
+         </Drawer>
+       )}
       {(() => {
         const isExpired = post.challenge?.status === 'expired' || post.challenge?.status === 'closed' || new Date(post.challenge?.expires_at || '') < new Date();
         const isAuthor = user?.id === post.author.id;
