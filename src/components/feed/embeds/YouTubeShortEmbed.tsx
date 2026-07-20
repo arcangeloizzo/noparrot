@@ -536,6 +536,7 @@ const YouTubeShortEmbedInner = ({
 
   // Render unified JSX tree to preserve DOM identity of MediaFrame and prevent scroll lag
   return (
+    <>
     <div
       className={cn(
         "flex-1 min-h-0 flex flex-col justify-start w-full px-4 gap-3",
@@ -695,6 +696,20 @@ const YouTubeShortEmbedInner = ({
         </div>
       </div>
     </div>
+    {theaterOpen && videoId && createPortal(
+      <div className="fixed inset-0 z-[70]" style={{ background: '#070b12' }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ position: 'absolute', inset: 0, opacity: 0.8, pointerEvents: 'none', background: 'radial-gradient(120% 60% at 50% 0%, rgba(228,30,82,0.22) 0%, transparent 60%), radial-gradient(120% 60% at 50% 100%, rgba(10,122,255,0.16) 0%, transparent 60%)' }} />
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <iframe src={`https://www.youtube.com/embed/${videoId}?autoplay=1&playsinline=1&rel=0`} style={{ width: 'min(100vw, calc(100svh * 0.5625))', height: 'min(100svh, calc(100vw * 1.7778))', border: 0 }} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen sandbox="allow-scripts allow-same-origin allow-presentation allow-popups" title="YouTube Shorts theater" />
+        </div>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'calc(12px + env(safe-area-inset-top)) 16px 20px', background: 'linear-gradient(180deg, rgba(5,8,14,0.7) 0%, transparent 100%)' }}>
+          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10.5px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}>YouTube Shorts</span>
+          <button onClick={() => setTheaterOpen(false)} style={{ width: '34px', height: '34px', borderRadius: '50%', border: 'none', color: '#fff', background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><X className="w-4 h-4" /></button>
+        </div>
+      </div>,
+      document.body
+    )}
+    </>
   );
 };
 
