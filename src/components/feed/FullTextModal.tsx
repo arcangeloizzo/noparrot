@@ -52,6 +52,7 @@ interface FullTextModalProps {
   accentColor?: string;        // NEW: category accent color
   getOriginRect?: () => DOMRect | null;
   onExitStart?: () => void;
+  dimmed?: boolean;
 }
 
 const FullTextModalInner = ({
@@ -76,6 +77,7 @@ const FullTextModalInner = ({
   accentColor,
   getOriginRect,
   onExitStart,
+  dimmed,
 }: FullTextModalProps) => {
   const accent = accentColor || '#0A7AFF';
   const getOriginRectRef = useRef(getOriginRect);
@@ -391,7 +393,7 @@ const FullTextModalInner = ({
           </button>
         )}
         {actions.onComment && (
-          <button className="flex flex-col items-center gap-1" onClick={(e)=>{e.stopPropagation(); handleClose(); setTimeout(()=>actions.onComment?.(),300);}}>
+          <button className="flex flex-col items-center gap-1" onClick={(e)=>{e.stopPropagation(); actions.onComment?.();}}>
             <MessageCircle className="w-7 h-7 text-white transition-transform active:scale-90" style={{ filter: 'drop-shadow(0 2px 7px rgba(0,0,0,0.8))' }} />
             <span className="text-xs font-bold text-white" style={{ fontFamily: 'var(--mono)' }}>{post.reactions?.comments || 0}</span>
           </button>
@@ -479,6 +481,8 @@ const FullTextModalInner = ({
       >
         {/* Ambient interno */}
         <div style={{ position: 'absolute', inset: 0, borderRadius: 'inherit', overflow: 'hidden', pointerEvents: 'none', background: `radial-gradient(120% 50% at 50% 0%, ${accent}3D 0%, transparent 60%)` }} />
+        {/* Dimmer per overlay commenti */}
+        <div style={{ position: 'absolute', inset: 0, background: '#000', opacity: dimmed ? 0.45 : 0, transition: 'opacity .35s ease', pointerEvents: 'none', zIndex: 8 }} />
         {/* Progress lettura */}
         <div style={{ position: 'absolute', top: 0, left: 0, height: '3px', width: `${Math.round(readPct * 100)}%`, background: accent, zIndex: 6, transition: 'width 80ms linear' }} />
         <div className="flex-1 flex flex-col min-h-0" style={{ opacity: morph === 'open' ? 1 : 0, transition: 'opacity .25s ease .1s' }}>

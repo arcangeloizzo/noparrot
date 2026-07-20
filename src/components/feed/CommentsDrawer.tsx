@@ -362,7 +362,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
             "max-h-[90vh] bg-background/95 backdrop-blur-xl border-t border-border rounded-t-3xl",
             !isKeyboardOpen && "pb-[env(safe-area-inset-bottom)]"
           )}
-          style={{ paddingBottom: isKeyboardOpen ? Math.max(0, keyboardOffset) : undefined }}
+          style={{ paddingBottom: isKeyboardOpen ? Math.max(0, keyboardOffset) : undefined, zIndex: 60 }}
         >
           {/* Drawer handle */}
           <div className="flex justify-center pt-3 pb-1">
