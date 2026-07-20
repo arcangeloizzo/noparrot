@@ -210,7 +210,7 @@ export const CommentItem = ({
   };
 
   // Visual nesting with thread line
-  const indentAmount = comment.level > 0 ? Math.min(comment.level, 3) * 20 : 0;
+  const indentAmount = comment.level > 0 ? 26 : 0;
   const isNested = comment.level > 0;
 
   return (
@@ -226,24 +226,13 @@ export const CommentItem = ({
     >
       {/* Compact comment card */}
       <div className={cn(
-        "relative py-2.5 px-3 rounded-xl mb-1 transition-all duration-200",
-        "bg-white/[0.02]",
-        "border border-white/[0.04]",
-        "hover:bg-white/[0.04]",
-        isNested && "ml-2"
-      )}>
-        {/* Thread connector line for nested comments */}
+        "relative rounded-2xl transition-all duration-200",
+        isNested ? "py-2 px-2.5 mb-2" : "py-2.5 px-3 mb-2.5"
+      )}
+      style={{ background:'rgba(255,255,255,0.045)', boxShadow:'0 1px 0 rgba(255,255,255,0.06) inset' }}>
+        {/* Neutral thread line for nested comments */}
         {isNested && (
-          <div
-            className="absolute -left-3 top-5 w-3 h-0.5 bg-gradient-to-r from-primary/40 to-transparent"
-          />
-        )}
-        
-        {/* Vertical thread line */}
-        {isNested && (
-          <div
-            className="absolute -left-3 top-0 bottom-0 w-0.5 bg-gradient-to-b from-primary/30 via-primary/20 to-transparent rounded-full"
-          />
+          <div className="absolute -left-[14px] top-0 bottom-2 w-0.5 rounded-full" style={{ background:'rgba(255,255,255,0.10)' }} />
         )}
 
         {/* Header: Avatar + Name + Timestamp */}
