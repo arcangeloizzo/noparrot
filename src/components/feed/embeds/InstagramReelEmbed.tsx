@@ -1,7 +1,7 @@
 import React, { memo, useMemo } from "react";
+import { Play } from "lucide-react";
 import { ClampedTitle } from "@/components/shared/ClampedTitle";
 import { MentionText } from "../MentionText";
-import { CardExternalCTA } from "../CardExternalCTA";
 import { cn, decodeHTMLEntities } from "@/lib/utils";
 import { MediaFrame } from "@/components/shared/MediaFrame";
 import { countPostWords, calculateMediaLayout } from "@/lib/mediaUtils";
