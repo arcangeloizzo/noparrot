@@ -625,22 +625,10 @@ const YouTubeShortEmbedInner = ({
                   e.stopPropagation();
                   onOpenFullText("description");
                 }}
-                className="text-sm font-semibold active:opacity-60 transition-opacity block text-[#FF0000]"
+                className="text-sm font-semibold active:opacity-60 transition-opacity block text-primary"
               >
                 Approfondisci
               </button>
-            </div>
-          )}
-
-          {/* CTA inside left column (only for mini layout) */}
-          {shouldRenderMini && !useStackLayout && sharedUrl && (
-            <div className="slot-bottom w-full mt-auto px-0" ref={slotBottomRef}>
-              <CardExternalCTA
-                platform="youtube"
-                url={sharedUrl}
-                mode="flow"
-                ref={registerRef("essential-external-cta")}
-              />
             </div>
           )}
         </div>
@@ -654,8 +642,8 @@ const YouTubeShortEmbedInner = ({
               else (mediaRef as any).current = node;
             }
           }}
-          className={cn("flex-shrink-0", shouldRenderMini ? "" : "w-full mb-3")}
-          style={shouldRenderMini ? { alignSelf: "flex-start" } : undefined}
+          className={cn("flex-shrink-0", shouldRenderMini ? "" : "w-full mb-1")}
+          style={shouldRenderMini ? { alignSelf: "flex-start" } : { order: -1 }}
         >
           <MediaFrame
             media={mediaForFrame}
@@ -666,20 +654,46 @@ const YouTubeShortEmbedInner = ({
           >
             {mediaOverlay}
           </MediaFrame>
+          {!shouldRenderMini && (
+            <div ref={slotBottomRef} className="mt-3 flex items-center justify-between">
+              <span
+                style={{
+                  fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: "10.5px",
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  color: "rgba(255,255,255,0.5)",
+                  fontWeight: 600,
+                }}
+              >
+                YouTube Shorts
+              </span>
+              {sharedUrl && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.open(sharedUrl, "_blank", "noopener,noreferrer");
+                  }}
+                  className="inline-flex items-center gap-1.5 active:opacity-60 transition-opacity"
+                  style={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontSize: "10.5px",
+                    letterSpacing: "0.08em",
+                    fontWeight: 600,
+                    color: "#ff6b7f",
+                  }}
+                >
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z" />
+                    <polygon fill="#ff6b7f" points="9.545,15.568 15.818,12 9.545,8.432" />
+                  </svg>
+                  APRI SU YOUTUBE
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
-
-      {/* CTA below the content wrapper (only for tall layout) */}
-      {!shouldRenderMini && !useStackLayout && sharedUrl && (
-        <div className="slot-bottom w-full mt-auto px-0" ref={slotBottomRef}>
-          <CardExternalCTA
-            platform="youtube"
-            url={sharedUrl}
-            mode="flow"
-            ref={registerRef("essential-external-cta")}
-          />
-        </div>
-      )}
     </div>
   );
 };
