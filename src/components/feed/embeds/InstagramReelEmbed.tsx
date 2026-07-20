@@ -184,7 +184,7 @@ const InstagramReelEmbedInner = ({
                   e.stopPropagation();
                   onOpenFullText("description");
                 }}
-                className="text-sm font-semibold active:opacity-60 transition-opacity block text-[#E1306C]"
+                className="text-sm font-semibold active:opacity-60 transition-opacity block text-primary"
               >
                 Approfondisci
               </button>
