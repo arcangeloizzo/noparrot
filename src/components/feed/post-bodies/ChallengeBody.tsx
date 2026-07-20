@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { Zap, ArrowUp } from "lucide-react";
+import { Zap, ArrowUp, Mic } from "lucide-react";
 import { MediaGallery } from "@/components/media/MediaGallery";
 import { MentionText } from "../MentionText";
 import { VoicePlayer } from "@/components/media/VoicePlayer";
@@ -407,6 +407,67 @@ export const ChallengeBody = ({
                  })}
                </div>
              </ScrollArea>
+             {/* ─── COMPOSER STICKY ─── */}
+             {(() => {
+               const isExpired = post.challenge?.status === 'expired' || post.challenge?.status === 'closed' || new Date(post.challenge?.expires_at || '') < new Date();
+               const isAuthor = user?.id === post.author.id;
+               const hasResponded = challengeResponses.some(r => r.user_id === user?.id);
+               const disabled = isExpired || hasResponded || isAuthor;
+               if (disabled) return null;
+               const openFlow = (e: React.MouseEvent) => {
+                 e.stopPropagation();
+                 setChallengeDrawerOpen(false);
+                 setShowChallengeFlow(true);
+               };
+               return (
+                 <div
+                   style={{
+                     position: 'sticky', bottom: 0,
+                     padding: '12px 16px calc(env(safe-area-inset-bottom, 0px) + 12px)',
+                     background: 'rgba(12,18,30,0.65)',
+                     backdropFilter: 'blur(16px)',
+                     WebkitBackdropFilter: 'blur(16px)',
+                     boxShadow: '0 -1px 0 rgba(255,255,255,0.06)',
+                     display: 'flex', gap: '9px',
+                   }}
+                 >
+                   <button
+                     onClick={openFlow}
+                     className="flex-1 active:scale-[0.97] transition-transform"
+                     style={{
+                       height: '48px', borderRadius: '14px',
+                       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px',
+                       background: 'rgba(10,122,255,0.14)',
+                       border: '1px solid rgba(10,122,255,0.45)',
+                       color: '#6db1ff',
+                     }}
+                   >
+                     <Mic className="w-[15px] h-[15px]" />
+                     <span style={{
+                       fontFamily: "'JetBrains Mono', monospace",
+                       fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em',
+                     }}>A FAVORE</span>
+                   </button>
+                   <button
+                     onClick={openFlow}
+                     className="flex-1 active:scale-[0.97] transition-transform"
+                     style={{
+                       height: '48px', borderRadius: '14px',
+                       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px',
+                       background: 'rgba(255,212,100,0.10)',
+                       border: '1px solid rgba(255,212,100,0.4)',
+                       color: '#FFD464',
+                     }}
+                   >
+                     <Mic className="w-[15px] h-[15px]" />
+                     <span style={{
+                       fontFamily: "'JetBrains Mono', monospace",
+                       fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em',
+                     }}>CONTRO</span>
+                   </button>
+                 </div>
+               );
+             })()}
            </DrawerContent>
          </Drawer>
        )}
@@ -416,13 +477,9 @@ export const ChallengeBody = ({
         const hasResponded = challengeResponses.some(r => r.user_id === user?.id);
         const isDisabled = isExpired || hasResponded;
 
-        return !isAuthor ? (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              if (isDisabled) return;
-              // Trigger challenge respond flow
-              const handleRespond = async () => {
+        if (isAuthor) return null;
+
+        const handleRespond = async () => {
                 const transcriptText = activeVoicePost?.transcript || post.content;
                 const wordCount = getWordCount(transcriptText);
                 const questionCount = getQuestionCountWithoutSource(wordCount);
@@ -455,32 +512,76 @@ export const ChallengeBody = ({
                   setShowAnalysisOverlay(false);
                   toast.error("Errore generico");
                 }
-              };
-              handleRespond();
-            }}
-            disabled={isDisabled}
-            className={cn(
-              "relative w-full mt-4 py-3.5 rounded-full font-bold text-[15px] tracking-wide overflow-hidden transition-all ",
-              isDisabled ? "opacity-50 cursor-not-allowed" : "hover:scale-[1.02] active:scale-[0.98]"
-            )}
-            style={{
-              background: isDisabled ? 'rgba(255,255,255,0.05)' : 'linear-gradient(135deg, #E41E52, #FF6B35)',
-              color: isDisabled ? 'rgba(255,255,255,0.3)' : 'white',
-              border: isDisabled ? '1px solid rgba(255,255,255,0.1)' : 'none',
-            }}
+        };
+
+        if (isDisabled) {
+          return (
+            <div
+              className="w-full text-center"
+              style={{
+                marginTop: '13px',
+                padding: '14px',
+                borderRadius: '14px',
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase',
+                color: 'rgba(255,255,255,0.5)', fontWeight: 600,
+              }}
+            >
+              {hasResponded ? '✓ HAI GIÀ RISPOSTO' : 'SFIDA CHIUSA'}
+            </div>
+          );
+        }
+
+        const votesFor = post.challenge?.votes_for || 0;
+        const votesAgainst = post.challenge?.votes_against || 0;
+
+        return (
+          <div
+            className="w-full flex"
+            style={{ gap: '9px', marginTop: '13px' }}
           >
-            {!isDisabled && (
-              <span className="absolute inset-0" style={{
-                background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%)',
-                backgroundSize: '200% 100%',
-                animation: 'shimmer 2.5s ease-in-out infinite',
-              }} />
-            )}
-            <span className="relative z-10">
-              {hasResponded ? '✓ Hai già risposto' : isExpired ? '⚡ Sfida chiusa' : '⚡ Accetta la sfida'}
-            </span>
-          </button>
-        ) : null;
+            <button
+              onClick={(e) => { e.stopPropagation(); handleRespond(); }}
+              className="flex-1 active:scale-[0.97] transition-transform"
+              style={{
+                height: '52px', borderRadius: '14px',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2px',
+                background: 'rgba(10,122,255,0.14)',
+                border: '1px solid rgba(10,122,255,0.45)',
+              }}
+            >
+              <span style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em',
+                color: '#6db1ff',
+              }}>A FAVORE</span>
+              <span style={{
+                fontSize: '12.5px', fontWeight: 700, color: 'rgba(170,182,198,0.85)',
+              }}>{votesFor} voti</span>
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); handleRespond(); }}
+              className="flex-1 active:scale-[0.97] transition-transform"
+              style={{
+                height: '52px', borderRadius: '14px',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2px',
+                background: 'rgba(255,212,100,0.10)',
+                border: '1px solid rgba(255,212,100,0.4)',
+              }}
+            >
+              <span style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em',
+                color: '#FFD464',
+              }}>CONTRO</span>
+              <span style={{
+                fontSize: '12.5px', fontWeight: 700, color: 'rgba(170,182,198,0.85)',
+              }}>{votesAgainst} voti</span>
+            </button>
+          </div>
+        );
       })()}
     </div>
   );
