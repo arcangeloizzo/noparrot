@@ -3557,6 +3557,7 @@ const ImmersivePostCardInner = ({
           accentColor={getCategoryColor(post.category)}
           getOriginRect={() => boxRef.current?.getBoundingClientRect() ?? null}
           onExitStart={() => setReaderExiting(true)}
+          dimmed={showComments}
           linkCard={
             isSpotifyEpisode && post.shared_url ? (
               <SpotifyPodcastCompactCard
