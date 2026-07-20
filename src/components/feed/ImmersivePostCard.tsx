@@ -59,6 +59,7 @@ import { SpotifyPodcastCompactCard } from "./SpotifyPodcastCompactCard";
 import { SpotifyTrackEmbed } from "./embeds/SpotifyTrackEmbed";
 import { SpotifyEpisodeEmbed } from "./embeds/SpotifyEpisodeEmbed";
 import { UserUploadEmbed } from "./embeds/UserUploadEmbed";
+import { ExpandedMediaViewer } from "./ExpandedMediaViewer";
 import { TwitterTweetEmbed } from "./embeds/TwitterTweetEmbed";
 import { LinkedInEmbedCard } from "./embeds/LinkedInEmbedCard";
 import { YouTubeShortEmbed } from "./embeds/YouTubeShortEmbed";
@@ -78,7 +79,6 @@ import { usePollForPost } from "@/hooks/usePollVote";
 
 // Media Components
 import { MediaGallery } from "@/components/media/MediaGallery";
-import { MediaViewer } from "@/components/media/MediaViewer";
 import { AmbientLayer } from "@/components/shared/AmbientLayer";
 import { MediaFrame } from "@/components/shared/MediaFrame";
 
