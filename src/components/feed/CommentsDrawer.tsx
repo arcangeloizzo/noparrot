@@ -361,10 +361,17 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
       <Drawer open={isOpen} onOpenChange={(open) => !open && onClose()} repositionInputs={false}>
         <DrawerContent 
           className={cn(
-            "max-h-[90vh] bg-background/95 backdrop-blur-xl border-t border-border rounded-t-3xl",
+            "max-h-[90vh] rounded-t-3xl",
             !isKeyboardOpen && "pb-[env(safe-area-inset-bottom)]"
           )}
-          style={{ paddingBottom: isKeyboardOpen ? Math.max(0, keyboardOffset) : undefined, zIndex: 60 }}
+          style={{ 
+            paddingBottom: isKeyboardOpen ? Math.max(0, keyboardOffset) : undefined, 
+            zIndex: 60,
+            background:'rgba(18,26,42,0.92)', 
+            backdropFilter:'blur(26px) saturate(150%)', 
+            WebkitBackdropFilter:'blur(26px) saturate(150%)', 
+            boxShadow:'0 1px 0 rgba(255,255,255,0.09) inset, 0 -24px 60px rgba(0,0,0,0.6)' 
+          }}
         >
           {/* Drawer handle */}
           <div className="flex justify-center pt-3 pb-1">
