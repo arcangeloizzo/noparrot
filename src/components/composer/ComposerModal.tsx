@@ -29,7 +29,7 @@ import { useVisualViewportOffset } from "@/hooks/useVisualViewportOffset";
 import { useComposerPersistence } from "@/hooks/useComposerPersistence"; // [NEW] Persistence hook
 import { PollCreator, PollData } from "./PollCreator";
 import { useEditPost } from "@/hooks/usePosts";
-import { X, Image as ImageIcon, Sparkles, Loader2, Music, Youtube, Hash, ImagePlus, ChevronDown, Check, Video, ZoomIn, Search, FileText, Share2, Zap, Mic } from 'lucide-react';
+import { X, Image as ImageIcon, Sparkles, Loader2, Music, Youtube, Hash, ImagePlus, ChevronDown, Check, Video, ZoomIn, Search, FileText, Share2, Zap, Mic, Play, Pause } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,6 +46,136 @@ const isIOS =
   typeof navigator !== 'undefined' &&
   (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && (navigator as any).maxTouchPoints > 1));
+
+// ─── Voice attachment capsule (finalization step) ───
+const VoiceAttachmentCapsule: React.FC<{
+  audioBlob: Blob;
+  waveformData: number[];
+  durationSec: number;
+  accent: string;
+}> = ({ audioBlob, waveformData, durationSec, accent }) => {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const url = React.useMemo(() => URL.createObjectURL(audioBlob), [audioBlob]);
+  useEffect(() => () => URL.revokeObjectURL(url), [url]);
+
+  // Normalize waveform to 44 bars
+  const bars = React.useMemo(() => {
+    const target = 44;
+    const src = waveformData && waveformData.length > 0
+      ? waveformData
+      : Array.from({ length: target }, () => 0.3 + Math.random() * 0.5);
+    if (src.length === target) return src;
+    if (src.length < target) {
+      const out = [...src];
+      while (out.length < target) out.push(0.15);
+      return out;
+    }
+    const step = src.length / target;
+    const out: number[] = [];
+    for (let i = 0; i < target; i++) {
+      const s = Math.floor(i * step);
+      const e = Math.floor((i + 1) * step);
+      const slice = src.slice(s, e);
+      out.push(slice.length > 0 ? slice.reduce((a, b) => a + b, 0) / slice.length : 0.1);
+    }
+    return out;
+  }, [waveformData]);
+
+  const dur = durationSec || 0;
+  const progress = dur > 0 ? Math.min(1, currentTime / dur) : 0;
+  const remaining = Math.max(0, Math.ceil(dur - currentTime));
+  const fmt = (s: number) => `-${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
+
+  const toggle = () => {
+    const a = audioRef.current;
+    if (!a) return;
+    if (isPlaying) { a.pause(); } else { a.play().catch(() => {}); }
+  };
+  const seek = (e: React.MouseEvent<HTMLDivElement>) => {
+    const a = audioRef.current;
+    if (!a || !dur) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pct = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+    a.currentTime = pct * dur;
+    setCurrentTime(a.currentTime);
+  };
+
+  return (
+    <div
+      className="w-full flex items-center"
+      style={{
+        borderRadius: '18px',
+        padding: '15px 16px',
+        gap: '13px',
+        background: 'rgba(255,255,255,0.045)',
+        boxShadow: '0 1px 0 rgba(255,255,255,0.07) inset',
+      }}
+    >
+      <audio
+        ref={audioRef}
+        src={url}
+        preload="metadata"
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+        onTimeUpdate={(e) => setCurrentTime((e.target as HTMLAudioElement).currentTime)}
+        onEnded={() => { setIsPlaying(false); setCurrentTime(0); }}
+        style={{ display: 'none' }}
+      />
+      <button
+        onClick={toggle}
+        className="flex items-center justify-center flex-shrink-0"
+        style={{
+          width: 48,
+          height: 48,
+          borderRadius: '50%',
+          background: 'rgba(10,14,22,0.6)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+          border: '1px solid rgba(255,255,255,0.25)',
+          color: '#ffffff',
+        }}
+        aria-label={isPlaying ? 'Pausa' : 'Play'}
+      >
+        {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" style={{ marginLeft: 2 }} />}
+      </button>
+      <div
+        onClick={seek}
+        className="flex items-center gap-[2px] flex-1 cursor-pointer"
+        style={{ height: 36 }}
+      >
+        {bars.map((h, i) => {
+          const filled = i / bars.length < progress;
+          return (
+            <div
+              key={i}
+              style={{
+                flex: 1,
+                height: `${Math.max(15, h * 100)}%`,
+                minHeight: '15%',
+                borderRadius: '2px',
+                background: filled ? accent : 'rgba(255,255,255,0.18)',
+                transition: 'background 0.15s',
+              }}
+            />
+          );
+        })}
+      </div>
+      <span
+        className="tabular-nums flex-shrink-0"
+        style={{
+          fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
+          fontSize: '10.5px',
+          color: 'rgba(255,255,255,0.5)',
+          marginLeft: '4px',
+        }}
+      >
+        {fmt(remaining)}
+      </span>
+    </div>
+  );
+};
 
 interface ComposerModalProps {
   isOpen: boolean;
