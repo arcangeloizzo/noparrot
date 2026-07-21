@@ -128,7 +128,7 @@ const VoiceCastBodyInner = ({
   return (
     <div
       className={cn(
-        "w-full flex flex-col pt-2 pb-8 flex-1 min-h-0 justify-start",
+        "w-full flex flex-col pt-2 pb-5",
         emergencyScroll && "overflow-y-auto"
       )}
     >
