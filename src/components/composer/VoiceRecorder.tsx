@@ -138,6 +138,10 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
   const historyWaveformRef = useRef<number[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const recordingTimeRef = useRef(0);
+  const onCompleteRef = useRef(onRecordingComplete);
+  useEffect(() => { onCompleteRef.current = onRecordingComplete; }, [onRecordingComplete]);
+  useEffect(() => { recordingTimeRef.current = recordingTime; }, [recordingTime]);
 
   useEffect(() => {
     return () => {
@@ -216,6 +220,26 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
         const blob = new Blob(audioChunksRef.current, { type: actualMimeType });
         setAudioBlob(blob);
         stream.getTracks().forEach(track => track.stop());
+
+        // Auto-forward blob+duration+waveform to parent (bypass internal preview step).
+        const full = historyWaveformRef.current;
+        const targetLength = 50;
+        let finalWaveform: number[] = [];
+        if (full.length === 0) {
+          finalWaveform = Array(targetLength).fill(0.1);
+        } else if (full.length <= targetLength) {
+          finalWaveform = [...full];
+          while (finalWaveform.length < targetLength) finalWaveform.push(0.05);
+        } else {
+          const step = full.length / targetLength;
+          for (let i = 0; i < targetLength; i++) {
+            const start = Math.floor(i * step);
+            const end = Math.floor((i + 1) * step);
+            const slice = full.slice(start, end);
+            finalWaveform.push(slice.length > 0 ? Math.max(...slice) : 0.05);
+          }
+        }
+        onCompleteRef.current(blob, recordingTimeRef.current, finalWaveform);
       };
 
       mediaRecorder.start();
