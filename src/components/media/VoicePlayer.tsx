@@ -16,12 +16,33 @@ interface VoicePlayerProps {
 }
 
 /** Generate bell-curve waveform with random variation */
-const generateWaveform = (count: number, seed?: number[] | null): number[] => {
-  if (Array.isArray(seed) && seed.length > 0) return seed;
+const generateWaveform = (count: number, seed?: number[] | null, salt?: string): number[] => {
+  if (Array.isArray(seed) && seed.length > 0) {
+    // Normalize to `count` bars via block average
+    if (seed.length === count) return seed;
+    const out: number[] = [];
+    const block = seed.length / count;
+    for (let i = 0; i < count; i++) {
+      const start = Math.floor(i * block);
+      const end = Math.max(start + 1, Math.floor((i + 1) * block));
+      let sum = 0;
+      for (let k = start; k < end; k++) sum += seed[k] ?? 0;
+      out.push(sum / (end - start));
+    }
+    return out;
+  }
+  // Deterministic fallback derived from `salt` (audioUrl)
+  let s = 0;
+  const str = salt ?? 'voice';
+  for (let i = 0; i < str.length; i++) s = (s * 31 + str.charCodeAt(i)) | 0;
+  const rand = () => {
+    s = (s * 1664525 + 1013904223) | 0;
+    return ((s >>> 0) % 10000) / 10000;
+  };
   return Array.from({ length: count }, (_, i) => {
     const center = count / 2;
     const gaussian = Math.exp(-0.5 * Math.pow((i - center) / (count * 0.28), 2));
-    const variation = 0.3 + Math.random() * 0.7;
+    const variation = 0.3 + rand() * 0.7;
     return Math.max(0.08, gaussian * variation);
   });
 };
@@ -64,8 +85,11 @@ export const VoicePlayer: React.FC<VoicePlayerProps> = ({
   const [showTranscript, setShowTranscript] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const barCount = compact ? 30 : 50;
-  const waveform = useMemo(() => generateWaveform(barCount, waveformData), [barCount, waveformData]);
+  const barCount = compact ? 32 : 44;
+  const waveform = useMemo(
+    () => generateWaveform(barCount, waveformData, audioUrl),
+    [barCount, waveformData, audioUrl]
+  );
 
   const togglePlayback = () => {
     if (!audioRef.current) return;
@@ -118,6 +142,8 @@ export const VoicePlayer: React.FC<VoicePlayerProps> = ({
     return `${m}:${sec.toString().padStart(2, '0')}`;
   };
 
+  const remaining = Math.max(0, (durationSeconds || 0) - currentTime);
+
   const isTranscriptLoading = transcriptStatus === 'pending' || transcriptStatus === 'processing';
   const hasTranscript = transcriptStatus === 'completed' && transcript;
 
@@ -136,34 +162,37 @@ export const VoicePlayer: React.FC<VoicePlayerProps> = ({
   if (compact) {
     return (
       <div
-        className="flex items-center gap-2.5 w-full"
+        className="flex items-center w-full"
         onClick={(e) => e.stopPropagation()}
         style={{
-          padding: '8px 10px',
-          borderRadius: '10px',
-          background: 'rgba(0,0,0,0.2)',
-          border: '1px solid rgba(255,255,255,0.07)',
+          padding: '10px 12px',
+          borderRadius: '14px',
+          gap: '11px',
+          background: 'rgba(255,255,255,0.045)',
+          boxShadow: '0 1px 0 rgba(255,255,255,0.07) inset',
         }}
       >
         {audioEl}
         <button
           onClick={togglePlayback}
-          className="shrink-0 flex items-center justify-center active:scale-95 transition-transform"
+          className="shrink-0 flex items-center justify-center active:scale-90 transition-transform"
           style={{
-            width: 28, height: 28, borderRadius: '50%',
-            background: `radial-gradient(circle at 40% 35%, ${accentColor}, ${accentColor}CC)`,
-            boxShadow: `0 0 12px ${accentColor}40`,
+            width: 36, height: 36, borderRadius: '50%',
+            background: 'rgba(10,14,22,0.6)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            border: '1px solid rgba(255,255,255,0.25)',
           }}
         >
           {isPlaying
-            ? <Pause className="h-3 w-3 fill-white text-white" />
-            : <Play className="h-3 w-3 fill-white text-white ml-px" />
+            ? <Pause className="w-[14px] h-[14px] fill-white text-white" />
+            : <Play className="w-[14px] h-[14px] fill-white text-white ml-px" />
           }
         </button>
 
         <div
-          className="flex-1 flex items-center justify-between cursor-pointer"
-          style={{ height: 22 }}
+          className="flex-1 flex items-center cursor-pointer"
+          style={{ height: 26, gap: '2px' }}
           onClick={handleWaveformClick}
         >
           {waveform.map((amp, i) => {
@@ -172,9 +201,9 @@ export const VoicePlayer: React.FC<VoicePlayerProps> = ({
               <div
                 key={i}
                 style={{
-                  width: 2.5, borderRadius: 2, minHeight: 3,
+                  flex: 1, borderRadius: 2, minHeight: '15%',
                   height: `${Math.max(14, amp * 100)}%`,
-                  backgroundColor: played ? accentColor : 'rgba(255,255,255,0.12)',
+                  backgroundColor: played ? accentColor : 'rgba(255,255,255,0.18)',
                   transition: 'background-color 100ms',
                 }}
               />
@@ -182,8 +211,16 @@ export const VoicePlayer: React.FC<VoicePlayerProps> = ({
           })}
         </div>
 
-        <span className="text-[10px] font-medium tabular-nums shrink-0" style={{ color: 'rgba(241,245,249,0.5)' }}>
-          {formatTime(currentTime)} / {formatTime(durationSeconds)}
+        <span
+          className="shrink-0 text-right"
+          style={{
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: '10.5px',
+            color: 'rgba(255,255,255,0.5)',
+            minWidth: '38px',
+          }}
+        >
+          {formatTime(remaining)}
         </span>
 
         {!hideTranscriptButton && transcriptStatus === 'completed' && onShowTranscript && (
@@ -192,7 +229,7 @@ export const VoicePlayer: React.FC<VoicePlayerProps> = ({
               e.stopPropagation();
               onShowTranscript();
             }}
-            className="shrink-0 p-1.5 rounded-lg active:scale-95 transition-transform"
+            className="shrink-0 p-1.5 rounded-lg active:scale-95 transition-transform ml-1"
             style={{
               border: `1px solid ${accentColor}40`,
               background: `${accentColor}1F`,
@@ -210,74 +247,71 @@ export const VoicePlayer: React.FC<VoicePlayerProps> = ({
   // ─── FULL PLAYER ───
   return (
     <div 
-      className="flex flex-col w-full" 
+      className="flex flex-col w-full"
       onClick={(e) => e.stopPropagation()}
       style={{
-        background: `linear-gradient(135deg, ${accentColor}0F, rgba(255,255,255,0.03), ${accentColor}0A)`,
-        border: '1px solid rgba(255,255,255,0.10)',
-        borderRadius: 18,
-        padding: '16px 18px',
-        backdropFilter: 'blur(8px)',
+        borderRadius: '18px',
+        padding: '15px 16px',
+        background: 'rgba(255,255,255,0.045)',
+        boxShadow: '0 1px 0 rgba(255,255,255,0.07) inset',
         gap: 10,
       }}
     >
       {audioEl}
 
-      <div className="flex items-center gap-3.5">
+      <div className="flex items-center" style={{ gap: '13px' }}>
         {/* Play button */}
-        <div className="relative shrink-0 flex items-center justify-center" style={{ width: 46, height: 46 }}>
-          {/* Spinning ring when playing */}
-          {isPlaying && (
-            <div
-              className="absolute inset-[-4px] rounded-full animate-spin"
-              style={{
-                border: `1.5px solid ${accentColor}33`,
-                animationDuration: '3s',
-              }}
-            />
-          )}
-          <button
-            onClick={togglePlayback}
-            className="relative z-10 flex items-center justify-center active:scale-95 transition-transform"
-            style={{
-              width: 46, height: 46, borderRadius: '50%',
-              background: `radial-gradient(circle at 40% 35%, ${accentColor}, ${accentColor}CC)`,
-              boxShadow: `0 0 20px ${accentColor}40, 0 0 40px ${accentColor}1F`,
-            }}
-          >
-            {isPlaying
-              ? <Pause className="h-4 w-4 fill-white text-white" />
-              : <Play className="h-4 w-4 fill-white text-white ml-0.5" />
-            }
-          </button>
+        <button
+          onClick={togglePlayback}
+          className="shrink-0 flex items-center justify-center active:scale-90 transition-transform"
+          style={{
+            width: 48, height: 48, borderRadius: '50%',
+            background: 'rgba(10,14,22,0.6)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            border: '1px solid rgba(255,255,255,0.25)',
+          }}
+        >
+          {isPlaying
+            ? <Pause className="w-[18px] h-[18px] fill-white text-white" />
+            : <Play className="w-[18px] h-[18px] fill-white text-white ml-0.5" />
+          }
+        </button>
+
+        {/* Waveform */}
+        <div
+          className="flex-1 flex items-center cursor-pointer"
+          style={{ height: 38, gap: '2px' }}
+          onClick={handleWaveformClick}
+        >
+          {waveform.map((amp, i) => {
+            const played = (i / waveform.length) <= progress;
+            return (
+              <div
+                key={i}
+                style={{
+                  flex: 1, borderRadius: 2, minHeight: '15%',
+                  height: `${Math.max(15, amp * 100)}%`,
+                  backgroundColor: played ? accentColor : 'rgba(255,255,255,0.18)',
+                  transition: 'background-color 100ms',
+                }}
+              />
+            );
+          })}
         </div>
 
-        {/* Waveform + time */}
-        <div className="flex-1 flex flex-col gap-1.5">
-          <div
-            className="flex items-center justify-between w-full cursor-pointer"
-            style={{ height: 36 }}
-            onClick={handleWaveformClick}
-          >
-            {waveform.map((amp, i) => {
-              const played = (i / waveform.length) <= progress;
-              return (
-                <div
-                  key={i}
-                  style={{
-                    width: 2.5, borderRadius: 2, minHeight: 3,
-                    height: `${Math.max(8, amp * 100)}%`,
-                    backgroundColor: played ? accentColor : 'rgba(255,255,255,0.12)',
-                    transition: 'background-color 100ms',
-                  }}
-                />
-              );
-            })}
-          </div>
-          <span className="text-[11px] font-medium tabular-nums" style={{ color: 'rgba(241,245,249,0.5)' }}>
-            {formatTime(currentTime)} / {formatTime(durationSeconds)}
-          </span>
-        </div>
+        {/* Remaining time */}
+        <span
+          className="shrink-0 text-right"
+          style={{
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: '10.5px',
+            color: 'rgba(255,255,255,0.5)',
+            minWidth: '38px',
+          }}
+        >
+          {formatTime(remaining)}
+        </span>
       </div>
 
       {/* Controls row */}
