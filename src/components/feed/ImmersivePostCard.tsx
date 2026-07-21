@@ -2435,15 +2435,7 @@ const ImmersivePostCardInner = ({
               )}
 
               {!useStackLayout && isChallengePost && activeVoicePost && post.challenge && (() => {
-                const challengeMediaForFrame = (post.media && post.media[0]) ? {
-                  src: isVideoMedia ? (downscaledPostMedia[0]?.thumbnail_url || downscaledMediaUrl) : (downscaledPostMedia[0]?.url || downscaledMediaUrl),
-                  ratio: post.media[0].ratio || undefined,
-                  orientation: post.media[0].orientation || undefined,
-                  kind: isVideoMedia ? "video" as const : "image" as const,
-                } : null;
-
-                const challengeHasValidMedia = !!challengeMediaForFrame?.src;
-                const challengeShouldRenderMini = challengeHasValidMedia;
+                const challengeHasMedia = !!(post.media && post.media.length > 0);
                 const isSmallScreen = typeof window !== 'undefined' ? window.innerHeight < 700 : false;
 
                 const vFor = post.challenge?.votes_for || 0;
@@ -2646,64 +2638,60 @@ const ImmersivePostCardInner = ({
                       )
                     )}
 
-                    {/* BODY / DESCRIZIONE + MEDIA MINI */}
-                    <div
-                      className={cn(challengeShouldRenderMini ? "vstage-row w-full flex gap-4" : "w-full flex flex-col")}
-                      style={{ flex: '0 0 auto' }}
-                    >
-                      <div className={cn(challengeShouldRenderMini ? "v-col flex-1 min-w-0 flex flex-col" : "w-full flex flex-col")}>
-                        {challengeContent && challengeContent.trim().length > 0 && (
-                          <div
-                            ref={(el) => {
-                              registerRef("essential-description")(el);
-                              (bodyRef as any).current = el;
-                              bodyTextRef.current = el;
-                            }}
-                            className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
-                            style={{
-                              fontFamily: 'Inter, sans-serif',
-                              lineHeight: 1.55,
-                              display: '-webkit-box',
-                              WebkitLineClamp: bodyLineClamp,
-                              WebkitBoxOrient: 'vertical',
-                              overflow: 'hidden'
-                            }}
-                          >
-                            <MentionText content={challengeContent} />
-                          </div>
-                        )}
-
-                        {shouldShowApprofondisci && (
-                          <div className="flex-shrink-0 mt-1 mb-2 text-left">
-                            <button
-                              onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
-                              className="text-sm text-primary font-semibold block pointer-events-auto active:opacity-60 transition-opacity"
-                            >
-                              Approfondisci
-                            </button>
-                          </div>
-                        )}
+                    {/* MEDIA — full-bleed sopra il body */}
+                    {challengeHasMedia && post.media && (
+                      <div
+                        ref={(node) => {
+                          registerRef('flexible-image')(node);
+                          (mediaRef as any).current = node;
+                        }}
+                        className="flex-shrink-0 mb-3.5"
+                        style={{ marginLeft: '-18px', marginRight: '-18px' }}
+                      >
+                        <MediaMosaic
+                          media={downscaledPostMedia.map((m: any, i: number) => ({
+                            url: m.url,
+                            type: m.type === 'video' ? 'video' : 'image',
+                            orientation: post.media![i]?.orientation ?? null,
+                            ratio: post.media![i]?.ratio ?? null,
+                            thumbnail_url: m.thumbnail_url ?? null,
+                          }))}
+                          onMediaClick={(idx) => setSelectedMediaIndex(idx)}
+                        />
                       </div>
+                    )}
 
-                      {challengeShouldRenderMini && challengeMediaForFrame && (
+                    {/* BODY / DESCRIZIONE — larghezza piena, sotto il media */}
+                    <div className="w-full flex flex-col">
+                      {challengeContent && challengeContent.trim().length > 0 && (
                         <div
-                          ref={(node) => {
-                            registerRef('flexible-image')(node);
-                            (mediaRef as any).current = node;
+                          ref={(el) => {
+                            registerRef("essential-description")(el);
+                            (bodyRef as any).current = el;
+                            bodyTextRef.current = el;
                           }}
-                          className="flex-shrink-0"
+                          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
                           style={{
-                            alignSelf: "flex-start",
-                            maxHeight: flexiblesStatus['flexible-image']?.height ? `${flexiblesStatus['flexible-image']?.height}px` : undefined
+                            fontFamily: 'Inter, sans-serif',
+                            lineHeight: 1.55,
+                            display: '-webkit-box',
+                            WebkitLineClamp: bodyLineClamp,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden'
                           }}
                         >
-                          <MediaFrame
-                            media={challengeMediaForFrame}
-                            variant="mini"
-                            miniMinHeight={90}
-                            height={flexiblesStatus['flexible-image']?.height}
-                            onTap={() => setSelectedMediaIndex(0)}
-                          />
+                          <MentionText content={challengeContent} />
+                        </div>
+                      )}
+
+                      {shouldShowApprofondisci && (
+                        <div className="flex-shrink-0 mt-1 mb-2 text-left">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
+                            className="text-sm text-primary font-semibold block pointer-events-auto active:opacity-60 transition-opacity"
+                          >
+                            Approfondisci
+                          </button>
                         </div>
                       )}
                     </div>
