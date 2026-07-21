@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, DragEvent } from 'react';
-import { X, Loader2, FileText, Mic, AlertCircle, Sparkles, Play, CheckCircle2, Zap, GripVertical } from 'lucide-react';
+import { X, Loader2, FileText, Mic, AlertCircle, Sparkles, Play, CheckCircle2, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -115,7 +115,7 @@ const MediaItem = ({
   onRequestTranscription,
   onRequestOCR,
   isTranscribing,
-  isCompact,
+  aspect,
   isBatchExtracting,
   isDragging,
   isDragOver,
@@ -131,7 +131,7 @@ const MediaItem = ({
   onRequestTranscription?: (id: string) => void;
   onRequestOCR?: (id: string) => void;
   isTranscribing?: boolean;
-  isCompact: boolean;
+  aspect: '16 / 10' | '4 / 3';
   isBatchExtracting?: boolean;
   isDragging?: boolean;
   isDragOver?: boolean;
@@ -165,20 +165,43 @@ const MediaItem = ({
 
   const videoPoster = useVideoThumbnail(item.url, item.type, item.file);
 
-  // Layout classes based on compact mode
-  const containerClasses = isCompact
-    ? "relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-muted"
-    : "relative w-full aspect-video rounded-xl overflow-hidden bg-muted";
+  const chipStyle: React.CSSProperties = {
+    position: 'absolute',
+    left: 8,
+    bottom: 8,
+    fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+    fontSize: '9.5px',
+    letterSpacing: '0.08em',
+    fontWeight: 600,
+    color: '#ffffff',
+    background: 'rgba(10,14,22,0.65)',
+    backdropFilter: 'blur(8px)',
+    WebkitBackdropFilter: 'blur(8px)',
+    padding: '5px 9px',
+    borderRadius: '999px',
+    zIndex: 10,
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '5px',
+    border: '1px solid rgba(255,255,255,0.14)'
+  };
 
   return (
     <div
       className={cn(
-        containerClasses,
+        "relative w-full",
         isDragging && "opacity-50 scale-95",
-        isDragOver && "ring-2 ring-primary ring-offset-2 ring-offset-background",
-        isCompact && "cursor-grab active:cursor-grabbing"
+        isDragOver && "ring-2 ring-primary",
+        "cursor-pointer"
       )}
-      draggable={isCompact}
+      style={{
+        position: 'relative',
+        width: '100%',
+        aspectRatio: aspect,
+        background: '#0a0f18',
+        overflow: 'hidden'
+      }}
+      draggable={!!onDragStart}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDragEnd={onDragEnd}
@@ -203,138 +226,120 @@ const MediaItem = ({
             playsInline
             muted
           />
-          {!videoPoster && (
-            <div className="absolute inset-0 bg-muted/60 flex items-center justify-center pointer-events-none">
-              <div className={cn(
-                "rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center",
-                isCompact ? "w-8 h-8" : "w-14 h-14"
-              )}>
-                <Play className={cn("text-white ml-0.5", isCompact ? "w-4 h-4" : "w-7 h-7")} />
-              </div>
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: '999px',
+                background: 'rgba(10,14,22,0.55)',
+                backdropFilter: 'blur(8px)',
+                WebkitBackdropFilter: 'blur(8px)',
+                border: '1px solid rgba(255,255,255,0.25)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <Play className="w-5 h-5 text-white" fill="#ffffff" />
             </div>
-          )}
-        </div>
-      )}
-
-      {/* Drag handle indicator for compact mode */}
-      {isCompact && (
-        <div className="absolute top-1 left-1 p-0.5 rounded bg-black/50 backdrop-blur-sm z-10 pointer-events-none">
-          <GripVertical className="w-3 h-3 text-white/70" />
+          </div>
         </div>
       )}
 
       {/* Remove button */}
-      <Button
+      <button
         type="button"
-        variant="destructive"
-        size="sm"
-        className={cn(
-          "absolute top-1 right-1 rounded-full z-20 shadow-lg",
-          isCompact ? "h-5 w-5 p-0" : "h-7 w-7 p-0 top-2 right-2"
-        )}
+        aria-label="Rimuovi"
+        style={{
+          position: 'absolute',
+          top: 8,
+          right: 8,
+          width: 28,
+          height: 28,
+          borderRadius: '999px',
+          background: 'rgba(10,14,22,0.65)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+          border: '1px solid rgba(255,255,255,0.2)',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 20
+        }}
         onClick={(e) => {
           e.stopPropagation();
           e.preventDefault();
           onRemove(item.id);
         }}
       >
-        <X className={isCompact ? "w-3 h-3" : "w-3.5 h-3.5"} />
-      </Button>
+        <X className="w-3.5 h-3.5" color="#ffffff" />
+      </button>
 
-      {/* Video: Discrete Transcribe button (only in non-compact single mode) */}
-      {!isCompact && canTranscribe && (
+      {/* Video: Discrete Transcribe button */}
+      {canTranscribe && (
         <button
           type="button"
-          onClick={() => onRequestTranscription(item.id)}
+          onClick={(e) => { e.stopPropagation(); onRequestTranscription(item.id); }}
           disabled={isTranscribing}
-          className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-sm px-2.5 py-1.5 rounded-full flex items-center gap-1.5 z-10 hover:bg-black/80 transition-colors disabled:opacity-50"
+          style={chipStyle}
         >
-          <Sparkles className="w-4 h-4 text-primary" />
-          <span className="text-xs font-medium text-white">Trascrivi</span>
+          <span>🎙 TRASCRIVI</span>
         </button>
       )}
 
-      {/* Image: Discrete OCR button (only in non-compact single mode) */}
-      {!isCompact && canOCR && (
+      {/* Image: Discrete OCR button */}
+      {canOCR && (
         <button
           type="button"
-          onClick={() => onRequestOCR(item.id)}
-          className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-sm px-2.5 py-1.5 rounded-full flex items-center gap-1.5 z-10 hover:bg-black/80 transition-colors"
+          onClick={(e) => { e.stopPropagation(); onRequestOCR(item.id); }}
+          style={chipStyle}
         >
-          <FileText className="w-4 h-4 text-primary" />
-          <span className="text-xs font-medium text-white">Estrai testo</span>
+          <span>📄 ESTRAI TESTO</span>
         </button>
       )}
 
-      {/* Video: Too long badge (non-compact only) */}
-      {!isCompact && isVideo && item.extracted_status === 'idle' && isTooLong && (
-        <div className="absolute bottom-2 left-2 bg-amber-500/90 backdrop-blur-sm px-2.5 py-1.5 rounded-full flex items-center gap-1.5 z-10">
-          <AlertCircle className="w-4 h-4 text-white" />
-          <span className="text-xs font-medium text-white">Max 3 min</span>
+      {/* Video: Too long badge */}
+      {isVideo && item.extracted_status === 'idle' && isTooLong && (
+        <div style={{ ...chipStyle, color: '#FFD464' }}>
+          <AlertCircle className="w-3 h-3" />
+          <span>MAX 3 MIN</span>
         </div>
       )}
 
       {/* Processing overlay with spinner */}
       {isPending && (
         <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center z-10 gap-1">
-          <div className={cn(
-            "bg-black/80 backdrop-blur-sm rounded-full flex items-center justify-center",
-            isCompact ? "p-2" : "p-4"
-          )}>
-            <Loader2 className={cn(
-              "animate-spin text-primary",
-              isCompact ? "w-4 h-4" : "w-8 h-8"
-            )} />
+          <div style={{
+            width: 44,
+            height: 44,
+            borderRadius: '999px',
+            background: 'rgba(10,14,22,0.7)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <Loader2 className="w-5 h-5 animate-spin" color="#6db1ff" />
           </div>
-          {!isCompact && (
-            <div className="text-center px-4">
-              <p className="text-white text-sm font-medium">
-                {item.extracted_kind === 'transcript' ? 'Trascrizione...' : 'Estrazione...'}
-              </p>
-            </div>
-          )}
         </div>
       )}
 
-      {/* Success badge - compact shows checkmark only */}
+      {/* Success badge */}
       {isDone && (
-        <div className={cn(
-          "absolute bg-emerald-500/90 backdrop-blur-sm text-white rounded-full flex items-center z-10",
-          isCompact
-            ? "bottom-1 left-1 p-1"
-            : "bottom-2 left-2 text-xs px-2 py-1 gap-1.5"
-        )}>
-          {isCompact ? (
-            <CheckCircle2 className="w-3 h-3" />
-          ) : (
-            <>
-              {item.extracted_kind === 'ocr' ? (
-                <FileText className="w-3.5 h-3.5" />
-              ) : (
-                <Mic className="w-3.5 h-3.5" />
-              )}
-              <span className="font-medium">Pronto</span>
-            </>
-          )}
+        <div style={{ ...chipStyle, color: '#6EE7B7' }}>
+          <CheckCircle2 className="w-3 h-3" />
+          <span>{item.extracted_kind === 'ocr' ? 'TESTO ESTRATTO' : 'TRASCRITTO'}</span>
         </div>
       )}
 
       {/* Failed badge */}
       {isFailed && (
-        <div className={cn(
-          "absolute bg-red-500/90 backdrop-blur-sm text-white rounded-full flex items-center z-10",
-          isCompact
-            ? "bottom-1 left-1 p-1"
-            : "bottom-2 left-2 text-xs px-2 py-1 gap-1.5"
-        )}>
-          {isCompact ? (
-            <AlertCircle className="w-3 h-3" />
-          ) : (
-            <>
-              <AlertCircle className="w-3.5 h-3.5" />
-              <span className="font-medium">Errore</span>
-            </>
-          )}
+        <div style={{ ...chipStyle, color: '#FFB4B4' }}>
+          <AlertCircle className="w-3 h-3" />
+          <span>ERRORE</span>
         </div>
       )}
     </div>
@@ -360,7 +365,6 @@ export const MediaPreviewTray = ({
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const isSingleMedia = media.length === 1;
-  const isMultiMedia = media.length > 2;
   const hasPendingTranscription = media.some(m => m.extracted_status === 'pending' && m.extracted_kind === 'transcript');
   const hasPendingOCR = media.some(m => m.extracted_status === 'pending' && m.extracted_kind === 'ocr');
   const hasPendingAny = media.some(m => m.extracted_status === 'pending');
@@ -419,103 +423,90 @@ export const MediaPreviewTray = ({
 
   return (
     <div className="space-y-3">
-      {/* Single media: large full-width preview */}
-      {isSingleMedia ? (
-        <MediaItem
-          item={media[0]}
-          index={0}
-          onRemove={onRemove}
-          onRequestTranscription={onRequestTranscription}
-          onRequestOCR={onRequestOCR}
-          isTranscribing={isTranscribing}
-          isCompact={false}
-          isBatchExtracting={isBatchExtracting}
-          onClick={() => onMediaClick?.(media[0].url, media[0].type)}
-        />
-      ) : isMultiMedia ? (
-        /* Multi-media (>2): Horizontal scroll layout with drag & drop */
-        <div
-          ref={scrollRef}
-          className="flex gap-2 overflow-x-auto pb-2 scrollbar-none"
-          style={{ WebkitOverflowScrolling: 'touch' }}
-        >
-          {media.map((item, index) => (
-            <MediaItem
-              key={item.id}
-              item={item}
-              index={index}
-              onRemove={onRemove}
-              onRequestTranscription={onRequestTranscription}
-              onRequestOCR={onRequestOCR}
-              isTranscribing={isTranscribing}
-              isCompact={true}
-              isBatchExtracting={isBatchExtracting}
-              isDragging={draggedIndex === index}
-              isDragOver={dragOverIndex === index}
-              onDragStart={(e) => handleDragStart(e, index)}
-              onDragOver={(e) => handleDragOver(e, index)}
-              onDragEnd={handleDragEnd}
-              onDrop={(e) => handleDrop(e, index)}
-              onClick={() => onMediaClick?.(item.url, item.type)}
-            />
-          ))}
-        </div>
-      ) : (
-        /* 2 media: 2-column grid with drag & drop */
-        <div className="grid grid-cols-2 gap-2">
-          {media.map((item, index) => (
-            <MediaItem
-              key={item.id}
-              item={item}
-              index={index}
-              onRemove={onRemove}
-              onRequestTranscription={onRequestTranscription}
-              onRequestOCR={onRequestOCR}
-              isTranscribing={isTranscribing}
-              isCompact={false}
-              isBatchExtracting={isBatchExtracting}
-              onClick={() => onMediaClick?.(item.url, item.type)}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Drag hint for multi-media */}
-      {media.length > 2 && (
-        <p className="text-xs text-muted-foreground text-center">
-          Trascina per riordinare
-        </p>
-      )}
+      <div
+        ref={scrollRef}
+        style={{
+          borderRadius: '18px',
+          overflow: 'hidden',
+          display: 'grid',
+          gridTemplateColumns: isSingleMedia ? '1fr' : '1fr 1fr',
+          gap: '8px',
+          background: 'transparent'
+        }}
+      >
+        {media.map((item, index) => (
+          <MediaItem
+            key={item.id}
+            item={item}
+            index={index}
+            onRemove={onRemove}
+            onRequestTranscription={onRequestTranscription}
+            onRequestOCR={onRequestOCR}
+            isTranscribing={isTranscribing}
+            aspect={isSingleMedia ? '16 / 10' : '4 / 3'}
+            isBatchExtracting={isBatchExtracting}
+            isDragging={draggedIndex === index}
+            isDragOver={dragOverIndex === index}
+            onDragStart={!isSingleMedia ? (e) => handleDragStart(e, index) : undefined}
+            onDragOver={!isSingleMedia ? (e) => handleDragOver(e, index) : undefined}
+            onDragEnd={!isSingleMedia ? handleDragEnd : undefined}
+            onDrop={!isSingleMedia ? (e) => handleDrop(e, index) : undefined}
+            onClick={() => onMediaClick?.(item.url, item.type)}
+          />
+        ))}
+      </div>
 
       {/* Batch extraction button for multi-media */}
       {media.length > 1 && canBatchExtract && (
-        <Button
+        <button
           type="button"
-          variant="outline"
-          size="sm"
           onClick={onRequestBatchExtraction}
-          className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/10"
+          className="w-full active:opacity-80 transition-opacity"
+          style={{
+            height: '48px',
+            borderRadius: '14px',
+            border: '1px solid rgba(10,122,255,0.4)',
+            background: 'rgba(10,122,255,0.1)',
+            color: '#6db1ff',
+            fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+            fontSize: '11px',
+            letterSpacing: '0.1em',
+            fontWeight: 600,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            width: '100%'
+          }}
         >
-          <Zap className="w-4 h-4" />
-          <span>
-            Analizza tutto ({extractableImages.length > 0 && `${extractableImages.length} immagini`}
-            {extractableImages.length > 0 && extractableVideos.length > 0 && ', '}
-            {extractableVideos.length > 0 && `${extractableVideos.length} video`})
-          </span>
-        </Button>
+          <span>⚡ ANALIZZA TUTTO · {extractableImages.length + extractableVideos.length} {extractableVideos.length > 0 && extractableImages.length === 0 ? 'VIDEO' : 'IMMAGINI'}</span>
+        </button>
       )}
 
       {/* Progress indicator during batch extraction */}
       {isBatchExtracting && hasPendingAny && (
-        <div className="flex items-center gap-3 bg-primary/10 border border-primary/20 rounded-lg px-3 py-2.5">
-          <Loader2 className="w-5 h-5 animate-spin text-primary flex-shrink-0" />
+        <div
+          className="flex items-center gap-3"
+          style={{
+            padding: '10px 14px',
+            borderRadius: '14px',
+            border: '1px solid rgba(10,122,255,0.4)',
+            background: 'rgba(10,122,255,0.1)'
+          }}
+        >
+          <Loader2 className="w-5 h-5 animate-spin flex-shrink-0" color="#6db1ff" />
           <div className="flex-1 min-w-0">
-            <span className="text-sm font-medium text-primary">
+            <span
+              style={{
+                fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+                fontSize: '11px',
+                letterSpacing: '0.08em',
+                color: '#6db1ff',
+                fontWeight: 600
+              }}
+            >
               Analisi in corso... {completedCount}/{totalExtractable}
             </span>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Non chiudere questa schermata
-            </p>
           </div>
         </div>
       )}
