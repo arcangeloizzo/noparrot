@@ -311,43 +311,25 @@ const VoiceCastBodyInner = ({
         </>
       )}
 
-      {/* Player Vocale Essenziale */}
+      {/* Player Vocale — spec FIX A/C: render incondizionato quando audioUrl esiste.
+          Il ref 'essential-voice-player' resta agganciato per il layout engine. */}
       <div className="slot-bottom" ref={slotBottomRef}>
-        {essentialVoicePlayerState === "standard" && (
-          <div
-            ref={registerRef("essential-voice-player")}
-            className="w-full mt-auto flex-shrink-0"
-          >
-            {isActive ? (
-              <ImmersiveVoicePlayerV2
-                audioUrl={audioUrl || ""}
-                durationSeconds={durationSeconds || 0}
-                transcriptStatus={transcriptStatus}
-                onShowTranscript={() => openFullTextDrawer("transcript")}
-              />
-            ) : (
-              <div className="w-full h-[52px] rounded-xl bg-white/5 border border-white/10 animate-pulse flex items-center justify-center text-xs text-white/40">
-                Caricamento player vocale...
-              </div>
-            )}
-          </div>
-        )}
-        {essentialVoicePlayerState === "compact" && (
+        {audioUrl && (
           <div
             ref={registerRef("essential-voice-player")}
             className="w-full mt-auto flex-shrink-0"
           >
             {isActive ? (
               <VoicePlayer
-                compact
                 audioUrl={audioUrl || ""}
                 durationSeconds={durationSeconds || 0}
                 transcript={transcript}
                 transcriptStatus={transcriptStatus}
+                accentColor="#10B981"
                 onShowTranscript={() => openFullTextDrawer("transcript")}
               />
             ) : (
-              <div className="w-full h-[36px] rounded-lg bg-white/5 border border-white/10 animate-pulse flex items-center justify-center text-[10px] text-white/30">
+              <div className="w-full h-[52px] rounded-xl bg-white/5 border border-white/10 animate-pulse flex items-center justify-center text-xs text-white/40">
                 Caricamento player vocale...
               </div>
             )}
