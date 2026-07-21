@@ -2100,20 +2100,21 @@ const ImmersivePostCardInner = ({
       };
     }
 
-    // 6. Voicecast / Voice Post with artwork
-    if (isVoicePost && !isChallengePost) {
-      const artworkSrc = post.media?.[0]?.url || post.preview_img;
+    // 6. Audio posts (Voicecast + Challenge) — spec FIX D:
+    //    ambient con colore categoria; fallback '#0A7AFF' (blu) se categoria assente.
+    if (isAudioPost) {
+      const catRaw = post.category;
+      const catColor = catRaw ? getCategoryColor(catRaw) : '#0A7AFF';
+      const artworkSrc = isVoicePost && !isChallengePost
+        ? (post.media?.[0]?.url || post.preview_img)
+        : null;
       if (artworkSrc) {
         return {
-          media: {
-            src: generateAmbientUrl(artworkSrc),
-            kind: 'photo-user'
-          },
-          category: getCategoryColor(post.category)
+          media: { src: generateAmbientUrl(artworkSrc), kind: 'photo-user' },
+          category: catColor,
         };
-      } else {
-        return { category: getCategoryColor(post.category) };
       }
+      return { category: catColor };
     }
 
     // 7. Youtube Std / Article / Embed with preview image
