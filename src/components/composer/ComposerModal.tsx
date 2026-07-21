@@ -2152,8 +2152,24 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
       */}
       <div
         className="absolute inset-x-0 top-0 z-50 flex flex-col"
-        style={{ height: viewportHeight ? `${viewportHeight}px` : '100dvh' }}
+        style={{
+          height: viewportHeight ? `${viewportHeight}px` : '100dvh',
+          minHeight: '100svh',
+          background: '#0E1522',
+        }}
       >
+        {/* Ambient background — fixed inset 0 so keyboard resize never exposes feed */}
+        <div
+          aria-hidden
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 0,
+            pointerEvents: 'none',
+            background:
+              "radial-gradient(95% 55% at 75% 0%, rgba(10,122,255,0.16) 0%, transparent 60%), radial-gradient(85% 55% at 10% 100%, rgba(10,122,255,0.08) 0%, transparent 60%), #0E1522",
+          }}
+        />
         {/* Backdrop - desktop only */}
         <div
           className="hidden md:block absolute inset-0 bg-black/60"
@@ -2163,10 +2179,10 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
         {/* Container: full-screen mobile, centered modal desktop */}
         <div
           className={cn(
-            "relative flex flex-col w-full h-full",
+            "relative flex flex-col w-full h-full z-[1]",
             // Desktop: centered modal with max height
             "md:h-auto md:max-h-[85vh] md:w-full md:max-w-xl md:mx-auto md:my-8 md:rounded-2xl",
-            "bg-background md:bg-card",
+            "md:bg-card",
             "border-0 md:border md:border-border",
             "animate-scale-in"
           )}
@@ -2174,7 +2190,10 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
           {/* Inner flex container */}
           <div className="flex flex-col h-full">
             {/* Minimal Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
+            <div
+              className="flex items-center justify-between px-4 py-3"
+              style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.07)' }}
+            >
               {/* Left: Annulla or Back */}
               {composerMode === 'idle' || composerMode === 'text-editing' ? (
                 <Button
