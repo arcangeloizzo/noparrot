@@ -8,6 +8,7 @@ import { MediaGallery } from "@/components/media/MediaGallery";
 import { VoicePlayer } from "@/components/media/VoicePlayer";
 import { ImmersiveVoicePlayerV2 } from "@/components/media/ImmersiveVoicePlayerV2";
 import { MediaFrame } from "@/components/shared/MediaFrame";
+import { MediaMosaic } from "../MediaMosaic";
 
 interface VoiceCastBodyProps {
   // Identification
@@ -124,6 +125,7 @@ const VoiceCastBodyInner = ({
     }
   };
   const shouldRenderMini = hasMedia && media && media.length > 0 && !shouldUseBlurredBg;
+  const shouldRenderMosaic = hasMedia && media && media.length > 0 && !shouldUseBlurredBg;
 
   return (
     <div
@@ -156,186 +158,86 @@ const VoiceCastBodyInner = ({
         )}
       </div>
 
-      {/* Content wrapper: row for mini layout, column for standard layout */}
-      <div
-        className={cn(shouldRenderMini ? "vstage-row w-full flex gap-4" : "w-full flex flex-col")}
-        style={shouldRenderMini ? { flex: '0 0 auto', marginTop: 0 } : undefined}
-      >
-        <div className={cn(shouldRenderMini ? "v-col flex-1 min-w-0 flex flex-col" : "w-full flex flex-col")}>
-          {/* Description flessibile se esiste */}
-          {voiceContent && voiceContent.trim().length > 0 && (
-            <div
-              ref={handleDescriptionRef}
-              className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
-              style={{
-                fontFamily: '"Inter", sans-serif',
-                lineHeight: 1.55,
-                display: "-webkit-box",
-                WebkitLineClamp: bodyLineClamp,
-                WebkitBoxOrient: "vertical",
-                overflow: "hidden",
-              }}
-            >
-              <MentionText content={voiceContent} />
-            </div>
-          )}
-
-          {/* Approfondisci subito dopo description (se non c'è description, dopo title) */}
-          {shouldShowApprofondisci && (
-            <div className="flex-shrink-0 mt-2 mb-3 text-left">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openFullTextDrawer("description");
-                }}
-                className="text-sm text-primary font-semibold active:opacity-60 transition-opacity block"
-              >
-                Approfondisci
-              </button>
+      {/* PLAYER VOCALE — spec: subito dopo il titolo */}
+      {audioUrl && (
+        <div
+          ref={registerRef("essential-voice-player")}
+          className="w-full flex-shrink-0"
+          style={{ marginBottom: '14px' }}
+        >
+          {isActive ? (
+            <VoicePlayer
+              audioUrl={audioUrl || ""}
+              durationSeconds={durationSeconds || 0}
+              transcript={transcript}
+              transcriptStatus={transcriptStatus}
+              accentColor="#10B981"
+              onShowTranscript={() => openFullTextDrawer("transcript")}
+            />
+          ) : (
+            <div className="w-full h-[52px] rounded-xl bg-white/5 border border-white/10 animate-pulse flex items-center justify-center text-xs text-white/40">
+              Caricamento player vocale...
             </div>
           )}
         </div>
-
-        {/* Colonna destra (media), SOLO se shouldRenderMini */}
-        {shouldRenderMini && media && media[0] && (() => {
-          const mediaForFrame = {
-            src: isVideoMedia ? (media[0].thumbnail_url || mediaUrl || '') : (media[0].url || mediaUrl || ''),
-            ratio: media[0].ratio || undefined,
-            orientation: media[0].orientation || undefined,
-            kind: isVideoMedia ? "video" as const : "image" as const,
-          };
-          return (
-            <div
-              ref={handleMediaRef}
-              className="flex-shrink-0"
-              style={{ 
-                alignSelf: "flex-start",
-                maxHeight: flexibleImageHeight ? `${flexibleImageHeight}px` : undefined
-              }}
-            >
-              <MediaFrame
-                media={mediaForFrame}
-                variant="mini"
-                miniMinHeight={90}
-                height={flexibleImageHeight}
-                onTap={() => setSelectedMediaIndex(0)}
-              />
-            </div>
-          );
-        })()}
-      </div>
-
-      {/* Image/Media flessibile per layout standard (non-mini) */}
-      {!shouldRenderMini && hasMedia && media && media.length > 0 && !shouldUseBlurredBg && (
-        <>
-          {flexibleImageStep === "full" && (
-            <div
-              ref={handleMediaRef}
-              className="relative flex-shrink-0 w-full flex items-center justify-center overflow-hidden mb-3 rounded-xl border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.3)] cursor-pointer"
-              style={{ height: `${flexibleImageHeight}px` }}
-              onClick={
-                media.length === 1
-                  ? (e) => {
-                      e.stopPropagation();
-                      setSelectedMediaIndex(0);
-                    }
-                  : undefined
-              }
-            >
-              {downscaledMedia.length === 1 ? (
-                isVideoMedia ? (
-                  <div className="relative w-full h-full flex items-center justify-center">
-                    <img
-                      src={downscaledMedia[0]?.thumbnail_url || downscaledMediaUrl}
-                      alt=""
-                      width={media[0]?.width || 1080}
-                      height={media[0]?.height || 1080}
-                      loading="lazy"
-                      decoding="async"
-                      className="w-full h-full object-contain"
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="bg-white p-3 rounded-full shadow-lg">
-                        <Play className="w-5 h-5 text-black fill-black ml-0.5" />
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <img
-                    src={downscaledMediaUrl}
-                    alt=""
-                    width={media[0]?.width || 1080}
-                    height={media[0]?.height || 1080}
-                    loading="lazy"
-                    decoding="async"
-                    className="w-full h-full object-contain"
-                  />
-                )
-              ) : (
-                <MediaGallery
-                  media={downscaledMedia}
-                  onClick={(_, index) => setSelectedMediaIndex(index)}
-                  initialIndex={carouselIndex}
-                  onIndexChange={setCarouselIndex}
-                  className="h-full w-full object-contain"
-                  isActive={isActive}
-                />
-              )}
-            </div>
-          )}
-
-          {flexibleImageStep === "pill" && (
-            <div
-              ref={handleMediaRef}
-              className="flex-shrink-0 mb-3"
-              style={{ height: "36px" }}
-            >
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedMediaIndex(0);
-                }}
-                className="inline-flex h-9 items-center gap-1.5 bg-white/10 hover:bg-white/20 border border-white/10 px-4 rounded-full text-white text-xs font-bold"
-              >
-                <span>📎 Vedi {isVideoMedia ? "video" : "immagine"}</span>
-              </button>
-            </div>
-          )}
-
-          {flexibleImageStep === "hidden" && (
-            <div
-              ref={handleMediaRef}
-              style={{ height: 0, overflow: "hidden" }}
-            />
-          )}
-        </>
       )}
 
-      {/* Player Vocale — spec FIX A/C: render incondizionato quando audioUrl esiste.
-          Il ref 'essential-voice-player' resta agganciato per il layout engine. */}
-      <div className="slot-bottom" ref={slotBottomRef}>
-        {audioUrl && (
+      {/* MEDIA — full-bleed MediaMosaic sotto il player, sopra il body */}
+      {shouldRenderMosaic && media && (
+        <div
+          ref={handleMediaRef}
+          className="flex-shrink-0 mb-3.5"
+          style={{ marginLeft: '-18px', marginRight: '-18px' }}
+        >
+          <MediaMosaic
+            media={downscaledMedia.map((m: any, i: number) => ({
+              url: m.url,
+              type: m.type === 'video' ? 'video' : 'image',
+              orientation: media[i]?.orientation ?? null,
+              ratio: media[i]?.ratio ?? null,
+              thumbnail_url: m.thumbnail_url ?? null,
+            }))}
+            onMediaClick={(idx) => setSelectedMediaIndex(idx)}
+          />
+        </div>
+      )}
+
+      {/* BODY sempre sotto media, larghezza piena */}
+      <div className="w-full flex flex-col">
+        {voiceContent && voiceContent.trim().length > 0 && (
           <div
-            ref={registerRef("essential-voice-player")}
-            className="w-full mt-auto flex-shrink-0"
+            ref={handleDescriptionRef}
+            className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
+            style={{
+              fontFamily: '"Inter", sans-serif',
+              lineHeight: 1.55,
+              display: "-webkit-box",
+              WebkitLineClamp: bodyLineClamp,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+            }}
           >
-            {isActive ? (
-              <VoicePlayer
-                audioUrl={audioUrl || ""}
-                durationSeconds={durationSeconds || 0}
-                transcript={transcript}
-                transcriptStatus={transcriptStatus}
-                accentColor="#10B981"
-                onShowTranscript={() => openFullTextDrawer("transcript")}
-              />
-            ) : (
-              <div className="w-full h-[52px] rounded-xl bg-white/5 border border-white/10 animate-pulse flex items-center justify-center text-xs text-white/40">
-                Caricamento player vocale...
-              </div>
-            )}
+            <MentionText content={voiceContent} />
+          </div>
+        )}
+
+        {shouldShowApprofondisci && (
+          <div className="flex-shrink-0 mt-1 mb-2 text-left">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                openFullTextDrawer("description");
+              }}
+              className="text-sm text-primary font-semibold active:opacity-60 transition-opacity block"
+            >
+              Approfondisci
+            </button>
           </div>
         )}
       </div>
+
+      {/* slot-bottom vuoto per compat layout engine */}
+      <div className="slot-bottom" ref={slotBottomRef} />
     </div>
   );
 };
