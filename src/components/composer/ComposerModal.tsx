@@ -2351,7 +2351,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
                         </AvatarFallback>
                       </Avatar>
 
-                      <div className="flex-1 min-w-0 flex flex-col gap-2">
+                      <div className="flex-1 min-w-0 flex flex-col gap-2" style={{ caretColor: '#0A7AFF' }}>
                         {/* Title Input */}
                         <input
                           type="text"
@@ -2371,13 +2371,15 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
                               }
                             }, 150);
                           }}
-                          className="w-full bg-transparent outline-none transition-colors placeholder:text-muted-foreground/60"
+                          className="w-full bg-transparent outline-none transition-colors uppercase"
                           style={{
                             fontFamily: "'Anton', 'Impact', sans-serif",
-                            fontSize: '24px',
+                            fontSize: '27px',
+                            lineHeight: 1.08,
                             color: '#FFFFFF',
+                            caretColor: '#0A7AFF',
                             border: 'none',
-                            borderBottom: titleFocused ? '2px solid #0A7AFF' : '2px solid rgba(255,255,255,0.06)',
+                            borderBottom: titleFocused ? '2px solid #0A7AFF' : '1px solid rgba(255,255,255,0.09)',
                             padding: '12px 0',
                             textAlign: 'left'
                           }}
@@ -2386,10 +2388,10 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
                           <div 
                             style={{ 
                               fontFamily: "'JetBrains Mono', monospace", 
-                              fontSize: '11px', 
+                              fontSize: '10px', 
                               textAlign: 'right', 
                               marginTop: '4px',
-                              color: postTitle.length === 100 ? '#E41E52' : postTitle.length >= 80 ? '#FFD464' : 'rgba(255, 255, 255, 0.35)'
+                              color: postTitle.length === 100 ? '#E41E52' : postTitle.length >= 80 ? '#FFD464' : 'rgba(255, 255, 255, 0.5)'
                             }}
                           >
                             {postTitle.length}/100
