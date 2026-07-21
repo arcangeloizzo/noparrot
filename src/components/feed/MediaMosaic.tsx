@@ -244,12 +244,16 @@ export const MediaMosaic = ({ media, onMediaClick }: MediaFrameProps) => {
 
           return (
             <div key={i} style={tileStyle} onClick={handleTileClick(showExtra ? 3 : i)}>
-              <img
-                src={m.thumbnail_url || m.url}
-                loading="lazy"
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                alt=""
-              />
+              {m.type === 'video' ? (
+                <VideoEl item={m} contain={false} />
+              ) : (
+                <img
+                  src={m.thumbnail_url || m.url}
+                  decoding="async"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  alt=""
+                />
+              )}
               {m.type === 'video' && !showExtra && <PlayBadge size={44} />}
               {showExtra && (
                 <div
