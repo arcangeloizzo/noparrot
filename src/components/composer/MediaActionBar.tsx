@@ -107,9 +107,14 @@ export const MediaActionBar = ({
 
   return (
     <div
-      className="bg-card border-t border-border px-4 py-2.5 flex items-center justify-between relative"
+      className="flex items-center justify-between relative"
       style={{
+        padding: '10px 22px',
         paddingBottom: 'max(env(safe-area-inset-bottom, 10px), 10px)',
+        background: 'rgba(14,20,33,0.82)',
+        backdropFilter: 'blur(20px) saturate(150%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(150%)',
+        boxShadow: '0 -1px 0 rgba(255,255,255,0.07)',
         // Apply keyboard offset transform for iOS
         transform: keyboardOffset > 0 ? `translateY(-${keyboardOffset}px)` : undefined,
         transition: 'transform 0.15s ease-out'

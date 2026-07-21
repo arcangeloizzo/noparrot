@@ -2152,8 +2152,24 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
       */}
       <div
         className="absolute inset-x-0 top-0 z-50 flex flex-col"
-        style={{ height: viewportHeight ? `${viewportHeight}px` : '100dvh' }}
+        style={{
+          height: viewportHeight ? `${viewportHeight}px` : '100dvh',
+          minHeight: '100svh',
+          background: '#0E1522',
+        }}
       >
+        {/* Ambient background — fixed inset 0 so keyboard resize never exposes feed */}
+        <div
+          aria-hidden
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 0,
+            pointerEvents: 'none',
+            background:
+              "radial-gradient(95% 55% at 75% 0%, rgba(10,122,255,0.16) 0%, transparent 60%), radial-gradient(85% 55% at 10% 100%, rgba(10,122,255,0.08) 0%, transparent 60%), #0E1522",
+          }}
+        />
         {/* Backdrop - desktop only */}
         <div
           className="hidden md:block absolute inset-0 bg-black/60"
@@ -2163,10 +2179,10 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
         {/* Container: full-screen mobile, centered modal desktop */}
         <div
           className={cn(
-            "relative flex flex-col w-full h-full",
+            "relative flex flex-col w-full h-full z-[1]",
             // Desktop: centered modal with max height
             "md:h-auto md:max-h-[85vh] md:w-full md:max-w-xl md:mx-auto md:my-8 md:rounded-2xl",
-            "bg-background md:bg-card",
+            "md:bg-card",
             "border-0 md:border md:border-border",
             "animate-scale-in"
           )}
@@ -2174,7 +2190,10 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
           {/* Inner flex container */}
           <div className="flex flex-col h-full">
             {/* Minimal Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
+            <div
+              className="flex items-center justify-between px-4 py-3"
+              style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.07)' }}
+            >
               {/* Left: Annulla or Back */}
               {composerMode === 'idle' || composerMode === 'text-editing' ? (
                 <Button
@@ -2190,7 +2209,8 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
                       onClose();
                     }
                   }}
-                  className="text-muted-foreground hover:text-foreground -ml-2"
+                  className="-ml-2 hover:bg-transparent"
+                  style={{ fontSize: '15.5px', color: 'rgba(255,255,255,0.5)' }}
                 >
                   Annulla
                 </Button>
@@ -2206,7 +2226,8 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
                       onClose();
                     }
                   }}
-                  className="text-muted-foreground hover:text-foreground -ml-2"
+                  className="-ml-2 hover:bg-transparent"
+                  style={{ fontSize: '15.5px', color: 'rgba(255,255,255,0.5)' }}
                 >
                   Annulla
                 </Button>
@@ -2217,18 +2238,29 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
                 <Button
                   onClick={() => handlePublish()}
                   disabled={!canPublish || isLoading || isPreviewLoading || isTranscriptionInProgress}
-                  className={cn(
-                    "px-5 py-1.5 h-auto rounded-full font-semibold text-sm",
-                    "bg-primary hover:bg-primary/90 text-primary-foreground",
-                    "disabled:opacity-50"
-                  )}
+                  className="h-auto rounded-full disabled:opacity-100"
+                  style={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontSize: '12px',
+                    letterSpacing: '0.12em',
+                    fontWeight: 600,
+                    padding: '10px 20px',
+                    color: (!canPublish || isLoading || isPreviewLoading || isTranscriptionInProgress) ? 'rgba(255,255,255,0.5)' : '#fff',
+                    background: (!canPublish || isLoading || isPreviewLoading || isTranscriptionInProgress)
+                      ? 'rgba(255,255,255,0.06)'
+                      : 'linear-gradient(135deg, #0A7AFF, #0563d6)',
+                    boxShadow: (!canPublish || isLoading || isPreviewLoading || isTranscriptionInProgress)
+                      ? 'none'
+                      : '0 6px 18px -6px rgba(10,122,255,0.55)',
+                    textTransform: 'uppercase',
+                  }}
                 >
                   {isTranscriptionInProgress ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
                       Attendere...
                     </>
-                  ) : isPreviewLoading ? 'Caricamento...' : isLoading ? (isGeneratingQuiz ? 'Generazione...' : (editPost ? 'Salvataggio...' : 'Pubblicazione...')) : (editPost ? 'Salva' : 'Pubblica')}
+                  ) : isPreviewLoading ? 'Caricamento...' : isLoading ? (isGeneratingQuiz ? 'Generazione...' : (editPost ? 'Salvataggio...' : 'Pubblicazione...')) : (editPost ? 'SALVA' : 'PUBBLICA')}
                 </Button>
               ) : (
                 <div /> /* empty spacer */
@@ -2319,7 +2351,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
                         </AvatarFallback>
                       </Avatar>
 
-                      <div className="flex-1 min-w-0 flex flex-col gap-2">
+                      <div className="flex-1 min-w-0 flex flex-col gap-2" style={{ caretColor: '#0A7AFF' }}>
                         {/* Title Input */}
                         <input
                           type="text"
@@ -2339,13 +2371,15 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
                               }
                             }, 150);
                           }}
-                          className="w-full bg-transparent outline-none transition-colors placeholder:text-muted-foreground/60"
+                          className="w-full bg-transparent outline-none transition-colors uppercase placeholder:text-white/50"
                           style={{
                             fontFamily: "'Anton', 'Impact', sans-serif",
-                            fontSize: '24px',
+                            fontSize: '27px',
+                            lineHeight: 1.08,
                             color: '#FFFFFF',
+                            caretColor: '#0A7AFF',
                             border: 'none',
-                            borderBottom: titleFocused ? '2px solid #0A7AFF' : '2px solid rgba(255,255,255,0.06)',
+                            borderBottom: titleFocused ? '2px solid #0A7AFF' : '1px solid rgba(255,255,255,0.09)',
                             padding: '12px 0',
                             textAlign: 'left'
                           }}
@@ -2354,10 +2388,10 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
                           <div 
                             style={{ 
                               fontFamily: "'JetBrains Mono', monospace", 
-                              fontSize: '11px', 
+                              fontSize: '10px', 
                               textAlign: 'right', 
                               marginTop: '4px',
-                              color: postTitle.length === 100 ? '#E41E52' : postTitle.length >= 80 ? '#FFD464' : 'rgba(255, 255, 255, 0.35)'
+                              color: postTitle.length === 100 ? '#E41E52' : postTitle.length >= 80 ? '#FFD464' : 'rgba(255, 255, 255, 0.5)'
                             }}
                           >
                             {postTitle.length}/100
@@ -2502,48 +2536,79 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
                     <div className="px-4 py-4 space-y-3 animate-in fade-in duration-200">
                       {/* Separator */}
                       <div className="flex items-center gap-3 px-2 mb-3">
-                        <div className="flex-1 h-px bg-border" />
-                        <span className="text-[11px] text-muted-foreground">oppure</span>
-                        <div className="flex-1 h-px bg-border" />
+                        <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
+                        <span
+                          style={{
+                            fontFamily: "'JetBrains Mono', monospace",
+                            fontSize: '9.5px',
+                            letterSpacing: '0.16em',
+                            textTransform: 'uppercase',
+                            color: 'rgba(255,255,255,0.5)',
+                            fontWeight: 600,
+                          }}
+                        >
+                          oppure
+                        </span>
+                        <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
                       </div>
 
                       <div className="flex gap-3">
                         {/* Challenge button */}
                         <button
                           onClick={() => setComposerMode('challenge-rec')}
-                          className="flex-1 flex flex-col items-center gap-2 py-4 rounded-2xl"
+                          className="flex-1 flex flex-col items-center gap-2 active:scale-[0.97] transition-transform"
                           style={{
-                            background: 'linear-gradient(135deg, rgba(228,30,82,0.07), rgba(10,122,255,0.04))',
-                            border: '1px solid rgba(228,30,82,0.15)',
+                            padding: '16px 12px',
+                            borderRadius: '18px',
+                            background: 'rgba(26,35,54,0.72)',
+                            backdropFilter: 'blur(18px) saturate(150%)',
+                            WebkitBackdropFilter: 'blur(18px) saturate(150%)',
+                            border: '1px solid rgba(228,30,82,0.4)',
+                            boxShadow: '0 1px 0 rgba(255,255,255,0.08) inset',
                           }}
                         >
                           <div style={{
-                            width: 40, height: 40, borderRadius: 12,
-                            background: 'rgba(228,30,82,0.12)',
-                            border: '1px solid rgba(228,30,82,0.2)',
+                            width: 42, height: 42, borderRadius: 13,
+                            background: 'rgba(228,30,82,0.14)',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             fontSize: 20,
                           }}>⚡</div>
-                          <span style={{ color: '#F1F5F9', fontSize: 13, fontWeight: 600 }}>Challenge</span>
+                          <span style={{
+                            fontFamily: "'JetBrains Mono', monospace",
+                            fontSize: '10.5px',
+                            letterSpacing: '0.14em',
+                            fontWeight: 600,
+                            color: '#FF8FAB',
+                          }}>CHALLENGE</span>
                         </button>
 
                         {/* Voice button */}
                         <button
                           onClick={() => setComposerMode('voice-rec')}
-                          className="flex-1 flex flex-col items-center gap-2 py-4 rounded-2xl"
+                          className="flex-1 flex flex-col items-center gap-2 active:scale-[0.97] transition-transform"
                           style={{
-                            background: 'rgba(255,255,255,0.04)',
-                            border: '1px solid rgba(255,255,255,0.07)',
+                            padding: '16px 12px',
+                            borderRadius: '18px',
+                            background: 'rgba(26,35,54,0.72)',
+                            backdropFilter: 'blur(18px) saturate(150%)',
+                            WebkitBackdropFilter: 'blur(18px) saturate(150%)',
+                            border: '1px solid rgba(10,122,255,0.4)',
+                            boxShadow: '0 1px 0 rgba(255,255,255,0.08) inset',
                           }}
                         >
                           <div style={{
-                            width: 40, height: 40, borderRadius: 12,
-                            background: 'rgba(10,122,255,0.1)',
-                            border: '1px solid rgba(10,122,255,0.2)',
+                            width: 42, height: 42, borderRadius: 13,
+                            background: 'rgba(10,122,255,0.14)',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             fontSize: 20,
                           }}>🎙</div>
-                          <span style={{ color: '#F1F5F9', fontSize: 13, fontWeight: 600 }}>Voicecast</span>
+                          <span style={{
+                            fontFamily: "'JetBrains Mono', monospace",
+                            fontSize: '10.5px',
+                            letterSpacing: '0.14em',
+                            fontWeight: 600,
+                            color: '#6db1ff',
+                          }}>VOICECAST</span>
                         </button>
                       </div>
                     </div>
