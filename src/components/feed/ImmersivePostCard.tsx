@@ -56,6 +56,7 @@ import { SpotifyPodcastCompactCard } from "./SpotifyPodcastCompactCard";
 import { SpotifyTrackEmbed } from "./embeds/SpotifyTrackEmbed";
 import { SpotifyEpisodeEmbed } from "./embeds/SpotifyEpisodeEmbed";
 import { UserUploadEmbed } from "./embeds/UserUploadEmbed";
+import { MediaMosaic } from "./MediaMosaic";
 import { ExpandedMediaViewer } from "./ExpandedMediaViewer";
 import { TwitterTweetEmbed } from "./embeds/TwitterTweetEmbed";
 import { LinkedInEmbedCard } from "./embeds/LinkedInEmbedCard";
