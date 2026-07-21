@@ -2273,13 +2273,32 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
               {/* ─── CHALLENGE REC ─── */}
               {composerMode === 'challenge-rec' && (
                 <div className="px-4 py-5 animate-in fade-in slide-in-from-right-4">
-                  <button
-                    onClick={() => { setComposerMode('idle'); setVoicePostData(null); }}
-                    className="flex items-center gap-2 text-sm font-medium text-foreground mb-4"
-                  >
-                    <span className="text-muted-foreground">←</span>
-                    <span>⚡ Registra Voicecast per la Challenge</span>
-                  </button>
+                  <div className="flex items-center gap-2 mb-4">
+                    <button
+                      onClick={() => { setComposerMode('idle'); setVoicePostData(null); }}
+                      className="text-base leading-none"
+                      style={{ color: 'rgba(255,255,255,0.6)' }}
+                      aria-label="Indietro"
+                    >
+                      ←
+                    </button>
+                    <span
+                      style={{
+                        fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
+                        fontSize: '10.5px',
+                        letterSpacing: '0.14em',
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        padding: '5px 11px',
+                        borderRadius: '999px',
+                        color: '#FF8FAB',
+                        border: '1px solid rgba(228,30,82,0.5)',
+                        background: 'rgba(228,30,82,0.12)',
+                      }}
+                    >
+                      ⚔ CHALLENGE · TESI VOCALE
+                    </span>
+                  </div>
                   <VoiceRecorder
                     accentColor="#E41E52"
                     headerLabel="⚡ Registra Voicecast per la Challenge"
@@ -2299,13 +2318,32 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
               {/* ─── VOICE REC ─── */}
               {composerMode === 'voice-rec' && (
                 <div className="px-4 py-5 animate-in fade-in slide-in-from-right-4">
-                  <button
-                    onClick={() => { setComposerMode('idle'); setVoicePostData(null); }}
-                    className="flex items-center gap-2 text-sm font-medium text-foreground mb-4"
-                  >
-                    <span className="text-muted-foreground">←</span>
-                    <span>🎙 Voicecast</span>
-                  </button>
+                  <div className="flex items-center gap-2 mb-4">
+                    <button
+                      onClick={() => { setComposerMode('idle'); setVoicePostData(null); }}
+                      className="text-base leading-none"
+                      style={{ color: 'rgba(255,255,255,0.6)' }}
+                      aria-label="Indietro"
+                    >
+                      ←
+                    </button>
+                    <span
+                      style={{
+                        fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
+                        fontSize: '10.5px',
+                        letterSpacing: '0.14em',
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        padding: '5px 11px',
+                        borderRadius: '999px',
+                        color: '#6db1ff',
+                        border: '1px solid rgba(10,122,255,0.45)',
+                        background: 'rgba(10,122,255,0.1)',
+                      }}
+                    >
+                      ◉ VOICECAST
+                    </span>
+                  </div>
                   <VoiceRecorder
                     accentColor="#0A7AFF"
                     headerLabel="🎙 Voicecast"
