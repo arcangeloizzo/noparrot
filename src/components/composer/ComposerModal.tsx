@@ -2594,36 +2594,82 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
               {/* Audio Player Preview & Voice/Challenge Metadata */}
               {voicePostData && (
                 <div className="flex flex-col px-4 pt-4 pb-4 animate-in fade-in slide-in-from-bottom-2 gap-6 w-full max-w-full">
-                  
-                  {/* Compact Player Preview */}
-                  <div className="w-full p-3 bg-white/5 rounded-xl border border-white/10 flex items-center gap-3 inline-flex max-w-full overflow-hidden">
-                    <div className="bg-primary/20 w-10 h-10 rounded-xl flex items-center justify-center text-primary flex-shrink-0">
-                      {postType === 'challenge' ? <Zap className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-                    </div>
-                    <div className="flex-1 min-w-0 pr-2 overflow-hidden flex flex-col justify-center">
-                      <p className="text-xs font-bold text-white/90 tracking-wider uppercase truncate">
-                        {postType === 'challenge' ? 'Challenge' : 'Voicecast'}
-                      </p>
-                      <audio
-                        src={URL.createObjectURL(voicePostData.audioBlob)}
-                        controls
-                        className="w-[calc(100%+16px)] h-8 mt-1.5 -ml-2"
-                        controlsList="nodownload nofullscreen"
-                      />
-                    </div>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-8 w-8 text-white/40 hover:text-white hover:bg-white/10 flex-shrink-0 rounded-full shrink-0" 
+
+                  {/* Chip row + close */}
+                  <div className="w-full flex items-center justify-between gap-2">
+                    <span
+                      style={{
+                        fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
+                        fontSize: '10.5px',
+                        letterSpacing: '0.14em',
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        padding: '5px 11px',
+                        borderRadius: '999px',
+                        color: postType === 'challenge' ? '#FF8FAB' : '#6db1ff',
+                        border: postType === 'challenge'
+                          ? '1px solid rgba(228,30,82,0.5)'
+                          : '1px solid rgba(10,122,255,0.45)',
+                        background: postType === 'challenge'
+                          ? 'rgba(228,30,82,0.12)'
+                          : 'rgba(10,122,255,0.1)',
+                      }}
+                    >
+                      {postType === 'challenge' ? '⚔ CHALLENGE · TESI VOCALE' : '◉ VOICECAST'}
+                    </span>
+                    <button
                       onClick={() => {
                         setVoicePostData(null);
                         setVoiceTitle('');
                         setVoiceBodyText('');
                         setComposerMode('idle');
                       }}
+                      className="flex items-center justify-center hover:bg-white/5 transition-colors"
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: '50%',
+                        color: 'rgba(255,255,255,0.5)',
+                        border: 'none',
+                        background: 'transparent',
+                      }}
+                      aria-label="Rimuovi audio"
                     >
-                      <span className="text-lg">&times;</span>
-                    </Button>
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Waveform capsule (unified player) */}
+                  <VoiceAttachmentCapsule
+                    audioBlob={voicePostData.audioBlob}
+                    waveformData={voicePostData.waveformData}
+                    durationSec={voicePostData.durationSec}
+                    accent={postType === 'challenge' ? '#E41E52' : '#0A7AFF'}
+                  />
+
+                  {/* RIFAI */}
+                  <div className="w-full -mt-2">
+                    <button
+                      onClick={() => {
+                        setVoicePostData(null);
+                        setComposerMode(postType === 'challenge' ? 'challenge-rec' : 'voice-rec');
+                      }}
+                      style={{
+                        fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
+                        fontSize: '10.5px',
+                        letterSpacing: '0.12em',
+                        fontWeight: 600,
+                        color: 'rgba(170,182,198,0.85)',
+                        padding: '9px 16px',
+                        borderRadius: '12px',
+                        background: 'rgba(255,255,255,0.06)',
+                        boxShadow: '0 1px 0 rgba(255,255,255,0.05) inset',
+                        border: 'none',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      RIFAI
+                    </button>
                   </div>
 
                   {/* Title Input (MUST BE FIRST AFTER PLAYER) */}
