@@ -62,9 +62,12 @@ const renderMediaEl = (m: MediaFrameItem, contain: boolean) => {
     : { width: '100%', height: '100%', objectFit: 'cover', display: 'block' };
 
   if (m.type === 'video') {
+    // iOS Safari fix: senza poster il video resta nero. Frammento #t=0.1
+    // forza la pittura del primo frame mantenendo preload="metadata".
+    const videoSrc = m.thumbnail_url ? m.url : `${m.url}#t=0.1`;
     return (
       <video
-        src={m.url}
+        src={videoSrc}
         poster={m.thumbnail_url || undefined}
         muted
         playsInline
