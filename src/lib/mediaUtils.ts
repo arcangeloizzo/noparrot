@@ -245,6 +245,12 @@ export function getCardImageUrl(
     return url;
   }
 
+  // NP-INTERIM-TRANSFORM-OFF: disable /render/image/ rewrite globally.
+  // Suspected cause of invisible photos: /render/image/ returns 200 with
+  // unusable content (Image Transformations not enabled on the plan).
+  // Serve the original /object/public/ URL until re-enabled.
+  return url;
+
   // Match Supabase Storage public object URL
   const match = url.match(/^(https?:\/\/[^\/]+)\/storage\/v1\/object\/public\/(.+?)(\?.*)?$/);
   if (!match) return url;
