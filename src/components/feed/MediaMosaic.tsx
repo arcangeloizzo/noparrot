@@ -65,23 +65,28 @@ const PlayBadge = ({ size = 62 }: { size?: number }) => (
 const VideoEl = ({ item, contain }: { item: MediaFrameItem; contain: boolean }) => {
   const generatedPoster = useVideoThumbnail(item.url, 'video', undefined);
   const poster = item.thumbnail_url || generatedPoster || undefined;
-  const commonStyle: React.CSSProperties = contain
-    ? { position: 'relative', zIndex: 1, width: '100%', height: '100%', objectFit: 'contain' }
-    : { width: '100%', height: '100%', objectFit: 'cover', display: 'block' };
+  const commonStyle: React.CSSProperties = {
+    position: 'absolute',
+    inset: 0,
+    zIndex: 1,
+    width: '100%',
+    height: '100%',
+    objectFit: contain ? 'contain' : 'cover',
+    display: 'block',
+  };
 
   if (!poster) {
     return (
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background: '#0a0f18',
-          zIndex: 1,
-        }}
+      <video
+        src={item.url}
+        muted
+        playsInline
+        preload="auto"
+        style={commonStyle}
       />
     );
   }
-  return <img src={poster} loading="lazy" style={commonStyle} alt="" />;
+  return <img src={poster} decoding="async" style={commonStyle} alt="" />;
 };
 
 const renderMediaEl = (m: MediaFrameItem, contain: boolean) => {
@@ -92,7 +97,18 @@ const renderMediaEl = (m: MediaFrameItem, contain: boolean) => {
   if (m.type === 'video') {
     return <VideoEl item={m} contain={contain} />;
   }
-  return <img src={m.url} loading="lazy" style={commonStyle} alt="" />;
+  const imgStyle: React.CSSProperties = contain
+    ? {
+        position: 'absolute',
+        inset: 0,
+        zIndex: 1,
+        width: '100%',
+        height: '100%',
+        objectFit: 'contain',
+        display: 'block',
+      }
+    : commonStyle;
+  return <img src={m.url} decoding="async" style={imgStyle} alt="" />;
 };
 
 export const MediaMosaic = ({ media, onMediaClick }: MediaFrameProps) => {
@@ -228,12 +244,16 @@ export const MediaMosaic = ({ media, onMediaClick }: MediaFrameProps) => {
 
           return (
             <div key={i} style={tileStyle} onClick={handleTileClick(showExtra ? 3 : i)}>
-              <img
-                src={m.thumbnail_url || m.url}
-                loading="lazy"
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                alt=""
-              />
+              {m.type === 'video' ? (
+                <VideoEl item={m} contain={false} />
+              ) : (
+                <img
+                  src={m.thumbnail_url || m.url}
+                  decoding="async"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  alt=""
+                />
+              )}
               {m.type === 'video' && !showExtra && <PlayBadge size={44} />}
               {showExtra && (
                 <div
