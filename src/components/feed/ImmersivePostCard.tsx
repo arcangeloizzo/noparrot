@@ -2651,10 +2651,10 @@ const ImmersivePostCardInner = ({
                       >
                         <MediaMosaic
                           media={downscaledPostMedia.map((m: any, i: number) => ({
-                            url: m.url,
+                            url: m.url || m.src || (i === 0 ? downscaledMediaUrl : undefined),
                             type: m.type === 'video' ? 'video' : 'image',
                             orientation: (post.media![i] as any)?.orientation ?? null,
-                            ratio: null,
+                            ratio: (post.media![i] as any)?.ratio ?? null,
                             thumbnail_url: m.thumbnail_url ?? null,
                           }))}
                           onMediaClick={(idx) => setSelectedMediaIndex(idx)}
