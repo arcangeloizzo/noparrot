@@ -66,6 +66,9 @@ const PlayBadge = ({ size = 62 }: { size?: number }) => (
 const VideoEl = ({ item, contain }: { item: MediaFrameItem; contain: boolean }) => {
   const generatedPoster = useVideoThumbnail(item.url, 'video', undefined);
   const poster = item.thumbnail_url || generatedPoster || undefined;
+  // NP-DEBUG-TEMP
+  const [loadState, setLoadState] = useState('loading');
+  const posterSrc = item.thumbnail_url ? 'thumb' : generatedPoster ? 'canvas' : 'none';
   const commonStyle: React.CSSProperties = {
     position: 'absolute',
     inset: 0,
@@ -78,16 +81,37 @@ const VideoEl = ({ item, contain }: { item: MediaFrameItem; contain: boolean }) 
 
   if (!poster) {
     return (
-      <video
-        src={item.url}
-        muted
-        playsInline
-        preload="auto"
-        style={commonStyle}
-      />
+      <>
+        <video
+          src={item.url}
+          muted
+          playsInline
+          preload="auto"
+          style={commonStyle}
+          onLoadedData={() => setLoadState('VID-OK')}
+          onError={() => setLoadState('VID-ERR')}
+        />
+        {/* NP-DEBUG-TEMP */}
+        <DebugTag item={item} loadState={loadState} extra={`P:${posterSrc}`} />
+      </>
     );
   }
-  return <img src={poster} decoding="async" style={commonStyle} alt="" />;
+  return (
+    <>
+      <img
+        src={poster}
+        decoding="async"
+        style={commonStyle}
+        alt=""
+        onLoad={(e) =>
+          setLoadState(`OK ${e.currentTarget.naturalWidth}x${e.currentTarget.naturalHeight}`)
+        }
+        onError={() => setLoadState('ERR')}
+      />
+      {/* NP-DEBUG-TEMP */}
+      <DebugTag item={item} loadState={loadState} extra={`P:${posterSrc}`} />
+    </>
+  );
 };
 
 const renderMediaEl = (m: MediaFrameItem, contain: boolean) => {
