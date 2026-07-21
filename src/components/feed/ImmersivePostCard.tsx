@@ -4,7 +4,7 @@ import { perfStore } from "@/lib/perfStore";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, Edit2, ExternalLink, Quote, ShieldCheck, Maximize2, Play, Zap, Flag, ShieldAlert, Repeat } from "lucide-react";
+import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, Edit2, ExternalLink, Quote, ShieldCheck, Maximize2, Play, Zap, Flag, ShieldAlert, Repeat, ArrowUp, Mic } from "lucide-react";
 import { ReportContentDialog } from "./ReportContentDialog";
 import { AdminRemoveDialog } from "./AdminRemoveDialog";
 import { AnimatedHeart } from "@/components/ui/animated-heart";
@@ -2322,26 +2322,55 @@ const ImmersivePostCardInner = ({
                   </Dialog>
                 )}
 
-                {/* 2. Voicecast Badge (if Voice Post) */}
-                {!useStackLayout && isVoicePost && (
-                  <UnifiedBadge kind="voicecast">🎙 Voicecast</UnifiedBadge>
-                )}
+                {/* 2. Voicecast Badge (if Voice Post) — spec FIX A.3 */}
+                {!useStackLayout && isVoicePost && (() => {
+                  const d = activeVoicePost?.duration_seconds || 0;
+                  const mm = Math.floor(d / 60);
+                  const ss = String(Math.floor(d % 60)).padStart(2, '0');
+                  return (
+                    <span
+                      style={{
+                        fontFamily: "'JetBrains Mono', monospace",
+                        fontSize: '11px',
+                        letterSpacing: '0.14em',
+                        fontWeight: 600,
+                        padding: '6px 12px',
+                        borderRadius: '999px',
+                        color: '#6EE7B7',
+                        border: '1px solid rgba(16,185,129,0.45)',
+                        background: 'rgba(16,185,129,0.1)',
+                        textTransform: 'uppercase',
+                        whiteSpace: 'nowrap',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                      }}
+                    >
+                      {d > 0 ? `◉ VOICECAST · ${mm}:${ss}` : '◉ VOICECAST'}
+                    </span>
+                  );
+                })()}
 
-                {/* 3. Challenge Badge (if Challenge Post) */}
+                {/* 3. Challenge Badge (if Challenge Post) — spec FIX B.1 (countdown rimosso, va in META) */}
                 {!useStackLayout && isChallengePost && (
-                  <div className="flex items-center gap-2">
-                    <UnifiedBadge kind="challenge">⚡ Challenge</UnifiedBadge>
-                    {challengeCountdown && (
-                      <span style={{ 
-                        color: isChallengeExpired ? 'rgba(241,245,249,0.4)' : isChallengeUrgent ? '#FF8A3D' : 'rgba(241,245,249,0.4)', 
-                        fontSize: 13,
-                        fontWeight: isChallengeUrgent ? 700 : 500,
-                        marginLeft: 4
-                      }}>
-                        · {isChallengeExpired ? '⏱ Chiusa' : `⏱ Scade tra ${challengeCountdown}`}
-                      </span>
-                    )}
-                  </div>
+                  <span
+                    style={{
+                      fontFamily: "'JetBrains Mono', monospace",
+                      fontSize: '11px',
+                      letterSpacing: '0.14em',
+                      fontWeight: 600,
+                      padding: '6px 12px',
+                      borderRadius: '999px',
+                      color: '#FF8FAB',
+                      border: '1px solid rgba(228,30,82,0.5)',
+                      background: 'rgba(228,30,82,0.12)',
+                      textTransform: 'uppercase',
+                      whiteSpace: 'nowrap',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                    }}
+                  >
+                    ⚔ CHALLENGE
+                  </span>
                 )}
 
                 {/* 4. Spotify / Trust Score / Category Badges */}
