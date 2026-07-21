@@ -58,6 +58,76 @@ const PlayBadge = ({ size = 62 }: { size?: number }) => (
   </div>
 );
 
+// NP-DEBUG-TEMP
+const DebugTag = ({
+  item,
+  loadState,
+  extra,
+}: {
+  item: MediaFrameItem;
+  loadState: string;
+  extra?: string;
+}) => {
+  const url = item.url ?? 'UNDEFINED';
+  const th = item.thumbnail_url ? item.thumbnail_url.slice(-40) : 'null';
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        top: 4,
+        left: 4,
+        zIndex: 50,
+        background: '#000',
+        color: '#0f0',
+        fontFamily: 'monospace',
+        fontSize: '8px',
+        lineHeight: 1.3,
+        padding: '3px 5px',
+        maxWidth: '90%',
+        wordBreak: 'break-all',
+        pointerEvents: 'none',
+        whiteSpace: 'pre-wrap',
+      }}
+    >
+      {`T:${item.type} O:${item.orientation ?? '-'} R:${item.ratio ?? '-'}\nU:${String(url).slice(-60)}\nTH:${th}\nIMG:${loadState}${extra ? `\n${extra}` : ''}`}
+    </div>
+  );
+};
+
+// NP-DEBUG-TEMP
+const ImgWithDebug = ({
+  item,
+  src,
+  style,
+  blurUrl,
+}: {
+  item: MediaFrameItem;
+  src: string;
+  style: React.CSSProperties;
+  blurUrl?: string;
+}) => {
+  const [loadState, setLoadState] = useState('loading');
+  return (
+    <>
+      <img
+        src={src}
+        decoding="async"
+        style={style}
+        alt=""
+        onLoad={(e) =>
+          setLoadState(`OK ${e.currentTarget.naturalWidth}x${e.currentTarget.naturalHeight}`)
+        }
+        onError={() => setLoadState('ERR')}
+      />
+      <DebugTag
+        item={item}
+        loadState={loadState}
+        extra={blurUrl ? `BG:${blurUrl.slice(-40)}` : undefined}
+      />
+    </>
+  );
+};
+
 /**
  * Video tile: NON monta mai <video> nel feed. Mostra un poster (thumbnail_url o
  * generato via canvas) come <img>; il video vero viene riprodotto solo
