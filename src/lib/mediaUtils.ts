@@ -235,7 +235,16 @@ export function getCardImageUrl(
   quality: number = 75
 ): string {
   if (!url) return '';
-  
+
+  // Bypass alla fonte: i file video non passano MAI attraverso l'endpoint
+  // /render/image/ di Supabase (fallisce con "invalid mime type" e restituisce
+  // errore, lasciando la card senza cover). Copre tutti i callsite (~21) senza
+  // dover replicare il check ovunque. Il match ignora la query string.
+  const pathOnly = url.split('?')[0];
+  if (/\.(mov|mp4|webm|m4v|avi|mkv)$/i.test(pathOnly)) {
+    return url;
+  }
+
   // Match Supabase Storage public object URL
   const match = url.match(/^(https?:\/\/[^\/]+)\/storage\/v1\/object\/public\/(.+?)(\?.*)?$/);
   if (!match) return url;
