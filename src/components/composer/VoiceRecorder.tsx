@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { cn } from "@/lib/utils";
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+
+const MONO_FONT = "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace";
 
 interface VoiceRecorderProps {
   onRecordingComplete: (audioBlob: Blob, duration: number, waveform: number[]) => void;
@@ -334,18 +335,30 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
           </div>
         )}
 
-        {/* Player */}
+        {/* Player capsule (feed style) */}
         <div
-          className="w-full rounded-2xl px-4 py-4 flex items-center gap-3"
+          className="w-full flex items-center"
           style={{
-            background: 'rgba(255,255,255,0.05)',
-            border: '1px solid rgba(255,255,255,0.07)',
+            borderRadius: '18px',
+            padding: '15px 16px',
+            gap: '13px',
+            background: 'rgba(255,255,255,0.045)',
+            boxShadow: '0 1px 0 rgba(255,255,255,0.07) inset',
           }}
         >
           <button
             onClick={togglePlayback}
-            className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-            style={{ background: accentColor + '22', color: accentColor }}
+            className="flex items-center justify-center flex-shrink-0"
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: '50%',
+              background: 'rgba(10,14,22,0.6)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+              border: '1px solid rgba(255,255,255,0.25)',
+              color: '#ffffff',
+            }}
           >
             {isPlaying ? (
               <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
@@ -361,7 +374,15 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
 
           <WaveformBar bars={45} progress={playbackProgress} color={accentColor} height={32} />
 
-          <span className="text-xs text-muted-foreground tabular-nums ml-2 flex-shrink-0">
+          <span
+            className="tabular-nums flex-shrink-0"
+            style={{
+              fontFamily: MONO_FONT,
+              fontSize: '10.5px',
+              color: 'rgba(255,255,255,0.5)',
+              marginLeft: '4px',
+            }}
+          >
             {fmt(recordingTime)}
           </span>
         </div>
@@ -370,23 +391,37 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
         <div className="flex gap-3 w-full">
           <button
             onClick={handleReset}
-            className="flex-1 py-3.5 rounded-[14px] text-[13px] font-semibold"
+            className="flex-1 h-[50px] flex items-center justify-center"
             style={{
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid rgba(255,255,255,0.07)',
-              color: 'hsl(var(--muted-foreground))',
+              borderRadius: '14px',
+              fontFamily: MONO_FONT,
+              fontSize: '11.5px',
+              letterSpacing: '0.12em',
+              fontWeight: 600,
+              color: 'rgba(170,182,198,0.85)',
+              background: 'rgba(255,255,255,0.06)',
+              boxShadow: '0 1px 0 rgba(255,255,255,0.05) inset',
+              border: 'none',
             }}
           >
-            Rifai
+            RIFAI
           </button>
           <button
             onClick={handleConfirm}
-            className="flex-1 py-3.5 rounded-[14px] text-[14px] font-bold text-white"
+            className="flex-1 h-[50px] flex items-center justify-center"
             style={{
-              background: '#0A7AFF',
+              borderRadius: '14px',
+              fontFamily: MONO_FONT,
+              fontSize: '11.5px',
+              letterSpacing: '0.12em',
+              fontWeight: 600,
+              color: '#ffffff',
+              background: 'linear-gradient(135deg, #0A7AFF, #0563d6)',
+              boxShadow: '0 8px 22px -8px rgba(10,122,255,0.6)',
+              border: 'none',
             }}
           >
-            Avanti →
+            AVANTI →
           </button>
         </div>
       </div>
@@ -417,15 +452,15 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
         {/* Central button */}
         <button
           onClick={isRecording ? stopRecording : startRecording}
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center transition-all duration-300"
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center transition-all duration-300 active:scale-[0.94]"
           style={{
             width: 80,
             height: 80,
             borderRadius: '50%',
-            background: isRecording
-              ? `radial-gradient(circle at 40% 35%, #E41E52, #E41E52cc)`
-              : `radial-gradient(circle at 40% 35%, ${accentColor}, ${accentColor}cc)`,
-            boxShadow: `0 0 30px ${isRecording ? '#E41E52' : accentColor}33`,
+            background: accentColor === '#E41E52'
+              ? 'radial-gradient(circle at 35% 30%, #ff4d7d, #E41E52 60%, #b1123c)'
+              : 'radial-gradient(circle at 35% 30%, #3d9aff, #0A7AFF 60%, #0557bd)',
+            boxShadow: '0 18px 44px -14px rgba(0,0,0,0.7)',
             border: 'none',
           }}
         >
@@ -444,31 +479,54 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
       {/* Timer */}
       <div className="flex items-baseline gap-1">
         <span
-          className="text-[32px] font-light tracking-[2px] tabular-nums"
-          style={{ color: isRecording ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))' }}
+          className="tabular-nums"
+          style={{
+            fontFamily: MONO_FONT,
+            fontSize: '38px',
+            fontWeight: 600,
+            color: isRecording ? '#ffffff' : 'rgba(255,255,255,0.85)',
+          }}
         >
           {fmt(recordingTime)}
         </span>
-        <span className="text-sm text-muted-foreground tabular-nums">
+        <span
+          className="tabular-nums"
+          style={{
+            fontFamily: MONO_FONT,
+            fontSize: '15px',
+            color: 'rgba(255,255,255,0.5)',
+          }}
+        >
           / {maxMins}
         </span>
       </div>
 
       {/* Progress bar */}
-      <div className="w-[60%] h-[3px] rounded-sm overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+      <div
+        className="w-[60%] overflow-hidden"
+        style={{ height: '2px', background: 'rgba(255,255,255,0.12)' }}
+      >
         <div
-          className="h-full rounded-sm"
+          className="h-full"
           style={{
             width: `${progressPct}%`,
             background: accentColor,
-            boxShadow: `0 0 8px ${accentColor}44`,
             transition: 'width 1s linear',
           }}
         />
       </div>
 
       {/* Hint */}
-      <p className="text-xs text-muted-foreground">
+      <p
+        style={{
+          fontFamily: MONO_FONT,
+          fontSize: '10px',
+          letterSpacing: '0.16em',
+          textTransform: 'uppercase',
+          color: 'rgba(255,255,255,0.5)',
+          fontWeight: 600,
+        }}
+      >
         {isRecording ? 'Tocca per fermare' : 'Tocca per registrare'}
       </p>
     </div>
