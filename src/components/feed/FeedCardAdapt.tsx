@@ -94,7 +94,8 @@ export const FeedCard = ({
     if (!post.media) return [];
     return post.media.map(item => ({
       ...item,
-      url: getCardImageUrl(item.url, 1200, 75),
+      // Video: mai trasformare l'URL (render/image fallisce sul file video).
+      url: item.type === 'video' ? item.url : getCardImageUrl(item.url, 1200, 75),
       thumbnail_url: item.thumbnail_url ? getCardImageUrl(item.thumbnail_url, 1200, 75) : undefined
     }));
   }, [post.media]);
