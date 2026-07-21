@@ -1,4 +1,5 @@
 import { Play, Images } from 'lucide-react';
+import { useState } from 'react';
 import { useVideoThumbnail } from '@/hooks/useVideoThumbnail';
 
 export interface MediaFrameItem {
