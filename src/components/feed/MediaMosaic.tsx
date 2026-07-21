@@ -1,4 +1,5 @@
 import { Play, Images } from 'lucide-react';
+import { useVideoThumbnail } from '@/hooks/useVideoThumbnail';
 
 export interface MediaFrameItem {
   url: string;
@@ -56,25 +57,40 @@ const PlayBadge = ({ size = 62 }: { size?: number }) => (
   </div>
 );
 
+/**
+ * Video tile: NON monta mai <video> nel feed. Mostra un poster (thumbnail_url o
+ * generato via canvas) come <img>; il video vero viene riprodotto solo
+ * nell'ExpandedMediaViewer al tap.
+ */
+const VideoEl = ({ item, contain }: { item: MediaFrameItem; contain: boolean }) => {
+  const generatedPoster = useVideoThumbnail(item.url, 'video', undefined);
+  const poster = item.thumbnail_url || generatedPoster || undefined;
+  const commonStyle: React.CSSProperties = contain
+    ? { position: 'relative', zIndex: 1, width: '100%', height: '100%', objectFit: 'contain' }
+    : { width: '100%', height: '100%', objectFit: 'cover', display: 'block' };
+
+  if (!poster) {
+    return (
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: '#0a0f18',
+          zIndex: 1,
+        }}
+      />
+    );
+  }
+  return <img src={poster} loading="lazy" style={commonStyle} alt="" />;
+};
+
 const renderMediaEl = (m: MediaFrameItem, contain: boolean) => {
   const commonStyle: React.CSSProperties = contain
     ? { position: 'relative', zIndex: 1, width: '100%', height: '100%', objectFit: 'contain' }
     : { width: '100%', height: '100%', objectFit: 'cover', display: 'block' };
 
   if (m.type === 'video') {
-    // iOS Safari fix: senza poster il video resta nero. Frammento #t=0.1
-    // forza la pittura del primo frame mantenendo preload="metadata".
-    const videoSrc = m.thumbnail_url ? m.url : `${m.url}#t=0.1`;
-    return (
-      <video
-        src={videoSrc}
-        poster={m.thumbnail_url || undefined}
-        muted
-        playsInline
-        preload="metadata"
-        style={commonStyle}
-      />
-    );
+    return <VideoEl item={m} contain={contain} />;
   }
   return <img src={m.url} loading="lazy" style={commonStyle} alt="" />;
 };

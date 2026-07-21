@@ -191,7 +191,7 @@ const VoiceCastBodyInner = ({
         >
           <MediaMosaic
             media={downscaledMedia.map((m: any, i: number) => ({
-              url: m.url,
+              url: m.url || m.src || (i === 0 ? downscaledMediaUrl : undefined),
               type: m.type === 'video' ? 'video' : 'image',
               orientation: media[i]?.orientation ?? null,
               ratio: media[i]?.ratio ?? null,
