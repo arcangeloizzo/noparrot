@@ -2209,7 +2209,8 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
                       onClose();
                     }
                   }}
-                  className="text-muted-foreground hover:text-foreground -ml-2"
+                  className="-ml-2 hover:bg-transparent"
+                  style={{ fontSize: '15.5px', color: 'rgba(255,255,255,0.5)' }}
                 >
                   Annulla
                 </Button>
@@ -2225,7 +2226,8 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
                       onClose();
                     }
                   }}
-                  className="text-muted-foreground hover:text-foreground -ml-2"
+                  className="-ml-2 hover:bg-transparent"
+                  style={{ fontSize: '15.5px', color: 'rgba(255,255,255,0.5)' }}
                 >
                   Annulla
                 </Button>
@@ -2236,18 +2238,29 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
                 <Button
                   onClick={() => handlePublish()}
                   disabled={!canPublish || isLoading || isPreviewLoading || isTranscriptionInProgress}
-                  className={cn(
-                    "px-5 py-1.5 h-auto rounded-full font-semibold text-sm",
-                    "bg-primary hover:bg-primary/90 text-primary-foreground",
-                    "disabled:opacity-50"
-                  )}
+                  className="h-auto rounded-full disabled:opacity-100"
+                  style={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontSize: '12px',
+                    letterSpacing: '0.12em',
+                    fontWeight: 600,
+                    padding: '10px 20px',
+                    color: (!canPublish || isLoading || isPreviewLoading || isTranscriptionInProgress) ? 'rgba(255,255,255,0.5)' : '#fff',
+                    background: (!canPublish || isLoading || isPreviewLoading || isTranscriptionInProgress)
+                      ? 'rgba(255,255,255,0.06)'
+                      : 'linear-gradient(135deg, #0A7AFF, #0563d6)',
+                    boxShadow: (!canPublish || isLoading || isPreviewLoading || isTranscriptionInProgress)
+                      ? 'none'
+                      : '0 6px 18px -6px rgba(10,122,255,0.55)',
+                    textTransform: 'uppercase',
+                  }}
                 >
                   {isTranscriptionInProgress ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
                       Attendere...
                     </>
-                  ) : isPreviewLoading ? 'Caricamento...' : isLoading ? (isGeneratingQuiz ? 'Generazione...' : (editPost ? 'Salvataggio...' : 'Pubblicazione...')) : (editPost ? 'Salva' : 'Pubblica')}
+                  ) : isPreviewLoading ? 'Caricamento...' : isLoading ? (isGeneratingQuiz ? 'Generazione...' : (editPost ? 'Salvataggio...' : 'Pubblicazione...')) : (editPost ? 'SALVA' : 'PUBBLICA')}
                 </Button>
               ) : (
                 <div /> /* empty spacer */
