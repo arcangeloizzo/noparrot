@@ -184,7 +184,7 @@ const VideoEl = ({ item, contain }: { item: MediaFrameItem; contain: boolean }) 
   );
 };
 
-const renderMediaEl = (m: MediaFrameItem, contain: boolean) => {
+const renderMediaEl = (m: MediaFrameItem, contain: boolean, blurUrl?: string) => {
   const commonStyle: React.CSSProperties = contain
     ? { position: 'relative', zIndex: 1, width: '100%', height: '100%', objectFit: 'contain' }
     : { width: '100%', height: '100%', objectFit: 'cover', display: 'block' };
@@ -203,7 +203,8 @@ const renderMediaEl = (m: MediaFrameItem, contain: boolean) => {
         display: 'block',
       }
     : commonStyle;
-  return <img src={m.url} decoding="async" style={imgStyle} alt="" />;
+  // NP-DEBUG-TEMP
+  return <ImgWithDebug item={m} src={m.url} style={imgStyle} blurUrl={blurUrl} />;
 };
 
 export const MediaMosaic = ({ media, onMediaClick }: MediaFrameProps) => {
@@ -263,7 +264,7 @@ export const MediaMosaic = ({ media, onMediaClick }: MediaFrameProps) => {
               transform: 'scale(1.15)',
             }}
           />
-          {renderMediaEl(m, true)}
+          {renderMediaEl(m, true, m.thumbnail_url || m.url)}
           {m.type === 'video' && <PlayBadge />}
         </div>
       </div>
@@ -342,11 +343,10 @@ export const MediaMosaic = ({ media, onMediaClick }: MediaFrameProps) => {
               {m.type === 'video' ? (
                 <VideoEl item={m} contain={false} />
               ) : (
-                <img
+                <ImgWithDebug
+                  item={m}
                   src={m.thumbnail_url || m.url}
-                  decoding="async"
                   style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                  alt=""
                 />
               )}
               {m.type === 'video' && !showExtra && <PlayBadge size={44} />}
