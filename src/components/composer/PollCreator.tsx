@@ -1,8 +1,4 @@
-import { useState } from "react";
-import { X, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { X } from "lucide-react";
 
 export interface PollData {
   options: string[];
