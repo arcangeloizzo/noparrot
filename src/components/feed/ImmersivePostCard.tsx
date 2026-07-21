@@ -4,7 +4,7 @@ import { perfStore } from "@/lib/perfStore";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, Edit2, ExternalLink, Quote, ShieldCheck, Maximize2, Play, Zap, Flag, ShieldAlert, Repeat } from "lucide-react";
+import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, Edit2, ExternalLink, Quote, ShieldCheck, Maximize2, Play, Zap, Flag, ShieldAlert, Repeat, ArrowUp, Mic } from "lucide-react";
 import { ReportContentDialog } from "./ReportContentDialog";
 import { AdminRemoveDialog } from "./AdminRemoveDialog";
 import { AnimatedHeart } from "@/components/ui/animated-heart";
@@ -2100,20 +2100,21 @@ const ImmersivePostCardInner = ({
       };
     }
 
-    // 6. Voicecast / Voice Post with artwork
-    if (isVoicePost && !isChallengePost) {
-      const artworkSrc = post.media?.[0]?.url || post.preview_img;
+    // 6. Audio posts (Voicecast + Challenge) — spec FIX D:
+    //    ambient con colore categoria; fallback '#0A7AFF' (blu) se categoria assente.
+    if (isAudioPost) {
+      const catRaw = post.category;
+      const catColor = catRaw ? getCategoryColor(catRaw) : '#0A7AFF';
+      const artworkSrc = isVoicePost && !isChallengePost
+        ? (post.media?.[0]?.url || post.preview_img)
+        : null;
       if (artworkSrc) {
         return {
-          media: {
-            src: generateAmbientUrl(artworkSrc),
-            kind: 'photo-user'
-          },
-          category: getCategoryColor(post.category)
+          media: { src: generateAmbientUrl(artworkSrc), kind: 'photo-user' },
+          category: catColor,
         };
-      } else {
-        return { category: getCategoryColor(post.category) };
       }
+      return { category: catColor };
     }
 
     // 7. Youtube Std / Article / Embed with preview image
@@ -2322,26 +2323,55 @@ const ImmersivePostCardInner = ({
                   </Dialog>
                 )}
 
-                {/* 2. Voicecast Badge (if Voice Post) */}
-                {!useStackLayout && isVoicePost && (
-                  <UnifiedBadge kind="voicecast">🎙 Voicecast</UnifiedBadge>
-                )}
+                {/* 2. Voicecast Badge (if Voice Post) — spec FIX A.3 */}
+                {!useStackLayout && isVoicePost && (() => {
+                  const d = activeVoicePost?.duration_seconds || 0;
+                  const mm = Math.floor(d / 60);
+                  const ss = String(Math.floor(d % 60)).padStart(2, '0');
+                  return (
+                    <span
+                      style={{
+                        fontFamily: "'JetBrains Mono', monospace",
+                        fontSize: '11px',
+                        letterSpacing: '0.14em',
+                        fontWeight: 600,
+                        padding: '6px 12px',
+                        borderRadius: '999px',
+                        color: '#6EE7B7',
+                        border: '1px solid rgba(16,185,129,0.45)',
+                        background: 'rgba(16,185,129,0.1)',
+                        textTransform: 'uppercase',
+                        whiteSpace: 'nowrap',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                      }}
+                    >
+                      {d > 0 ? `◉ VOICECAST · ${mm}:${ss}` : '◉ VOICECAST'}
+                    </span>
+                  );
+                })()}
 
-                {/* 3. Challenge Badge (if Challenge Post) */}
+                {/* 3. Challenge Badge (if Challenge Post) — spec FIX B.1 (countdown rimosso, va in META) */}
                 {!useStackLayout && isChallengePost && (
-                  <div className="flex items-center gap-2">
-                    <UnifiedBadge kind="challenge">⚡ Challenge</UnifiedBadge>
-                    {challengeCountdown && (
-                      <span style={{ 
-                        color: isChallengeExpired ? 'rgba(241,245,249,0.4)' : isChallengeUrgent ? '#FF8A3D' : 'rgba(241,245,249,0.4)', 
-                        fontSize: 13,
-                        fontWeight: isChallengeUrgent ? 700 : 500,
-                        marginLeft: 4
-                      }}>
-                        · {isChallengeExpired ? '⏱ Chiusa' : `⏱ Scade tra ${challengeCountdown}`}
-                      </span>
-                    )}
-                  </div>
+                  <span
+                    style={{
+                      fontFamily: "'JetBrains Mono', monospace",
+                      fontSize: '11px',
+                      letterSpacing: '0.14em',
+                      fontWeight: 600,
+                      padding: '6px 12px',
+                      borderRadius: '999px',
+                      color: '#FF8FAB',
+                      border: '1px solid rgba(228,30,82,0.5)',
+                      background: 'rgba(228,30,82,0.12)',
+                      textTransform: 'uppercase',
+                      whiteSpace: 'nowrap',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                    }}
+                  >
+                    ⚔ CHALLENGE
+                  </span>
                 )}
 
                 {/* 4. Spotify / Trust Score / Category Badges */}
@@ -2416,15 +2446,59 @@ const ImmersivePostCardInner = ({
                 const challengeShouldRenderMini = challengeHasValidMedia;
                 const isSmallScreen = typeof window !== 'undefined' ? window.innerHeight < 700 : false;
 
+                const vFor = post.challenge?.votes_for || 0;
+                const vAgainst = post.challenge?.votes_against || 0;
+                const totalVotes = vFor + vAgainst;
+                const pctFor = totalVotes === 0 ? 50 : Math.round((vFor / totalVotes) * 100);
+                const pctAgainst = totalVotes === 0 ? 50 : 100 - pctFor;
+                const isExpired = post.challenge?.status === 'expired' || post.challenge?.status === 'closed' || new Date(post.challenge?.expires_at || '') < new Date();
+                const isAuthor = user?.id === post.author.id;
+                const hasResponded = challengeResponses.some(r => r.user_id === user?.id);
+                const votingDisabled = isExpired || hasResponded || isAuthor;
+
+                const handleRespond = async (_stance?: 'for' | 'against') => {
+                  const transcriptText = activeVoicePost?.transcript || post.content;
+                  const wordCount = getWordCount(transcriptText);
+                  const questionCount = getQuestionCountWithoutSource(wordCount);
+                  if (questionCount === 0) {
+                    setShowChallengeFlow(true);
+                    return;
+                  }
+                  setShowAnalysisOverlay(true);
+                  try {
+                    const result = await generateQA({
+                      contentId: post.id,
+                      title: post.author.full_name || post.author.username,
+                      summary: transcriptText,
+                      userText: transcriptText || '',
+                      questionCount,
+                    });
+                    setShowAnalysisOverlay(false);
+                    if (result.insufficient_context) {
+                      toast.info("Trascrizione non sufficiente per il test.");
+                      setShowChallengeFlow(true);
+                      return;
+                    }
+                    if (!result || result.error || !result.questions?.length) {
+                      toast.error(result?.error || "Errore generico");
+                      return;
+                    }
+                    setQuizData({ qaId: result.qaId, questions: result.questions, sourceUrl: `post://${post.id}`, onChallengeRespond: true });
+                    setShowQuiz(true);
+                  } catch {
+                    setShowAnalysisOverlay(false);
+                    toast.error("Errore generico");
+                  }
+                };
+
                 return (
                   <div 
                     className={cn(
                       "w-full flex flex-col pt-2 pb-16 flex-1 min-h-0 justify-start"
                     )}
                   >
-                    {/* Header Essenziale: Badge + Title */}
+                    {/* Header Essenziale: Title (badge già in CardShell.Badge) */}
                     <div ref={registerRef('essential-title')} className="w-full flex flex-col flex-shrink-0">
-                      {/* Title se esiste */}
                       {challengeTitle && challengeTitle.trim().length > 0 && (
                         <ClampedTitle
                           as="h2"
@@ -2443,23 +2517,151 @@ const ImmersivePostCardInner = ({
                       )}
                     </div>
 
-                    {/* Content wrapper: row for mini layout, column for tall layout */}
+                    {/* PLAYER TESI — capsula full, accent rosa challenge, ref layout mantenuto */}
+                    <div
+                      ref={registerRef('essential-challenge-player')}
+                      className="w-full flex-shrink-0"
+                      style={{ marginBottom: '14px' }}
+                    >
+                      {isActive && activeVoicePost?.audio_url ? (
+                        <VoicePlayer
+                          audioUrl={activeVoicePost.audio_url}
+                          durationSeconds={activeVoicePost.duration_seconds || 0}
+                          waveformData={activeVoicePost.waveform_data}
+                          transcript={activeVoicePost.transcript}
+                          transcriptStatus={activeVoicePost.transcript_status as any}
+                          accentColor="#E41E52"
+                          onShowTranscript={() => openFullTextDrawer('transcript')}
+                        />
+                      ) : (
+                        <div className="w-full h-[68px] rounded-[18px] bg-white/5 border border-white/10 animate-pulse flex items-center justify-center text-xs text-white/40">
+                          Caricamento player…
+                        </div>
+                      )}
+                    </div>
+
+                    {/* ARENA 34px con VS chip */}
+                    <div ref={registerRef('essential-polarization')} className="flex-shrink-0" style={{ marginBottom: '10px' }}>
+                      <div style={{ position: 'relative', height: '34px', borderRadius: '12px', overflow: 'hidden', display: 'flex', background: 'rgba(255,255,255,0.05)', boxShadow: '0 1px 0 rgba(255,255,255,0.08) inset' }}>
+                        <div style={{ width: `${pctFor}%`, background: 'linear-gradient(90deg, rgba(10,122,255,0.85), rgba(10,122,255,0.55))', display: 'flex', alignItems: 'center' }}>
+                          <span style={{ paddingLeft: '11px', fontFamily: "'JetBrains Mono', monospace", fontSize: '11.5px', fontWeight: 600, color: '#FFFFFF' }}>{pctFor}%</span>
+                        </div>
+                        <div style={{ width: `${pctAgainst}%`, marginLeft: 'auto', background: 'linear-gradient(90deg, rgba(255,212,100,0.5), rgba(255,212,100,0.85))', display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                          <span style={{ paddingRight: '11px', fontFamily: "'JetBrains Mono', monospace", fontSize: '11.5px', fontWeight: 600, color: '#1a1608' }}>{pctAgainst}%</span>
+                        </div>
+                        <span style={{ position: 'absolute', left: `${pctFor}%`, top: '50%', transform: 'translate(-50%,-50%)', fontFamily: "'Anton', sans-serif", fontSize: '12px', background: 'rgba(10,14,22,0.85)', padding: '3px 7px', borderRadius: '6px', color: '#FFFFFF', letterSpacing: '0.04em' }}>VS</span>
+                      </div>
+                    </div>
+
+                    {/* META: voti/risposte + countdown */}
+                    <div className="flex items-center justify-between flex-shrink-0" style={{ marginBottom: '13px' }}>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (challengeResponses.length > 0) setChallengeDrawerOpen(true);
+                        }}
+                        style={{
+                          fontFamily: "'JetBrains Mono', monospace",
+                          fontSize: '10.5px', letterSpacing: '0.1em', textTransform: 'uppercase',
+                          color: '#8fb8e8', fontWeight: 600,
+                        }}
+                        className="active:opacity-60 transition-opacity"
+                      >
+                        {totalVotes} VOTI · {challengeResponses.length} RISPOSTE →
+                      </button>
+                      <span style={{
+                        fontFamily: "'JetBrains Mono', monospace",
+                        fontSize: '10.5px', letterSpacing: '0.1em', textTransform: 'uppercase',
+                        color: isExpired ? 'rgba(255,255,255,0.5)' : (isChallengeUrgent ? '#FF8A3D' : '#FFD464'),
+                        fontWeight: 600,
+                      }}>
+                        {isExpired ? 'CONCLUSA' : (challengeCountdown ? `⏳ SCADE TRA ${challengeCountdown}` : '')}
+                      </span>
+                    </div>
+
+                    {/* BOTTONI SCHIERAMENTO — A FAVORE / CONTRO (wired su handleRespond) */}
+                    {!isAuthor && (
+                      votingDisabled ? (
+                        <div
+                          ref={registerRef('essential-cta-accept')}
+                          className="w-full text-center flex-shrink-0"
+                          style={{
+                            padding: '14px',
+                            borderRadius: '14px',
+                            background: 'rgba(255,255,255,0.04)',
+                            border: '1px solid rgba(255,255,255,0.08)',
+                            fontFamily: "'JetBrains Mono', monospace",
+                            fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase',
+                            color: 'rgba(255,255,255,0.5)', fontWeight: 600,
+                            marginBottom: '13px',
+                          }}
+                        >
+                          {hasResponded ? '✓ HAI GIÀ RISPOSTO' : 'SFIDA CHIUSA'}
+                        </div>
+                      ) : (
+                        <div
+                          ref={registerRef('essential-cta-accept')}
+                          className="w-full flex flex-shrink-0"
+                          style={{ gap: '9px', marginBottom: '13px' }}
+                        >
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleRespond('for'); }}
+                            className="flex-1 active:scale-[0.97] transition-transform"
+                            style={{
+                              height: '52px', borderRadius: '14px',
+                              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2px',
+                              background: 'rgba(10,122,255,0.14)',
+                              border: '1px solid rgba(10,122,255,0.45)',
+                            }}
+                          >
+                            <span style={{
+                              fontFamily: "'JetBrains Mono', monospace",
+                              fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em',
+                              color: '#6db1ff',
+                            }}>A FAVORE</span>
+                            <span style={{ fontSize: '12.5px', fontWeight: 700, color: 'rgba(170,182,198,0.85)' }}>
+                              {vFor} voti
+                            </span>
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleRespond('against'); }}
+                            className="flex-1 active:scale-[0.97] transition-transform"
+                            style={{
+                              height: '52px', borderRadius: '14px',
+                              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2px',
+                              background: 'rgba(255,212,100,0.10)',
+                              border: '1px solid rgba(255,212,100,0.4)',
+                            }}
+                          >
+                            <span style={{
+                              fontFamily: "'JetBrains Mono', monospace",
+                              fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em',
+                              color: '#FFD464',
+                            }}>CONTRO</span>
+                            <span style={{ fontSize: '12.5px', fontWeight: 700, color: 'rgba(170,182,198,0.85)' }}>
+                              {vAgainst} voti
+                            </span>
+                          </button>
+                        </div>
+                      )
+                    )}
+
+                    {/* BODY / DESCRIZIONE + MEDIA MINI */}
                     <div
                       className={cn(challengeShouldRenderMini ? "vstage-row w-full flex gap-4" : "w-full flex flex-col")}
-                      style={{ flex: '0 0 auto', marginTop: 0 }}
+                      style={{ flex: '0 0 auto' }}
                     >
                       <div className={cn(challengeShouldRenderMini ? "v-col flex-1 min-w-0 flex flex-col" : "w-full flex flex-col")}>
-                        {/* Description flessibile se esiste */}
                         {challengeContent && challengeContent.trim().length > 0 && (
-                          <div 
+                          <div
                             ref={(el) => {
                               registerRef("essential-description")(el);
                               (bodyRef as any).current = el;
                               bodyTextRef.current = el;
-                            }} 
+                            }}
                             className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
-                            style={{ 
-                              fontFamily: 'Inter, sans-serif', 
+                            style={{
+                              fontFamily: 'Inter, sans-serif',
                               lineHeight: 1.55,
                               display: '-webkit-box',
                               WebkitLineClamp: bodyLineClamp,
@@ -2471,12 +2673,11 @@ const ImmersivePostCardInner = ({
                           </div>
                         )}
 
-                        {/* Approfondisci subito dopo description (se non c'è description, dopo title) */}
                         {shouldShowApprofondisci && (
-                          <div className="flex-shrink-0 mt-2 mb-3 text-left">
+                          <div className="flex-shrink-0 mt-1 mb-2 text-left">
                             <button
                               onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
-                               className="text-sm text-primary font-semibold block pointer-events-auto active:opacity-60 transition-opacity"
+                              className="text-sm text-primary font-semibold block pointer-events-auto active:opacity-60 transition-opacity"
                             >
                               Approfondisci
                             </button>
@@ -2484,7 +2685,6 @@ const ImmersivePostCardInner = ({
                         )}
                       </div>
 
-                      {/* Colonna destra (media), SOLO se challengeShouldRenderMini */}
                       {challengeShouldRenderMini && challengeMediaForFrame && (
                         <div
                           ref={(node) => {
@@ -2492,7 +2692,7 @@ const ImmersivePostCardInner = ({
                             (mediaRef as any).current = node;
                           }}
                           className="flex-shrink-0"
-                          style={{ 
+                          style={{
                             alignSelf: "flex-start",
                             maxHeight: flexiblesStatus['flexible-image']?.height ? `${flexiblesStatus['flexible-image']?.height}px` : undefined
                           }}
@@ -2508,211 +2708,195 @@ const ImmersivePostCardInner = ({
                       )}
                     </div>
 
-                    {/* Player, polarization, CTAs inside slot-bottom */}
-                    <div className="slot-bottom" style={{ marginTop: isSmallScreen ? '8px' : '16px', flex: '0 0 auto' }} ref={slotBottomRef}>
-                      {/* Player audio compact (essential-challenge-player) */}
-                      <div ref={registerRef('essential-challenge-player')} className="w-full mt-auto flex-shrink-0">
-                        {isActive ? (
-                          <VoicePlayer 
-                            compact 
-                            audioUrl={activeVoicePost?.audio_url || ''}
-                            durationSeconds={activeVoicePost?.duration_seconds || 0}
-                            transcript={activeVoicePost?.transcript}
-                            transcriptStatus={activeVoicePost?.transcript_status as any}
-                            accentColor="#E41E52"
-                            onShowTranscript={() => openFullTextDrawer('transcript')}
-                          />
-                        ) : (
-                          <div className="w-full h-[36px] rounded-lg bg-white/5 border border-white/10 animate-pulse flex items-center justify-center text-[10px] text-white/30">
-                            Caricamento player vocale...
-                          </div>
-                        )}
-                      </div>
+                    {/* slot-bottom vuoto per compat layout engine */}
+                    <div className="slot-bottom" ref={slotBottomRef} />
 
-                      {/* Polarization bar (essential-polarization) */}
-                      <div ref={registerRef('essential-polarization')} className={cn("px-1 flex-shrink-0", isSmallScreen ? "mt-2" : "mt-4")} style={{ height: isSmallScreen ? '48px' : '80px' }}>
-                        <div className="flex items-end justify-between mb-1" style={{ fontFamily: 'JetBrains Mono', fontSize: '10px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                          <span style={{ color: '#0A7AFF' }}>
-                            A FAVORE ({Math.round(((post.challenge.votes_for || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%)
-                          </span>
-                          <span style={{ color: '#FFD464' }}>
-                            CONTRO ({Math.round(((post.challenge.votes_against || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%)
-                          </span>
+                    {/* ─── DRAWER RISPOSTE (restyle glass + mini-arena + composer sticky) ─── */}
+                    <Drawer open={challengeDrawerOpen} onOpenChange={setChallengeDrawerOpen}>
+                      <DrawerContent
+                        className="max-h-[85vh]"
+                        style={{
+                          background: 'rgba(18,26,42,0.92)',
+                          backdropFilter: 'blur(26px) saturate(150%)',
+                          WebkitBackdropFilter: 'blur(26px) saturate(150%)',
+                          boxShadow: '0 1px 0 rgba(255,255,255,0.08) inset, 0 -20px 60px -20px rgba(0,0,0,0.6)',
+                          borderTopLeftRadius: '24px',
+                          borderTopRightRadius: '24px',
+                          zIndex: 60,
+                        }}
+                      >
+                        <DrawerHeader style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.05)' }}>
+                          <DrawerTitle
+                            className="flex items-center justify-center gap-2"
+                            style={{ color: '#FFFFFF', fontSize: '15px', fontWeight: 700 }}
+                          >
+                            <span>Dibattito</span>
+                            <span style={{
+                              fontFamily: "'JetBrains Mono', monospace",
+                              fontSize: '11.5px', color: 'rgba(255,255,255,0.5)', fontWeight: 600,
+                            }}>
+                              · {challengeResponses.length} rispost{challengeResponses.length === 1 ? 'a' : 'e'}
+                            </span>
+                          </DrawerTitle>
+                        </DrawerHeader>
+
+                        {/* Mini-arena */}
+                        <div style={{ marginLeft: '16px', marginRight: '16px', marginBottom: '12px' }}>
+                          <div style={{ position: 'relative', height: '26px', borderRadius: '10px', overflow: 'hidden', display: 'flex', background: 'rgba(255,255,255,0.05)' }}>
+                            <div style={{ width: `${pctFor}%`, background: 'linear-gradient(90deg, rgba(10,122,255,0.85), rgba(10,122,255,0.55))', display: 'flex', alignItems: 'center' }}>
+                              <span style={{ paddingLeft: '10px', fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', fontWeight: 600, color: '#FFFFFF' }}>{pctFor}%</span>
+                            </div>
+                            <div style={{ width: `${pctAgainst}%`, marginLeft: 'auto', background: 'linear-gradient(90deg, rgba(255,212,100,0.5), rgba(255,212,100,0.85))', display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                              <span style={{ paddingRight: '10px', fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', fontWeight: 600, color: '#1a1608' }}>{pctAgainst}%</span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex overflow-hidden" style={{ height: isSmallScreen ? '6px' : '8px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)' }}>
-                          <div style={{ width: `${Math.round(((post.challenge.votes_for || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%`, background: 'linear-gradient(90deg, #0A7AFF, #3D9AFF)', borderRadius: '4px 0 0 4px' }} />
-                          <div style={{ width: `${Math.round(((post.challenge.votes_against || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%`, background: 'linear-gradient(90deg, #F5C842, #FFD464)', borderRadius: '0 4px 4px 0' }} />
-                        </div>
-                        
-                        {/* Challenge Responses Button */}
-                        {challengeResponses.length > 0 && (
-                          <div className={cn("flex justify-center", isSmallScreen ? "mt-1" : "mt-2")}>
+
+                        <ScrollArea className="flex-1 overflow-auto px-4 pb-6" style={{ maxHeight: 'calc(85vh - 200px)' }}>
+                          <div>
+                            {challengeResponses.map((resp) => {
+                              const stanceColor = resp.stance === 'for' ? '#0A7AFF' : '#FFD464';
+                              const stanceLabelColor = resp.stance === 'for' ? '#6db1ff' : '#FFD464';
+                              const stanceBg = resp.stance === 'for' ? 'rgba(10,122,255,0.1)' : 'rgba(255,212,100,0.08)';
+                              const stanceBorder = resp.stance === 'for' ? 'rgba(10,122,255,0.45)' : 'rgba(255,212,100,0.4)';
+                              const voted = userVote?.challenge_response_id === resp.id;
+                              return (
+                                <div
+                                  key={resp.id}
+                                  style={{
+                                    borderRadius: '16px',
+                                    padding: '11px 13px',
+                                    marginBottom: '10px',
+                                    display: 'flex',
+                                    gap: '11px',
+                                    alignItems: 'stretch',
+                                    background: 'rgba(255,255,255,0.04)',
+                                    boxShadow: '0 1px 0 rgba(255,255,255,0.06) inset',
+                                  }}
+                                >
+                                  <div style={{ width: '4px', borderRadius: '2px', background: stanceColor, flexShrink: 0 }} />
+                                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '9px' }}>
+                                    <div className="flex items-center gap-2">
+                                      <Avatar className="w-[26px] h-[26px]">
+                                        <AvatarImage src={getAvatarImageUrl(resp.user?.avatar_url) || undefined} />
+                                        <AvatarFallback className="text-[10px] bg-muted">
+                                          {(resp.user?.full_name || resp.user?.username || '?').charAt(0).toUpperCase()}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <span style={{ fontSize: '13px', fontWeight: 700, color: '#FFFFFF' }}>
+                                        {resp.user?.full_name || resp.user?.username}
+                                      </span>
+                                      <span
+                                        style={{
+                                          fontFamily: "'JetBrains Mono', monospace",
+                                          fontSize: '9px', fontWeight: 700,
+                                          padding: '2px 8px', borderRadius: '999px',
+                                          textTransform: 'uppercase', letterSpacing: '0.08em',
+                                          color: stanceLabelColor,
+                                          border: `1px solid ${stanceBorder}`,
+                                          background: stanceBg,
+                                        }}
+                                      >
+                                        {resp.stance === 'for' ? 'A favore' : 'Contro'}
+                                      </span>
+                                    </div>
+                                    <VoicePlayer
+                                      compact
+                                      audioUrl={resp.voice_post.audio_url}
+                                      durationSeconds={resp.voice_post.duration_seconds}
+                                      waveformData={resp.voice_post.waveform_data}
+                                      transcript={resp.voice_post.transcript}
+                                      transcriptStatus={resp.voice_post.transcript_status as any}
+                                      accentColor={stanceColor}
+                                    />
+                                  </div>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (voted) removeVote();
+                                      else if (!userVote) voteForResponse(resp.id);
+                                    }}
+                                    disabled={!!userVote && !voted}
+                                    style={{
+                                      minWidth: '40px',
+                                      borderRadius: '12px',
+                                      background: voted ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.05)',
+                                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                                      gap: '2px', padding: '6px 4px',
+                                      opacity: !!userVote && !voted ? 0.5 : 1,
+                                      cursor: !!userVote && !voted ? 'not-allowed' : 'pointer',
+                                    }}
+                                    className="active:scale-95 transition-transform"
+                                  >
+                                    <ArrowUp style={{ width: '15px', height: '15px', color: '#FFFFFF' }} />
+                                    <span style={{
+                                      fontFamily: "'JetBrains Mono', monospace",
+                                      fontSize: '11px', color: '#FFFFFF', fontWeight: 600,
+                                    }}>{resp.argument_votes ?? 0}</span>
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </ScrollArea>
+
+                        {/* Composer sticky con due mic bottoni A FAVORE / CONTRO */}
+                        {!votingDisabled && (
+                          <div
+                            style={{
+                              position: 'sticky', bottom: 0,
+                              padding: '12px 16px calc(env(safe-area-inset-bottom, 0px) + 12px)',
+                              background: 'rgba(12,18,30,0.65)',
+                              backdropFilter: 'blur(16px)',
+                              WebkitBackdropFilter: 'blur(16px)',
+                              boxShadow: '0 -1px 0 rgba(255,255,255,0.06)',
+                              display: 'flex', gap: '9px',
+                            }}
+                          >
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setChallengeDrawerOpen(true);
+                                setChallengeDrawerOpen(false);
+                                handleRespond('for');
                               }}
-                              className="flex items-center justify-center gap-1.5 py-1 px-4 rounded-full text-xs font-semibold text-slate-300 hover:text-white transition-all hover:bg-white/5"
+                              className="flex-1 active:scale-[0.97] transition-transform"
+                              style={{
+                                height: '48px', borderRadius: '14px',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px',
+                                background: 'rgba(10,122,255,0.14)',
+                                border: '1px solid rgba(10,122,255,0.45)',
+                                color: '#6db1ff',
+                              }}
                             >
-                              <Zap className="w-3 h-3 text-[#E41E52]" />
-                              Vedi {challengeResponses.length} rispost{challengeResponses.length === 1 ? 'a' : 'e'}
+                              <Mic style={{ width: '15px', height: '15px' }} />
+                              <span style={{
+                                fontFamily: "'JetBrains Mono', monospace",
+                                fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em',
+                              }}>A FAVORE</span>
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setChallengeDrawerOpen(false);
+                                handleRespond('against');
+                              }}
+                              className="flex-1 active:scale-[0.97] transition-transform"
+                              style={{
+                                height: '48px', borderRadius: '14px',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px',
+                                background: 'rgba(255,212,100,0.10)',
+                                border: '1px solid rgba(255,212,100,0.4)',
+                                color: '#FFD464',
+                              }}
+                            >
+                              <Mic style={{ width: '15px', height: '15px' }} />
+                              <span style={{
+                                fontFamily: "'JetBrains Mono', monospace",
+                                fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em',
+                              }}>CONTRO</span>
                             </button>
                           </div>
                         )}
-                      </div>
-
-                      {/* CTA "Accetta la sfida" (essential-cta-accept) */}
-                      {(() => {
-                        const isExpired = post.challenge?.status === 'expired' || post.challenge?.status === 'closed' || new Date(post.challenge?.expires_at || '') < new Date();
-                        const isAuthor = user?.id === post.author.id;
-                        const hasResponded = challengeResponses.some(r => r.user_id === user?.id);
-                        const isDisabled = isExpired || hasResponded;
-
-                        return !isAuthor ? (
-                          <button
-                            ref={registerRef('essential-cta-accept')}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (isDisabled) return;
-                              // Trigger challenge respond flow
-                              const handleRespond = async () => {
-                                const transcriptText = activeVoicePost?.transcript || post.content;
-                                const wordCount = getWordCount(transcriptText);
-                                const questionCount = getQuestionCountWithoutSource(wordCount);
-                                if (questionCount === 0) {
-                                  setShowChallengeFlow(true);
-                                  return;
-                                }
-                                setShowAnalysisOverlay(true);
-                                try {
-                                  const result = await generateQA({
-                                    contentId: post.id,
-                                    title: post.author.full_name || post.author.username,
-                                    summary: transcriptText,
-                                    userText: transcriptText || '',
-                                    questionCount,
-                                  });
-                                  setShowAnalysisOverlay(false);
-                                  if (result.insufficient_context) {
-                                    toast.info("Trascrizione non sufficiente per il test.");
-                                    setShowChallengeFlow(true);
-                                    return;
-                                  }
-                                  if (!result || result.error || !result.questions?.length) {
-                                    toast.error(result?.error || "Errore generico");
-                                    return;
-                                  }
-                                  setQuizData({ qaId: result.qaId, questions: result.questions, sourceUrl: `post://${post.id}`, onChallengeRespond: true });
-                                  setShowQuiz(true);
-                                } catch {
-                                  setShowAnalysisOverlay(false);
-                                  toast.error("Errore generico");
-                                }
-                              };
-                              handleRespond();
-                            }}
-                            disabled={isDisabled}
-                            className={cn(
-                              "relative w-full rounded-full font-bold text-sm tracking-wide overflow-hidden transition-all flex-shrink-0 flex items-center justify-center",
-                              isSmallScreen ? "mt-1.5" : "mt-2",
-                              isDisabled ? "opacity-50 cursor-not-allowed" : "hover:scale-[1.02] active:scale-[0.98]"
-                            )}
-                            style={{
-                              height: isSmallScreen ? '36px' : '48px',
-                              background: isDisabled ? 'rgba(255,255,255,0.05)' : 'linear-gradient(135deg, #E41E52, #FF6B35)',
-                              color: isDisabled ? 'rgba(255,255,255,0.3)' : 'white',
-                              border: isDisabled ? '1px solid rgba(255,255,255,0.1)' : 'none',
-                            }}
-                          >
-                            {!isDisabled && (
-                              <span className="absolute inset-0" style={{
-                                background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%)',
-                                backgroundSize: '200% 100%',
-                                animation: 'shimmer 2.5s ease-in-out infinite',
-                              }} />
-                            )}
-                            <span className="relative z-10">
-                              {hasResponded ? '✓ Hai già risposto' : isExpired ? '⚡ Sfida chiusa' : '⚡ Accetta la sfida'}
-                            </span>
-                          </button>
-                        ) : null;
-                      })()}
-                    </div>
-
-                    {/* Response Drawer */}
-                    <Drawer open={challengeDrawerOpen} onOpenChange={setChallengeDrawerOpen}>
-                      <DrawerContent className="max-h-[85vh]">
-                        <DrawerHeader>
-                          <DrawerTitle className="flex items-center justify-center gap-2">
-                            <Zap className="w-5 h-5" style={{ color: '#E41E52' }} />
-                            {challengeResponses.length} rispost{challengeResponses.length === 1 ? 'a' : 'e'} alla challenge
-                          </DrawerTitle>
-                        </DrawerHeader>
-                        <ScrollArea className="flex-1 overflow-auto px-4 pb-6" style={{ maxHeight: 'calc(85vh - 80px)' }}>
-                          <div className="space-y-3">
-                            {challengeResponses.map((resp) => (
-                              <div
-                                key={resp.id}
-                                className="rounded-xl p-4"
-                                style={{
-                                  background: 'hsl(var(--muted) / 0.5)',
-                                  border: '1px solid hsl(var(--border))',
-                                }}
-                              >
-                                <div className="flex items-center gap-3 mb-3">
-                                  <Avatar className="w-8 h-8 border border-white/10">
-                                    <AvatarImage src={getAvatarImageUrl(resp.user?.avatar_url)} />
-                                    <AvatarFallback>{resp.user?.username?.slice(0, 2).toUpperCase()}</AvatarFallback>
-                                  </Avatar>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-bold text-slate-200 truncate">
-                                      {resp.user?.full_name || resp.user?.username}
-                                    </p>
-                                  </div>
-                                </div>
-
-                                <VoicePlayer
-                                  audioUrl={resp.voice_post.audio_url}
-                                  durationSeconds={resp.voice_post.duration_seconds}
-                                  waveformData={resp.voice_post.waveform_data}
-                                  transcript={resp.voice_post.transcript}
-                                  transcriptStatus={resp.voice_post.transcript_status as any}
-                                  accentColor="#E41E52"
-                                />
-
-                                <div className="mt-3 flex items-center justify-between border-t border-white/5 pt-3">
-                                  <div className="flex items-center gap-1.5">
-                                    <button
-                                      onClick={() => {
-                                        const isMyVote = userVote?.challenge_response_id === resp.id;
-                                        if (isMyVote) {
-                                          removeVote();
-                                        } else {
-                                          voteForResponse(resp.id);
-                                        }
-                                      }}
-                                      className={cn(
-                                        "h-7 px-3 rounded-full text-xs font-semibold flex items-center gap-1 transition-all active:scale-[0.97] group",
-                                        userVote?.challenge_response_id === resp.id
-                                          ? "bg-muted text-muted-foreground cursor-not-allowed"
-                                          : "bg-muted hover:bg-accent text-foreground"
-                                      )}
-                                    >
-                                      {userVote?.challenge_response_id === resp.id ? (
-                                        <span className="flex items-center gap-1">
-                                          <span className="group-hover:hidden">✓ Votato</span>
-                                          <span className="hidden group-hover:inline">✗ Rimuovi voto</span>
-                                        </span>
-                                      ) : (
-                                        '🏆 Miglior argomento'
-                                      )}
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </ScrollArea>
                       </DrawerContent>
                     </Drawer>
                   </div>
