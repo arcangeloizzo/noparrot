@@ -1,5 +1,4 @@
 import { Play, Images } from 'lucide-react';
-import { useState } from 'react';
 import { useVideoThumbnail } from '@/hooks/useVideoThumbnail';
 
 export interface MediaFrameItem {
@@ -58,76 +57,6 @@ const PlayBadge = ({ size = 62 }: { size?: number }) => (
   </div>
 );
 
-// NP-DEBUG-TEMP
-const DebugTag = ({
-  item,
-  loadState,
-  extra,
-}: {
-  item: MediaFrameItem;
-  loadState: string;
-  extra?: string;
-}) => {
-  const url = item.url ?? 'UNDEFINED';
-  const th = item.thumbnail_url ? item.thumbnail_url.slice(-40) : 'null';
-  return (
-    <div
-      style={{
-        position: 'absolute',
-        top: 4,
-        left: 4,
-        zIndex: 50,
-        background: '#000',
-        color: '#0f0',
-        fontFamily: 'monospace',
-        fontSize: '8px',
-        lineHeight: 1.3,
-        padding: '3px 5px',
-        maxWidth: '90%',
-        wordBreak: 'break-all',
-        pointerEvents: 'none',
-        whiteSpace: 'pre-wrap',
-      }}
-    >
-      {`T:${item.type} O:${item.orientation ?? '-'} R:${item.ratio ?? '-'}\nU:${String(url).slice(-60)}\nTH:${th}\nIMG:${loadState}${extra ? `\n${extra}` : ''}`}
-    </div>
-  );
-};
-
-// NP-DEBUG-TEMP
-const ImgWithDebug = ({
-  item,
-  src,
-  style,
-  blurUrl,
-}: {
-  item: MediaFrameItem;
-  src: string;
-  style: React.CSSProperties;
-  blurUrl?: string;
-}) => {
-  const [loadState, setLoadState] = useState('loading');
-  return (
-    <>
-      <img
-        src={src}
-        decoding="async"
-        style={style}
-        alt=""
-        onLoad={(e) =>
-          setLoadState(`OK ${e.currentTarget.naturalWidth}x${e.currentTarget.naturalHeight}`)
-        }
-        onError={() => setLoadState('ERR')}
-      />
-      <DebugTag
-        item={item}
-        loadState={loadState}
-        extra={blurUrl ? `BG:${blurUrl.slice(-40)}` : undefined}
-      />
-    </>
-  );
-};
-
 /**
  * Video tile: NON monta mai <video> nel feed. Mostra un poster (thumbnail_url o
  * generato via canvas) come <img>; il video vero viene riprodotto solo
@@ -136,9 +65,6 @@ const ImgWithDebug = ({
 const VideoEl = ({ item, contain }: { item: MediaFrameItem; contain: boolean }) => {
   const generatedPoster = useVideoThumbnail(item.url, 'video', undefined);
   const poster = item.thumbnail_url || generatedPoster || undefined;
-  // NP-DEBUG-TEMP
-  const [loadState, setLoadState] = useState('loading');
-  const posterSrc = item.thumbnail_url ? 'thumb' : generatedPoster ? 'canvas' : 'none';
   const commonStyle: React.CSSProperties = {
     position: 'absolute',
     inset: 0,
@@ -151,40 +77,26 @@ const VideoEl = ({ item, contain }: { item: MediaFrameItem; contain: boolean }) 
 
   if (!poster) {
     return (
-      <>
-        <video
-          src={item.url}
-          muted
-          playsInline
-          preload="auto"
-          style={commonStyle}
-          onLoadedData={() => setLoadState('VID-OK')}
-          onError={() => setLoadState('VID-ERR')}
-        />
-        {/* NP-DEBUG-TEMP */}
-        <DebugTag item={item} loadState={loadState} extra={`P:${posterSrc}`} />
-      </>
+      <video
+        src={item.url}
+        muted
+        playsInline
+        preload="auto"
+        style={commonStyle}
+      />
     );
   }
   return (
-    <>
-      <img
-        src={poster}
-        decoding="async"
-        style={commonStyle}
-        alt=""
-        onLoad={(e) =>
-          setLoadState(`OK ${e.currentTarget.naturalWidth}x${e.currentTarget.naturalHeight}`)
-        }
-        onError={() => setLoadState('ERR')}
-      />
-      {/* NP-DEBUG-TEMP */}
-      <DebugTag item={item} loadState={loadState} extra={`P:${posterSrc}`} />
-    </>
+    <img
+      src={poster}
+      decoding="async"
+      style={commonStyle}
+      alt=""
+    />
   );
 };
 
-const renderMediaEl = (m: MediaFrameItem, contain: boolean, blurUrl?: string) => {
+const renderMediaEl = (m: MediaFrameItem, contain: boolean) => {
   const commonStyle: React.CSSProperties = contain
     ? { position: 'relative', zIndex: 1, width: '100%', height: '100%', objectFit: 'contain' }
     : { width: '100%', height: '100%', objectFit: 'cover', display: 'block' };
@@ -203,8 +115,7 @@ const renderMediaEl = (m: MediaFrameItem, contain: boolean, blurUrl?: string) =>
         display: 'block',
       }
     : commonStyle;
-  // NP-DEBUG-TEMP
-  return <ImgWithDebug item={m} src={m.url} style={imgStyle} blurUrl={blurUrl} />;
+  return <img src={m.url} decoding="async" style={imgStyle} alt="" />;
 };
 
 export const MediaMosaic = ({ media, onMediaClick }: MediaFrameProps) => {
@@ -247,9 +158,9 @@ export const MediaMosaic = ({ media, onMediaClick }: MediaFrameProps) => {
           onClick={handleTileClick(0)}
           style={{
             position: 'relative',
-            height: 'min(62svh, 540px)',
+            height: 'min(64svh, 560px)',
             overflow: 'hidden',
-            background: '#0a0f18',
+            background: '#07090f',
             cursor: 'pointer',
           }}
         >
@@ -257,6 +168,7 @@ export const MediaMosaic = ({ media, onMediaClick }: MediaFrameProps) => {
             style={{
               position: 'absolute',
               inset: 0,
+              zIndex: 0,
               backgroundImage: `url(${m.thumbnail_url || m.url})`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
@@ -264,7 +176,7 @@ export const MediaMosaic = ({ media, onMediaClick }: MediaFrameProps) => {
               transform: 'scale(1.15)',
             }}
           />
-          {renderMediaEl(m, true, m.thumbnail_url || m.url)}
+          {renderMediaEl(m, true)}
           {m.type === 'video' && <PlayBadge />}
         </div>
       </div>
@@ -343,9 +255,10 @@ export const MediaMosaic = ({ media, onMediaClick }: MediaFrameProps) => {
               {m.type === 'video' ? (
                 <VideoEl item={m} contain={false} />
               ) : (
-                <ImgWithDebug
-                  item={m}
+                <img
                   src={m.thumbnail_url || m.url}
+                  decoding="async"
+                  alt=""
                   style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                 />
               )}
