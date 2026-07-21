@@ -2371,7 +2371,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
                               }
                             }, 150);
                           }}
-                          className="w-full bg-transparent outline-none transition-colors uppercase"
+                          className="w-full bg-transparent outline-none transition-colors uppercase placeholder:text-white/50"
                           style={{
                             fontFamily: "'Anton', 'Impact', sans-serif",
                             fontSize: '27px',
