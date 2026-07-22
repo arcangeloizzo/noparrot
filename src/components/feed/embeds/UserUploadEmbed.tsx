@@ -73,13 +73,17 @@ const UserUploadEmbedInner = ({
     if (!postMedia) return [];
     return postMedia.map(item => ({
       ...item,
-      url: getCardImageUrl(item.url, 1200, 75),
-      thumbnail_url: item.thumbnail_url ? getCardImageUrl(item.thumbnail_url, 1200, 75) : undefined
+      // Video: URL invariato. Immagini: preferisci thumbnail_url raw se esiste
+      // (mitigazione performance interim con /render/image/ disattivato).
+      url: item.type === 'video'
+        ? item.url
+        : (item.thumbnail_url || item.url),
+      thumbnail_url: item.thumbnail_url || undefined,
     }));
   }, [postMedia]);
 
   const downscaledMediaUrl = useMemo(() => {
-    return getCardImageUrl(mediaUrl, 1200, 75);
+    return mediaUrl;
   }, [mediaUrl]);
 
   const userUploadMedia = normalizedMedias.find((m) => m.source === "user_upload");

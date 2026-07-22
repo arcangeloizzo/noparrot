@@ -1377,17 +1377,19 @@ const ImmersivePostCardInner = ({
     if (!post.media) return [];
     return post.media.map(item => ({
       ...item,
-      // Video: mai trasformare l'URL (render/image fallisce sul file video).
-      url: item.type === 'video' ? item.url : getCardImageUrl(item.url, 1200, 75),
-      thumbnail_url: item.thumbnail_url ? getCardImageUrl(item.thumbnail_url, 1200, 75) : undefined
+      // Video: URL invariato. Immagini: preferisci thumbnail_url raw se esiste
+      // (mitigazione performance interim con /render/image/ disattivato).
+      url: item.type === 'video'
+        ? item.url
+        : (item.thumbnail_url || item.url),
+      thumbnail_url: item.thumbnail_url || undefined,
     }));
   }, [post.media]);
 
   const downscaledMediaUrl = useMemo(() => {
-    // Se il primo media è un video, l'URL originale non va trasformato.
-    if (isVideoMedia) return mediaUrl;
-    return getCardImageUrl(mediaUrl, 1200, 75);
-  }, [mediaUrl, isVideoMedia]);
+    // /render/image/ disattivato: usa raw. thumbnail_url già preferito nel mapping.
+    return mediaUrl;
+  }, [mediaUrl]);
   const backgroundImage = !isMediaOnlyPost ? (articlePreview?.image || post.preview_img || (post.media?.[0]?.url || quotedPost?.media?.[0]?.url || quotedPost?.preview_img)) : undefined;
   
   const isInstagramReel = post.post_type === 'instagram_reel';
