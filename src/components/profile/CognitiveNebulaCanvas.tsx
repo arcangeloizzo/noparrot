@@ -112,8 +112,8 @@ export const CognitiveNebulaCanvas = ({
     const particles: Particle[] = [];
 
     // Phase 4.6a — particelle CONFINATE dentro al pianeta (atmosfera interna).
-    const baseCount = 6;
-    const extraCount = 24;
+    const baseCount = 3;
+    const extraCount = 12;
 
     CATEGORIES.forEach(category => {
       const weight = weights[category] || 0;
@@ -131,7 +131,7 @@ export const CognitiveNebulaCanvas = ({
           category,
           localAngle,
           localDistanceRatio,
-          size: 0.8 + Math.random() * 1.8,
+          size: 1.5 + Math.random() * 0.5,
           driftPhase: Math.random() * Math.PI * 2,
           twinklePhase: Math.random() * Math.PI * 2,
           color
@@ -187,20 +187,15 @@ export const CognitiveNebulaCanvas = ({
       const radius = geom.radius * (isSelected ? 1.1 : 1);
       const { r, g, b } = geom.color;
 
-      // Atmosfera gradient
-      const innerAlpha = isSelected ? 0.55 : isDimmed ? 0.18 : 0.35;
-      const midAlpha = isSelected ? 0.3 : isDimmed ? 0.08 : 0.18;
-      const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
-      grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${innerAlpha})`);
-      grad.addColorStop(0.6, `rgba(${r}, ${g}, ${b}, ${midAlpha})`);
-      grad.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
-      ctx.fillStyle = grad;
+      // Fill sobrio, senza alone/glow
+      const fillAlpha = isSelected ? 0.28 : isDimmed ? 0.06 : 0.14;
+      ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${fillAlpha})`;
       ctx.beginPath();
       ctx.arc(cx, cy, radius, 0, Math.PI * 2);
       ctx.fill();
 
       // Bordo sottile
-      const borderAlpha = isSelected ? 0.7 : isDimmed ? 0.2 : 0.4;
+      const borderAlpha = isSelected ? 0.75 : isDimmed ? 0.22 : 0.45;
       ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${borderAlpha})`;
       ctx.lineWidth = isSelected ? 2 : 1.5;
       ctx.beginPath();
@@ -228,7 +223,7 @@ export const CognitiveNebulaCanvas = ({
       const x = cx + Math.cos(particle.localAngle) * distance + driftX;
       const y = cy + Math.sin(particle.localAngle) * distance + driftY;
 
-      const baseAlpha = 0.55 + 0.45 * twinkle;
+      const baseAlpha = 0.55 + 0.15 * twinkle;
       const alpha = baseAlpha * (isDimmed ? 0.3 : 1);
       const sizeMul = isSelected ? 1.15 : 1;
 
