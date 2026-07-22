@@ -928,25 +928,71 @@ serve(async (req) => {
         }
         
         case 'mediaId': {
-          // Fetch extracted text from media table
-          const { data: media } = await supabase
+          // Fetch extracted text from media table. If the media belongs to a post
+          // with multiple media (carousel), concatenate all extracted_text ordered
+          // by order_idx and evaluate the aggregate against MIN_EXTRACTED_CHARS.
+          const { data: primaryMedia } = await supabase
             .from('media')
-            .select('extracted_text, extracted_status, extracted_kind, extracted_meta')
+            .select('id, extracted_text, extracted_status, extracted_kind, extracted_meta')
             .eq('id', effectiveQaSourceRef.id)
             .maybeSingle();
-          
-          // [NEW] Handle different test modes for media
-          const hasExtractedText = media?.extracted_status === 'done' && 
-                                   media.extracted_text && 
-                                   media.extracted_text.length > 120;
-          
+
+          let aggregatedText = '';
+          let aggregatedKind = primaryMedia?.extracted_kind || 'ocr';
+          let hasPending = primaryMedia?.extracted_status === 'pending';
+
+          // Try to find sibling media in the same post (carousel)
+          const { data: carouselRows } = await supabase
+            .from('post_media')
+            .select('order_idx, post_id, media:media_id (id, extracted_text, extracted_status, extracted_kind)')
+            .in('post_id',
+              (
+                await supabase
+                  .from('post_media')
+                  .select('post_id')
+                  .eq('media_id', effectiveQaSourceRef.id)
+              ).data?.map((r: any) => r.post_id) || []
+            )
+            .order('order_idx', { ascending: true });
+
+          if (carouselRows && carouselRows.length > 0) {
+            const parts: string[] = [];
+            for (const row of carouselRows as any[]) {
+              const m = row.media;
+              if (!m) continue;
+              if (m.extracted_status === 'pending') hasPending = true;
+              if (m.extracted_status === 'done' && m.extracted_text) {
+                parts.push(m.extracted_text);
+                if (!aggregatedKind || aggregatedKind === 'ocr') {
+                  aggregatedKind = m.extracted_kind || aggregatedKind;
+                }
+              }
+            }
+            aggregatedText = parts.join('\n\n---\n\n');
+          }
+
+          // Fallback: use only the primary media if we could not find siblings
+          if (!aggregatedText && primaryMedia?.extracted_status === 'done' && primaryMedia.extracted_text) {
+            aggregatedText = primaryMedia.extracted_text;
+          }
+
+          const hasExtractedText = aggregatedText.length >= MIN_EXTRACTED_CHARS;
+
           console.log('[generate-qa] Media gate check:', {
             mediaId: effectiveQaSourceRef.id,
             hasExtractedText,
-            extractedLength: media?.extracted_text?.length || 0,
+            aggregatedLength: aggregatedText.length,
+            hasPending,
             testMode,
             userTextLength: userText?.length || 0
           });
+
+          // Shadow the previous `media` var for downstream branches
+          const media = {
+            extracted_text: aggregatedText,
+            extracted_status: hasExtractedText ? 'done' : (hasPending ? 'pending' : 'failed'),
+            extracted_kind: aggregatedKind,
+          };
           
           if (testMode === 'USER_ONLY') {
             // USER_ONLY: Use only userText (comment) for quiz
@@ -979,7 +1025,7 @@ serve(async (req) => {
               serverSideContent = media.extracted_text;
               contentSource = `media_${media.extracted_kind}`;
               console.log(`[generate-qa] ✅ Media text: ${serverSideContent.length} chars via ${media.extracted_kind}`);
-            } else if (media?.extracted_status === 'pending') {
+            } else if (hasPending) {
               // Estrazione ancora in corso - client deve riprovare
               console.log('[generate-qa] ⏳ Media extraction still pending');
               return new Response(
