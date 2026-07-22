@@ -461,14 +461,14 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
   const mediaWithExtractedText = uploadedMedia.find(m =>
     m.extracted_status === 'done' &&
     m.extracted_text &&
-    m.extracted_text.length > 120
+    m.extracted_text.length > MIN_EXTRACTED_CHARS
   );
 
   // [FIX] Check if quotedPost has media with OCR/transcription (for reshares)
   const quotedPostMediaWithExtractedText = quotedPost?.media?.find((m: any) =>
     m.extracted_status === 'done' &&
     m.extracted_text &&
-    m.extracted_text.length > 120
+    m.extracted_text.length > MIN_EXTRACTED_CHARS
   );
 
   // [FIX] Word count of the ORIGINAL quoted post (source) - used for reshare gate logic
@@ -859,9 +859,10 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
       const mediaWithText = uploadedMedia.filter(m =>
         m.extracted_status === 'done' &&
         m.extracted_text &&
-        m.extracted_text.length > 50 // Lower threshold for carousel aggregation
+        m.extracted_text.length > 0 // Include all extracted text; totals validated against MIN_EXTRACTED_CHARS below
       );
-      const hasExtracted = mediaWithText.length > 0;
+      const totalExtractedChars = mediaWithText.reduce((n, m) => n + (m.extracted_text?.length || 0), 0);
+      const hasExtracted = totalExtractedChars >= MIN_EXTRACTED_CHARS;
       const mediaGate = getMediaGateForComposer(hasExtracted);
 
       console.log('[Composer] Direct media gate (author):', {
