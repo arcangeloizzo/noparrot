@@ -12,6 +12,10 @@ interface ProgressiveImageProps {
   onLoad?: () => void;
   /** If true, use eager loading for cards in or near viewport */
   priority?: boolean;
+  /** When set, requests a small square-cover thumbnail from Supabase Storage
+   *  sized for the visual dimension (in CSS px). Used for avatars and other
+   *  small circular images to avoid loading 600px hero variants. */
+  sizePx?: number;
 }
 
 type LoadState = 'placeholder' | 'thumb' | 'hero';
@@ -20,7 +24,10 @@ type LoadState = 'placeholder' | 'thumb' | 'hero';
  * Optimize Supabase Storage URLs with transformation parameters
  * Reduces bandwidth by ~40-60% on mobile
  */
-const getOptimizedSrc = (src: string | undefined): string | undefined => {
+const getOptimizedSrc = (
+  src: string | undefined,
+  sizePx?: number
+): string | undefined => {
   if (!src) return undefined;
   
   // Detect Supabase Storage URLs
@@ -34,8 +41,15 @@ const getOptimizedSrc = (src: string | undefined): string | undefined => {
     return src;
   }
   
-  // Append optimization parameters for mobile
   const separator = src.includes('?') ? '&' : '?';
+
+  // Small square avatars/thumbs: cover crop at 2× for retina.
+  if (sizePx && sizePx > 0) {
+    const px = Math.round(sizePx * 2);
+    return `${src}${separator}width=${px}&height=${px}&resize=cover&quality=70`;
+  }
+
+  // Default: hero variant for feed cards.
   return `${src}${separator}width=600&resize=contain&quality=75`;
 };
 
@@ -59,10 +73,12 @@ export const ProgressiveImage = memo(function ProgressiveImage({
   shouldLoad = true,
   className,
   onLoad,
-  priority = false
+  priority = false,
+  sizePx,
 }: ProgressiveImageProps) {
   // Optimize src for Supabase Storage
-  const optimizedSrc = useMemo(() => getOptimizedSrc(src), [src]);
+  const optimizedSrc = useMemo(() => getOptimizedSrc(src, sizePx), [src, sizePx]);
+  const pixelSize = sizePx && sizePx > 0 ? Math.round(sizePx * 2) : 1200;
   
   const [loadState, setLoadState] = useState<LoadState>('placeholder');
   const [hasError, setHasError] = useState(false);
@@ -128,8 +144,8 @@ export const ProgressiveImage = memo(function ProgressiveImage({
         <img 
           src={optimizedSrc}
           alt={alt}
-          width={1200}
-          height={1200}
+          width={pixelSize}
+          height={pixelSize}
           loading={priority ? "eager" : "lazy"}
           decoding="async"
           onLoad={handleLoad}
