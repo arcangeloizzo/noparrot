@@ -2809,6 +2809,17 @@ export type Database = {
           shared_url: string
         }[]
       }
+      get_thread_overviews: {
+        Args: { p_limit?: number }
+        Returns: {
+          created_at: string
+          last_message: Json
+          participants: Json
+          thread_id: string
+          unread_count: number
+          updated_at: string
+        }[]
+      }
       get_user_cognitive_density: {
         Args: { p_user_id: string }
         Returns: {
