@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
+import { MIN_EXTRACTED_CHARS } from "../_shared/constants.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -1116,41 +1117,9 @@ serve(async (req) => {
       }
     }
 
-    // Strategy 2.5: RESHARE LOOKUP - find quiz from original post being shared
-    // This ensures the resharer takes the SAME test as the original author
-    if (!existing && quotedPostId) {
-      console.log('[generate-qa] Reshare detected, looking for original post quiz:', quotedPostId);
-      
-      const { data: reshareMatch } = await supabase
-        .from('post_qa_questions')
-        .select('id, questions, content_hash, test_mode, owner_id, post_id')
-        .eq('post_id', quotedPostId)
-        .limit(1)
-        .maybeSingle();
-      
-      if (reshareMatch) {
-        console.log('[generate-qa] ✅ Found RESHARE quiz from original post:', reshareMatch.id);
-        
-        // Verify answers exist for this quiz
-        const { data: answersCheck } = await supabase
-          .from('post_qa_answers')
-          .select('id')
-          .eq('id', reshareMatch.id)
-          .maybeSingle();
-        
-        if (answersCheck) {
-          // Return the original quiz - resharer takes same test
-          return new Response(
-            JSON.stringify({ qaId: reshareMatch.id, questions: reshareMatch.questions }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        } else {
-          console.log('[generate-qa] Reshare quiz found but answers missing');
-        }
-      } else {
-        console.log('[generate-qa] No quiz found for quoted post, will generate new one');
-      }
-    }
+    // NOTE: The old "Strategy 2.5 — reshare shortcut" was removed on purpose.
+    // Chi ricondivide deve fare il test calcolato coi propri parametri (userWordCount,
+    // testMode, contenuto della fonte). Ci si affida alla cache normale via content_hash.
 
     // Validate cache
     if (existing && existing.content_hash === contentHash) {
