@@ -381,13 +381,17 @@ export const CognitiveNebulaCanvas = ({
                   e.stopPropagation();
                   if (clickable) onMacroClick?.(category);
                 }}
-                className="absolute text-[11px] whitespace-nowrap transition-all duration-200 disabled:cursor-default enabled:hover:scale-110 enabled:active:scale-95 enabled:cursor-pointer"
+                className="absolute whitespace-nowrap transition-all duration-200 disabled:cursor-default enabled:hover:scale-110 enabled:active:scale-95 enabled:cursor-pointer"
                 style={{
                   left: `${x}px`,
                   top: `${y}px`,
                   transform: `translate(${translateX}, -50%) ${isSelected ? 'scale(1.15)' : 'scale(1)'}`,
                   color,
-                  fontWeight: isSelected ? 800 : 600,
+                  fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+                  fontSize: 8.5,
+                  fontWeight: isSelected ? 700 : 600,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
                   opacity: !isActive ? 0.35 : isDimmed ? 0.45 : 1,
                   textShadow: '0 1px 3px rgba(0,0,0,0.85)',
                   pointerEvents: clickable ? 'auto' : 'none',
