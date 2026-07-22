@@ -12,7 +12,6 @@ import { ComposerModal } from "@/components/composer/ComposerModal";
 import { SimilarContentOverlay } from "@/components/feed/SimilarContentOverlay";
 import { Header } from "@/components/navigation/Header";
 import { PerfOverlay } from "@/components/debug/PerfOverlay";
-import { CGProvider } from "@/lib/comprehension-gate";
 import { CardLayoutProvider } from "@/contexts/CardLayoutContext";
 import { usePosts, Post } from "@/hooks/usePosts";
 import { useToast } from "@/hooks/use-toast";
@@ -749,9 +748,7 @@ export const Feed = () => {
 
 const FeedWithProvider = () => (
   <CardLayoutProvider>
-    <CGProvider>
-      <Feed />
-    </CGProvider>
+    <Feed />
   </CardLayoutProvider>
 );
 

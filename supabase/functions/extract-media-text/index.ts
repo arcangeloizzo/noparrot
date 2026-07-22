@@ -1,15 +1,17 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
+import { MIN_EXTRACTED_CHARS } from "../_shared/constants.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const MAX_VIDEO_DURATION_SEC = 180; // 3 minuti
+const MAX_VIDEO_DURATION_SEC = 180; // 3 minuti (limite tecnico)
 const WHISPER_MAX_SIZE = 25 * 1024 * 1024; // 25MB
-const MIN_TRANSCRIPT_CHARS = 50; // Soglia minima per trascrizioni valide (abbassata per video brevi)
-const MIN_OCR_CHARS = 80; // Soglia minima per OCR
+// Soglie allineate al gate: sotto MIN_EXTRACTED_CHARS il testo non è utilizzabile come fonte.
+const MIN_TRANSCRIPT_CHARS = MIN_EXTRACTED_CHARS;
+const MIN_OCR_CHARS = MIN_EXTRACTED_CHARS;
 
 // =====================================================
 // DEEPGRAM TRANSCRIPTION (supports up to 2GB via URL)

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { HeartIcon, MessageCircleIcon, BookmarkIcon, MoreHorizontal, EyeOff, Share2 } from "lucide-react";
 import { TrustBadge } from "@/components/ui/trust-badge";
-import { fetchTrustScore } from "@/lib/comprehension-gate";
+import { fetchTrustScore } from "@/lib/trustScore";
 import { cn } from "@/lib/utils";
 import { MockPost } from "@/data/mockData";
 import {

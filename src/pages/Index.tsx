@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { CGProvider } from "@/lib/comprehension-gate";
 import { OnboardingFlow } from "./OnboardingFlow";
 import { Feed } from "./Feed";
 import { AuthPage } from "@/components/auth/AuthPage";
@@ -10,12 +9,6 @@ import { cleanupStaleScrollLocks } from "@/lib/bodyScrollLock";
 import { checkForRecentCrash, clearBreadcrumbs, addBreadcrumb, clearPendingPublish, getPendingPublish, installSystemEventTrackers } from "@/lib/crashBreadcrumbs";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-// Stable policy object - prevents CGProvider re-renders
-const FEED_POLICY = {
-  minReadSeconds: 10,
-  minScrollRatio: 0.8,
-  passingRule: ">=2_of_3"
-} as const;
 
 const Index = () => {
   const { user, loading } = useAuth();
@@ -256,10 +249,10 @@ const Index = () => {
 
   // Autenticato → mostra feed
   return (
-    <CGProvider policy={FEED_POLICY}>
+    <>
       {/* <div className="p-10 text-white">FEED DISABLED</div> */}
       <Feed />
-    </CGProvider>
+    </>
   );
 };
 

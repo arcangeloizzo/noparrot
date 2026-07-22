@@ -1,85 +1,59 @@
+## Blindatura Comprehension Gate — 9 interventi
 
-# Redesign shell — Profilo / Messaggi / Cerca / Notifiche
+Task grosso: modifiche a DB (trigger), 3 Edge Functions, ~10 file frontend, e cancellazione codice morto. Prima di procedere confermo il piano perché una parte (blindatura DB + UI badge) è irreversibile su comportamento in produzione.
 
-Il feed, il reader e il gate NON vengono toccati. Tutto il resto del wrapper esterno delle quattro pagine viene riscritto secondo la grammatica descritta.
+### 1. BUG testMode (CommentsDrawer.tsx)
+- Sostituire `getTestModeWithSource(userWordCount)` con `getTestModeWithSource(postOriginalWordCount)`.
+- In `generateQA({...})` (sia branch URL che branch media OCR), passare come `userText` il testo del **post autore** (`getPostFullText(post)`) invece di `newComment`.
 
-## Fase 0 — Fondamenta comuni (una sola volta)
+### 2. Trigger DB su `public.comments`
+Migration con trigger `BEFORE INSERT`:
+- Se `NEW.passed_gate = true` e l'inserente non è l'autore del post e non esiste riga `post_gate_attempts(user_id=inserente, post_id=NEW.post_id, passed=true)` → forza `NEW.passed_gate = false`.
+- Function `SECURITY DEFINER`, `SET search_path = public`.
 
-**`index.html`**
-- Aggiungere il preconnect + il link a Google Fonts per **JetBrains Mono** (400/500/700). Anton è già caricato.
+### 3. Rimozione scorciatoia reshare (generate-qa/index.ts)
+Cancellare il blocco "Strategy 2.5: RESHARE LOOKUP" (righe ~1119-1153). Chi ricondivide genera un quiz nuovo dai propri parametri.
 
-**`src/index.css`**
-- Esporre come CSS var i colori dei territori riusando il mapping già in `src/config/categories.ts`:
-  `--t-cultura:#A78BFA; --t-scienza:#2AD2C9; --t-tecnologia:#0A7AFF; --t-ambiente:#22C55E; --t-benessere:#F472B6; --t-societa:#E41E52; --t-politica:#FFD464; --t-economia:#F97316;`
-  *(La spec chiede Scienza `#2AD2C9` e Economia `#F97316`: i valori dei filtri per il feed restano quelli di `categories.ts`; le var qui sono per la shell.)*
-- Nuove utility (una sola volta, condivise):
-  - `.shell-page` — fondo `var(--base)`, padding bottom nav, min-h dvh.
-  - `.shell-header` — sticky, gradiente `var(--base) → transparent`, `h1` in Anton uppercase 30px allineato a sinistra.
-  - `.shell-title` — Anton 30px uppercase, letter-spacing tight.
-  - `.mono-eyebrow` — mono 10px uppercase, `--txt-3`, letter-spacing .1em.
-  - `.pill-filter` / `.pill-filter[data-active="true"]` — 32px, radius 16px, ricetta glass che già vive in `.liquid-nav-item`.
-  - `.row` — margin lat. 22px, radius 18px, fondo `rgba(255,255,255,.035)`, bordo `rgba(255,255,255,.08)`, padding `14px 16px 14px 18px`; **posiziona la costola** come `::before` di 2px full-height con gradiente verso trasparente. Colore via CSS var `--rib` (default `rgba(255,255,255,.14)`).
-  - `.row[data-unread="true"]` — fondo `rgba(10,122,255,.09)`, bordo `rgba(10,122,255,.22)`, `--rib: var(--blue)` + glow.
-  - `.hairline` — 1px `rgba(255,255,255,.08)`.
-- `@media (prefers-reduced-motion)` — sopprime shimmer/rotazioni dove necessario.
+### 4. Costante 120 char unificata
+- Nuovo export in `src/lib/gate-utils.ts`: `export const MIN_EXTRACTED_CHARS = 120;`
+- `supabase/functions/_shared/constants.ts` (nuovo file): `export const MIN_EXTRACTED_CHARS = 120;` (Deno non condivide con src)
+- Sostituire i controlli `> 120` / `> 50` legati a `extracted_text` in: `CommentsDrawer.tsx`, `ComposerModal.tsx` (3 punti), `ImmersivePostCard.tsx`, `generate-qa/index.ts`.
+- `extract-media-text/index.ts`: allineare `MIN_OCR_CHARS` e `MIN_TRANSCRIPT_CHARS` alla stessa costante (**nota**: alzare `MIN_TRANSCRIPT_CHARS` da 50 a 120 può far fallire trascrizioni brevi che oggi passano — confermare).
 
-**Nuovo `src/lib/territory.ts`** (fonte unica)
-- `getTerritoryColor(name: string): string | undefined` — usa `normalizeCategory` + il mapping esistente, esposto anche come nome della var (`--t-cultura`).
-- `getTerritoryCssVar(name)` → stringa `var(--t-…)`.
+### 5. Concatenazione carousel
+In `generate-qa/index.ts` case `mediaId`: se il ref punta a un post con più media, caricare da `post_media` (join `media`) ordinato per `order_idx`, concatenare `extracted_text` con separatori, e valutare la soglia una sola volta. In `CommentsDrawer.tsx` cambiare `postMediaWithExtractedText` in `postExtractedText` (concatenato) e passare come qaSourceRef il primo media id + una flag lato server per "concat all".
 
-**Nuovo `src/components/shell/Row.tsx`**
-- Primitiva condivisa: `<Row rib="scienza"|"blue"|"neutral"|"gradient" unread? onClick>{icon, title, meta, right}</Row>`.
-- Usata identica da Diario, Messaggi (thread), Cerca (trend + persone), Notifiche.
+### 6. Limite 180s video
+- Già presente in `useMediaUpload.ts:186` (rigetto lato client) e `extract-media-text/index.ts` (rigetto lato server). Aggiungere copy chiaro nel toast client-side ("Limite tecnico: 3 minuti massimo per video"). VoiceRecorder gestisce audio, non video → non toccato.
 
-## Fase 1 — Messaggi (lift più contenuto)
+### 7. Codice morto
+- Muovere `fetchTrustScore` da `src/lib/comprehension-gate.tsx` a nuovo file `src/lib/trustScore.ts`.
+- Aggiornare import in `src/hooks/useTrustScore.ts` e `src/components/composer/EnhancedComposer.tsx`.
+- In `EnhancedComposer.tsx` sostituire `<GateButton>` con `<Button>` semplice (perde il pre-check policy, che comunque è già bypassato dal flusso reale del Comprehension Gate server-side).
+- In `src/pages/Index.tsx` e `src/pages/Feed.tsx`: rimuovere `<CGProvider>` wrapper e relativo import.
+- Delete: `src/lib/comprehension-gate.tsx`, `src/components/ui/gate-button.tsx`, `src/components/feed/CommentsSheet.tsx`.
 
-- **`src/pages/Messages.tsx`**: header Anton "MESSAGGI" a sinistra, icona nuova conversazione a destra (rimuove back+centrato). Campo ricerca in vetro h46 radius 23. Rail filtri **Tutti / Non letti · N / Gruppi**.
-- **`src/components/messages/ThreadList.tsx`**: usa `<Row>` con avatar 50px, costola blu+glow se non letta, anteprima singola riga con "Tu:" più tenue, ora in mono 9.5px, badge numerico blu a destra per non letti. Groups: due avatar 34px impilati in diagonale, nome "Nome, Nome". Indicatore online 13px con bordo 2.5px `var(--base)`.
-- `ThreadListSkeleton` ridimensionato a 50px.
+### 8. UI badge "HA LETTO" / "AUTORE"
+`CommentItem.tsx`:
+- Pastiglia consapevole 19px, `rgba(10,122,255,0.18)`, logo NoParrot + label mono 8.5px "HA LETTO".
+- Se `comment.author_id === post.author_id` (serve passare `postAuthorId` come prop dal drawer): pastiglia gialla mono "AUTORE".
+- Container commento consapevole: fondo `rgba(10,122,255,0.06)`, costola sinistra blu neon 3px con box-shadow glow.
+- Container commento autore: costola gialla `#FFD464`.
+`CommentsDrawer.tsx`:
+- Passa `postAuthorId={post.author.id}` ai CommentItem.
+- Header drawer: filtri pill mono "TUTTI" / "CONSAPEVOLI"; filtro applicato lato client su `comments.filter(c => c.passed_gate)`.
 
-## Fase 2 — Notifiche
+### 9. Scelta gate dentro il drawer
+`CommentsDrawer.tsx`:
+- Rimuovere `<Dialog>` (righe 645-872).
+- Aggiungere sopra il composer un pannello vetro visibile quando `showCommentTypeChoice`:
+  - Ordine invertito: **Leggi prima la fonte** (bottone glow blu, primario) SOPRA, **Partecipa subito** (bottone ghost) SOTTO.
+- Composer disabilitato (`opacity 40%`, textarea `disabled`) mentre `showCommentTypeChoice` è aperto e nessuna scelta è fatta.
+- Trigger: al focus della textarea, se `requiresGateChoice && !selectedCommentType`, mostra il pannello (già fa).
 
-**`src/pages/Notifications.tsx`** riscritto:
-- Header Anton "NOTIFICHE"; "Segna tutte ✓✓" in alto a destra, testo mono blue-l, non pill.
-- Rail filtri **Tutte / Menzioni / Comprensioni / Reazioni** (filtro client-side su `type`).
-- Raggruppamenti "Questa settimana / Precedenti" (semplificato) con `.mono-eyebrow` + hairline che occupa lo spazio residuo; "N nuove" a destra in blue-l.
-- Riga = `<Row>`. Avatar 34px con badge 20px del tipo in basso a destra (bordo 2px `var(--base)`).
-- Colori icona: comment blu, like #E41E52, mention #FFD464, reshare #4DA3FF, gate/challenge #2AD2C9.
-- Snippet come blocco annidato `rgba(255,255,255,.045)` r12 clamp 2; menzioni in blue-l via regex `@\w+`.
-- Non letto = costola blu + fondo blu tenue; pallino attuale rimosso.
+### Rischi / conferme richieste
+- **#4 threshold transcript**: alzare `MIN_TRANSCRIPT_CHARS` da 50 → 120 potrebbe scartare più trascrizioni. Confermi?
+- **#7 EnhancedComposer**: perdere `<GateButton>` significa perdere il timer/scroll policy pre-share. Ma il vero gate è già server-side via `runGateBeforeAction`. Confermo la sostituzione con `<Button>`.
+- **#8 postAuthorId**: cambio firma di `CommentItem` (`postAuthorId?: string`). OK?
 
-## Fase 3 — Cerca (la vera rifatta)
-
-**`src/pages/Search.tsx`** — nuovo layout di *scoperta*:
-- Header Anton "CERCA" + campo vetro placeholder "Cerca discussioni, persone, fonti".
-- Rail territori orizzontale scrollabile con pill mono + pallino colore pianeta; prima pill "Tutto".
-- Sezione **"Di cosa parla la community"**: righe di trend con numero d'ordine in Anton 22px `--txt-4`, titolo + meta mono + sparkline SVG 5 barrette colorate. Metrica = comprensioni (usa `useTrendingTopics` esistente, campo `unique_users` → rename etichetta).
-- Sezione **"Persone da seguire"**: usa `usePopularTopics`/query esistente sui profili; avatar 42px, meta mono con due territori dominanti e comprensioni, bottone "Segui" bianco su scuro (integra `useFollow`).
-- Sezione **"Territori inesplorati"**: bordo tratteggiato, elenca i pianeti dove l'utente ha 0 comprensioni (query cognitive density → complement). Copy come da spec. Le pill fanno navigate a `/search?t=cultura`.
-- **Fallback**: se trend vuoti, li nasconde e sale "Territori inesplorati". Zero stato "Torna più tardi".
-- Ricerca digitata → mantiene comportamento attuale di `SearchResults` senza toccarlo.
-
-## Fase 4 — Profilo
-
-**`src/pages/Profile.tsx`** header + hero + statistiche + pulse + nebulosa + diario:
-- Nome Anton 27px 2 righe uppercase, handle mono, bio corsivo `--txt-4`.
-- Avatar 74px con anello gradiente `cultura → scienza → blue` (nuovo componente locale `AvatarRingedHero`, oppure aggiornamento di `AvatarWithRing` con variante `hero`).
-- **Hero counter**: "N cose / COMPRESE" — Anton 62px con gradiente text da bianco al colore territorio dominante. Territorio dominante letto da `useCognitiveDensity` (top).
-- Tris statistiche in tre celle con hairline verticali (`territori / segui / ti seguono`).
-- **`src/components/profile/PulseCard.tsx`**: aggiorna al materiale reale — `.np-glass` + `.np-grain`, costola bicolore (gradiente due territori citati), eyebrow "PULSE DELLA SETTIMANA" con pallino verde luminoso, footer hairline con "Esplora correlati →" in mono blue-l.
-- **`src/components/profile/CompactNebula.tsx`** wrapper: header Anton 15px + pill fantasma "Espandi ⤢"; etichette pianeti mono 8.5px uppercase.
-- **`src/components/profile/DiaryEntry.tsx` + `DiaryFilters.tsx`**: pill mono; ogni voce = `<Row>` con icona tipizzata 34px quadrata r11 fondo 14% del colore tipo + label tipo mono colorata + titolo Inter 14.5px + meta mono; costola del colore territorio.
-
-## Non tocco
-- Feed (`ImmersivePostCard`, embeds, `FullTextModal`, `MediaMosaic`, `CommentsDrawer`).
-- Gate (`comprehension-gate*`, `QuizModal`, `SourceReaderGate`).
-- Composer.
-- `src/integrations/supabase/*`.
-
-## Verifica
-- `bunx tsgo --noEmit`.
-- Sanity a 360px sulle quattro pagine via Playwright headless (screenshot).
-- Nessuna regressione visiva sul feed (non tocco quei file).
-
-## Consegna finale
-Elenco dei file creati/modificati + esito typecheck.
+Confermi il piano e procedo con tutto in un'unica sequenza di commit? Alla fine chiudo con checklist punto per punto, file toccati e typecheck verde.

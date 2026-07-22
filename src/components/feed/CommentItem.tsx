@@ -41,6 +41,8 @@ interface CommentItemProps {
   isHighlighted?: boolean;
   postHasSource?: boolean;
   postHasLongText?: boolean;
+  /** Author id of the post the comment belongs to (used to show "AUTORE" badge) */
+  postAuthorId?: string;
   onMediaClick?: (media: any[], index: number) => void;
   getUserAvatar?: (avatarUrl: string | null | undefined, name: string | undefined, username?: string) => React.ReactNode;
   /** Determines which reaction table to use: 'post' for comment_reactions, 'focus' for focus_comment_reactions, 'media' for media_comment_reactions */
@@ -55,6 +57,7 @@ export const CommentItem = ({
   isHighlighted,
   postHasSource = false,
   postHasLongText = false,
+  postAuthorId,
   onMediaClick,
   getUserAvatar: externalGetUserAvatar,
   commentKind = 'post'
@@ -213,6 +216,19 @@ export const CommentItem = ({
   const indentAmount = comment.level > 0 ? 26 : 0;
   const isNested = comment.level > 0;
 
+  // Badges: author of the post + comment that passed the gate.
+  const isPostAuthor = !!postAuthorId && comment.author_id === postAuthorId;
+  const isAwareComment = (postHasSource || postHasLongText) && comment.passed_gate;
+
+  // Costola / rib color: gialla per l'autore, blu neon per il commento consapevole.
+  const ribColor = isPostAuthor ? '#FFD464' : (isAwareComment ? '#0A7AFF' : null);
+  const containerTint = isPostAuthor
+    ? 'rgba(255, 212, 100, 0.05)'
+    : (isAwareComment ? 'rgba(10, 122, 255, 0.06)' : 'rgba(255,255,255,0.045)');
+  const ribShadow = isAwareComment && !isPostAuthor
+    ? '0 0 12px rgba(10,122,255,0.55)'
+    : 'none';
+
   return (
     <div
       id={`comment-${comment.id}`}
@@ -229,7 +245,28 @@ export const CommentItem = ({
         "relative rounded-2xl transition-all duration-200",
         isNested ? "py-2 px-2.5 mb-2" : "py-2.5 px-3 mb-2.5"
       )}
-      style={{ background:'rgba(255,255,255,0.045)', boxShadow:'0 1px 0 rgba(255,255,255,0.06) inset' }}>
+      style={{
+        background: containerTint,
+        boxShadow: '0 1px 0 rgba(255,255,255,0.06) inset',
+        paddingLeft: ribColor ? (isNested ? '10px' : '12px') : undefined,
+      }}>
+        {/* Left rib (costola) for author / aware comment */}
+        {ribColor && (
+          <div
+            aria-hidden
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 6,
+              bottom: 6,
+              width: 3,
+              borderTopLeftRadius: 18,
+              borderBottomLeftRadius: 18,
+              background: ribColor,
+              boxShadow: ribShadow,
+            }}
+          />
+        )}
         {/* Neutral thread line for nested comments */}
         {isNested && (
           <div className="absolute -left-[14px] top-0 bottom-2 w-0.5 rounded-full" style={{ background:'rgba(255,255,255,0.10)' }} />
@@ -248,33 +285,37 @@ export const CommentItem = ({
                 {comment.author.full_name || getDisplayUsername(comment.author.username)}
               </span>
               
-              {/* Aware badge */}
-              {(postHasSource || postHasLongText) && comment.passed_gate && (
-                isTouchDevice() ? (
-                  // On touch devices: just show icon, no tooltip (avoids iOS Safari crash)
-                  <LogoVertical
-                    hideText={true}
-                    className="w-4 h-4"
-                  />
-                ) : (
-                  <TooltipProvider delayDuration={200}>
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <LogoVertical
-                          hideText={true}
-                          className="w-4 h-4"
-                        />
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="bg-[#1a2227] border-white/10">
-                        <p className="text-xs">
-                          {postHasSource
-                            ? 'Ha letto la fonte prima di commentare'
-                            : 'Ha riletto il post prima di commentare'}
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )
+              {/* Author pill */}
+              {isPostAuthor && (
+                <span
+                  style={{
+                    display: 'inline-flex', alignItems: 'center',
+                    height: 19, padding: '0 8px', borderRadius: 999,
+                    background: 'rgba(255, 212, 100, 0.18)',
+                    color: '#FFD464',
+                    fontFamily: 'var(--mono)', fontSize: 8.5, fontWeight: 700,
+                    letterSpacing: '0.10em', textTransform: 'uppercase',
+                  }}
+                >
+                  AUTORE
+                </span>
+              )}
+              {/* Aware pill: "HA LETTO" */}
+              {!isPostAuthor && isAwareComment && (
+                <span
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                    height: 19, padding: '0 8px', borderRadius: 999,
+                    background: 'rgba(10, 122, 255, 0.18)',
+                    color: '#7FB3FF',
+                    fontFamily: 'var(--mono)', fontSize: 8.5, fontWeight: 700,
+                    letterSpacing: '0.10em', textTransform: 'uppercase',
+                  }}
+                  title={postHasSource ? 'Ha letto la fonte prima di commentare' : 'Ha riletto il post prima di commentare'}
+                >
+                  <LogoVertical hideText={true} className="w-3 h-3" />
+                  HA LETTO
+                </span>
               )}
               
               <span className="text-[10px] uppercase" style={{ fontFamily:'var(--mono)', letterSpacing:'0.06em', color:'var(--txt-3)' }}>

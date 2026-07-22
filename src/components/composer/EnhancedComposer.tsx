@@ -3,9 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { GateButton } from "@/components/ui/gate-button";
 import { TrustBadge } from "@/components/ui/trust-badge";
-import { fetchTrustScore } from "@/lib/comprehension-gate";
+import { fetchTrustScore } from "@/lib/trustScore";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Plus, X, ExternalLink, Image as ImageIcon, Video } from "lucide-react";
@@ -574,24 +573,18 @@ export function EnhancedComposer({
                 )}
               </div>
 
-              {/* Gate Button */}
+              {/* Publish button (gate policy checks now handled server-side by Comprehension Gate) */}
               <div className="pt-4 border-t border-border/30">
-                <GateButton
-                  content={{
-                    id: "composer-guidelines",
-                    title: "Linee guida per la pubblicazione responsabile",
-                    text: "Contenuto delle linee guida di pubblicazione"
-                  }}
-                  onPassed={handleGatePassed}
-                  containerRef={readerRef}
+                <Button
+                  type="button"
+                  onClick={() => handleGatePassed({ passed: true })}
                   disabled={!text.trim() || isProcessing}
                   className="w-full"
                 >
                   {isProcessing ? "Pubblicazione..." : "Pubblica Post"}
-                </GateButton>
-                
+                </Button>
                 <p className="text-xs text-muted-foreground mt-2 text-center">
-                  Completa la lettura delle linee guida e supera il test per pubblicare
+                  Il Comprehension Gate viene applicato in fase di pubblicazione se necessario.
                 </p>
               </div>
             </div>

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { fetchTrustScore } from '@/lib/comprehension-gate';
+import { fetchTrustScore } from '@/lib/trustScore';
 
 interface TrustScore {
   band: 'ALTO' | 'MEDIO' | 'BASSO';

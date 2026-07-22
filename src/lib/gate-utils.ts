@@ -3,6 +3,14 @@
  */
 
 /**
+ * Soglia minima (in caratteri) del testo estratto (OCR o trascrizione) perché
+ * un media conti come "fonte cognitiva" per il Comprehension Gate.
+ * Costante unica condivisa lato client. La copia lato Deno vive in
+ * supabase/functions/_shared/constants.ts.
+ */
+export const MIN_EXTRACTED_CHARS = 120;
+
+/**
  * Conta le parole in un testo normalizzando gli spazi
  */
 export function getWordCount(text: string): number {

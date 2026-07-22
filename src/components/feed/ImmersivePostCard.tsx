@@ -103,7 +103,7 @@ import { generateQA, fetchArticlePreview } from "@/lib/ai-helpers";
 import { supabase } from "@/integrations/supabase/client";
 import { useCreateThread } from "@/hooks/useMessageThreads";
 import { useSendMessage } from "@/hooks/useMessages";
-import { getWordCount, getPostFullText, getTestModeWithSource, getQuestionCountWithoutSource, getQuestionCountForIntentReshare } from "@/lib/gate-utils";
+import { getWordCount, getPostFullText, getTestModeWithSource, getQuestionCountWithoutSource, getQuestionCountForIntentReshare, MIN_EXTRACTED_CHARS } from "@/lib/gate-utils";
 import { getMediaLayout, countPostWords, normalizeMedia, calculateMediaLayout, generateAmbientUrl, getAvatarImageUrl, getCardImageUrl, extractYoutubeVideoId } from "@/lib/mediaUtils";
 import { useDoubleTap } from "@/hooks/useDoubleTap";
 import { useReshareContextStack } from "@/hooks/useReshareContextStack";
@@ -777,14 +777,15 @@ const ImmersivePostCardInner = ({
     // [FIX] 2. Check for Media OCR/Transcript
     // If no editorial, check if media has extracted text (e.g. OCR)
     if (gateSourceType === 'text' && post.media && post.media.length > 0) {
-      // Find media with significant extracted text
-      const mediaWithText = post.media.find((m: any) =>
+      // Concatenate all extracted text (ordered by order_idx if available) and check aggregate
+      const withText = post.media.filter((m: any) =>
         m.extracted_status === 'done' &&
-        m.extracted_text &&
-        m.extracted_text.length > 120
+        m.extracted_text
       );
-
-      if (mediaWithText) {
+      withText.sort((a: any, b: any) => (a.order_idx ?? 0) - (b.order_idx ?? 0));
+      const totalChars = withText.reduce((n: number, m: any) => n + (m.extracted_text?.length || 0), 0);
+      if (withText.length > 0 && totalChars >= MIN_EXTRACTED_CHARS) {
+        const mediaWithText = withText[0];
         userText = mediaWithText.extracted_text; // Override text for QA generation
         gateSourceType = 'ocr';
         qaSourceRef = {

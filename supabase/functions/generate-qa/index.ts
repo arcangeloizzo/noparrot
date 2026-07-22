@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
+import { MIN_EXTRACTED_CHARS } from "../_shared/constants.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -927,25 +928,71 @@ serve(async (req) => {
         }
         
         case 'mediaId': {
-          // Fetch extracted text from media table
-          const { data: media } = await supabase
+          // Fetch extracted text from media table. If the media belongs to a post
+          // with multiple media (carousel), concatenate all extracted_text ordered
+          // by order_idx and evaluate the aggregate against MIN_EXTRACTED_CHARS.
+          const { data: primaryMedia } = await supabase
             .from('media')
-            .select('extracted_text, extracted_status, extracted_kind, extracted_meta')
+            .select('id, extracted_text, extracted_status, extracted_kind, extracted_meta')
             .eq('id', effectiveQaSourceRef.id)
             .maybeSingle();
-          
-          // [NEW] Handle different test modes for media
-          const hasExtractedText = media?.extracted_status === 'done' && 
-                                   media.extracted_text && 
-                                   media.extracted_text.length > 120;
-          
+
+          let aggregatedText = '';
+          let aggregatedKind = primaryMedia?.extracted_kind || 'ocr';
+          let hasPending = primaryMedia?.extracted_status === 'pending';
+
+          // Try to find sibling media in the same post (carousel)
+          const { data: carouselRows } = await supabase
+            .from('post_media')
+            .select('order_idx, post_id, media:media_id (id, extracted_text, extracted_status, extracted_kind)')
+            .in('post_id',
+              (
+                await supabase
+                  .from('post_media')
+                  .select('post_id')
+                  .eq('media_id', effectiveQaSourceRef.id)
+              ).data?.map((r: any) => r.post_id) || []
+            )
+            .order('order_idx', { ascending: true });
+
+          if (carouselRows && carouselRows.length > 0) {
+            const parts: string[] = [];
+            for (const row of carouselRows as any[]) {
+              const m = row.media;
+              if (!m) continue;
+              if (m.extracted_status === 'pending') hasPending = true;
+              if (m.extracted_status === 'done' && m.extracted_text) {
+                parts.push(m.extracted_text);
+                if (!aggregatedKind || aggregatedKind === 'ocr') {
+                  aggregatedKind = m.extracted_kind || aggregatedKind;
+                }
+              }
+            }
+            aggregatedText = parts.join('\n\n---\n\n');
+          }
+
+          // Fallback: use only the primary media if we could not find siblings
+          if (!aggregatedText && primaryMedia?.extracted_status === 'done' && primaryMedia.extracted_text) {
+            aggregatedText = primaryMedia.extracted_text;
+          }
+
+          const hasExtractedText = aggregatedText.length >= MIN_EXTRACTED_CHARS;
+
           console.log('[generate-qa] Media gate check:', {
             mediaId: effectiveQaSourceRef.id,
             hasExtractedText,
-            extractedLength: media?.extracted_text?.length || 0,
+            aggregatedLength: aggregatedText.length,
+            hasPending,
             testMode,
             userTextLength: userText?.length || 0
           });
+
+          // Shadow the previous `media` var for downstream branches
+          const media = {
+            extracted_text: aggregatedText,
+            extracted_status: hasExtractedText ? 'done' : (hasPending ? 'pending' : 'failed'),
+            extracted_kind: aggregatedKind,
+          };
           
           if (testMode === 'USER_ONLY') {
             // USER_ONLY: Use only userText (comment) for quiz
@@ -978,7 +1025,7 @@ serve(async (req) => {
               serverSideContent = media.extracted_text;
               contentSource = `media_${media.extracted_kind}`;
               console.log(`[generate-qa] ✅ Media text: ${serverSideContent.length} chars via ${media.extracted_kind}`);
-            } else if (media?.extracted_status === 'pending') {
+            } else if (hasPending) {
               // Estrazione ancora in corso - client deve riprovare
               console.log('[generate-qa] ⏳ Media extraction still pending');
               return new Response(
@@ -1116,41 +1163,9 @@ serve(async (req) => {
       }
     }
 
-    // Strategy 2.5: RESHARE LOOKUP - find quiz from original post being shared
-    // This ensures the resharer takes the SAME test as the original author
-    if (!existing && quotedPostId) {
-      console.log('[generate-qa] Reshare detected, looking for original post quiz:', quotedPostId);
-      
-      const { data: reshareMatch } = await supabase
-        .from('post_qa_questions')
-        .select('id, questions, content_hash, test_mode, owner_id, post_id')
-        .eq('post_id', quotedPostId)
-        .limit(1)
-        .maybeSingle();
-      
-      if (reshareMatch) {
-        console.log('[generate-qa] ✅ Found RESHARE quiz from original post:', reshareMatch.id);
-        
-        // Verify answers exist for this quiz
-        const { data: answersCheck } = await supabase
-          .from('post_qa_answers')
-          .select('id')
-          .eq('id', reshareMatch.id)
-          .maybeSingle();
-        
-        if (answersCheck) {
-          // Return the original quiz - resharer takes same test
-          return new Response(
-            JSON.stringify({ qaId: reshareMatch.id, questions: reshareMatch.questions }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        } else {
-          console.log('[generate-qa] Reshare quiz found but answers missing');
-        }
-      } else {
-        console.log('[generate-qa] No quiz found for quoted post, will generate new one');
-      }
-    }
+    // NOTE: The old "Strategy 2.5 — reshare shortcut" was removed on purpose.
+    // Chi ricondivide deve fare il test calcolato coi propri parametri (userWordCount,
+    // testMode, contenuto della fonte). Ci si affida alla cache normale via content_hash.
 
     // Validate cache
     if (existing && existing.content_hash === contentHash) {
