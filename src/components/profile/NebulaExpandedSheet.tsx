@@ -122,37 +122,84 @@ export const NebulaExpandedSheet = ({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent 
-        side="bottom" 
-        className="bg-[#0A0F14] border-t border-white/10 rounded-t-3xl h-[85vh] px-4 pb-8 pt-4 overflow-y-auto"
+      <SheetContent
+        side="bottom"
+        className="h-[85vh] px-4 pb-8 pt-3 overflow-y-auto border-0"
         hideClose
+        overlayClassName="bg-black/70"
+        style={{
+          background: '#0E1522',
+          borderTopLeftRadius: 28,
+          borderTopRightRadius: 28,
+          borderTop: '1px solid rgba(255,255,255,0.08)',
+        }}
       >
-        {/* Urban texture background */}
-        <div 
-          className="absolute inset-0 pointer-events-none opacity-[0.06] rounded-t-3xl"
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
-            backgroundSize: '150px 150px',
-          }}
-        />
+        {/* Drag handle */}
+        <div className="flex justify-center mb-3 relative z-10">
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            aria-label="Chiudi"
+            className="p-1 -m-1"
+          >
+            <span
+              aria-hidden
+              style={{
+                display: 'block',
+                width: 40,
+                height: 4,
+                borderRadius: 999,
+                background: 'rgba(255,255,255,0.22)',
+              }}
+            />
+          </button>
+        </div>
 
-        <SheetHeader className="mb-4 relative z-10">
-          <div className="flex items-center justify-between">
-            <SheetTitle className="text-foreground text-lg font-semibold">Nebulosa Cognitiva</SheetTitle>
-            <button 
-              onClick={() => onOpenChange(false)}
-              className="p-2 rounded-full hover:bg-white/10 transition-colors"
+        <SheetHeader className="mb-4 relative z-10 space-y-1 text-left">
+          <div className="flex items-start justify-between gap-3">
+            <SheetTitle
+              className="text-left"
+              style={{
+                fontFamily: 'var(--display)',
+                fontSize: 22,
+                fontWeight: 400,
+                letterSpacing: '0.02em',
+                textTransform: 'uppercase',
+                color: 'rgba(255,255,255,0.92)',
+                lineHeight: 1.05,
+              }}
             >
-              <ChevronDown className="w-5 h-5 text-muted-foreground" />
+              Nebulosa Cognitiva
+            </SheetTitle>
+            <button
+              onClick={() => onOpenChange(false)}
+              className="p-2 -m-2 rounded-full hover:bg-white/10 transition-colors shrink-0"
+              aria-label="Chiudi"
+            >
+              <ChevronDown className="w-5 h-5" style={{ color: 'rgba(255,255,255,0.52)' }} />
             </button>
           </div>
-          <p className="text-sm text-muted-foreground text-left">
+          <p
+            style={{
+              fontFamily: 'var(--font-inter)',
+              fontSize: 13,
+              color: 'rgba(255,255,255,0.52)',
+              lineHeight: 1.4,
+            }}
+          >
             La mappa dei tuoi percorsi di comprensione
           </p>
-          <p className="text-xs text-muted-foreground/70 text-left mt-1">
+          <p
+            style={{
+              fontFamily: 'var(--font-inter)',
+              fontSize: 13,
+              color: 'rgba(255,255,255,0.32)',
+              lineHeight: 1.4,
+            }}
+          >
             {zoomedMacro
-              ? "Tap fuori dal pianeta o su X per tornare indietro"
-              : "Tap su un pianeta per esplorare i sotto-temi"}
+              ? 'Tap fuori dal pianeta o su X per tornare indietro'
+              : 'Tap su un pianeta per esplorare i sotto-temi'}
           </p>
         </SheetHeader>
 
@@ -199,57 +246,138 @@ export const NebulaExpandedSheet = ({
           </div>
 
           {!zoomedMacro && sortedRows.length > 0 && (
-            <div className="space-y-3">
-              <h4 className="text-sm font-semibold text-foreground/80 uppercase tracking-wider">
-                Dettaglio per area
-              </h4>
-              {sortedRows.map((row) => (
-                <div
-                  key={row.macro_category}
-                  className="rounded-xl border border-white/10 bg-white/[0.03] p-3 cursor-pointer hover:bg-white/[0.06] transition-colors"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => handleMacroClick(row.macro_category)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      handleMacroClick(row.macro_category);
-                    }
+            <div className="space-y-2.5">
+              {/* Eyebrow + hairline */}
+              <div className="flex items-center gap-3">
+                <span
+                  style={{
+                    fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+                    fontSize: 10,
+                    letterSpacing: '0.16em',
+                    textTransform: 'uppercase',
+                    color: 'rgba(255,255,255,0.52)',
+                    whiteSpace: 'nowrap',
                   }}
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
+                  Dettaglio per area
+                </span>
+                <span
+                  aria-hidden
+                  style={{
+                    flex: 1,
+                    height: 1,
+                    background: 'rgba(255,255,255,0.08)',
+                  }}
+                />
+              </div>
+
+              {sortedRows.map((row) => {
+                const color = CATEGORY_COLORS[row.macro_category] ?? '#888888';
+                return (
+                  <div
+                    key={row.macro_category}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleMacroClick(row.macro_category)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleMacroClick(row.macro_category);
+                      }
+                    }}
+                    className="relative cursor-pointer transition-colors"
+                    style={{
+                      background: 'rgba(255,255,255,0.035)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      borderRadius: 18,
+                      padding: '12px 14px 12px 16px',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {/* Costola di territorio */}
+                    <span
+                      aria-hidden
+                      style={{
+                        position: 'absolute',
+                        left: 0,
+                        top: 0,
+                        bottom: 0,
+                        width: 3,
+                        background: color,
+                      }}
+                    />
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span
+                          style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: 999,
+                            background: color,
+                          }}
+                        />
+                        <span
+                          style={{
+                            fontFamily: 'var(--font-inter)',
+                            fontSize: 15,
+                            fontWeight: 600,
+                            color: 'rgba(255,255,255,0.92)',
+                          }}
+                        >
+                          {row.macro_category}
+                        </span>
+                      </div>
                       <span
-                        className="w-2.5 h-2.5 rounded-full"
-                        style={{ backgroundColor: CATEGORY_COLORS[row.macro_category] }}
-                      />
-                      <span className="text-sm font-semibold text-foreground">
-                        {row.macro_category}
+                        style={{
+                          fontFamily: 'var(--font-inter)',
+                          fontSize: 15,
+                          fontWeight: 700,
+                          color: 'rgba(255,255,255,0.92)',
+                          fontVariantNumeric: 'tabular-nums',
+                        }}
+                      >
+                        {row.density.toFixed(1)}
                       </span>
                     </div>
-                    <span className="text-sm text-muted-foreground tabular-nums">
-                      {row.density.toFixed(1)}
-                    </span>
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 mt-2">
+                      {Object.entries(row.action_breakdown)
+                        .sort(([, a], [, b]) => Number(b) - Number(a))
+                        .map(([action, count]) => (
+                          <div
+                            key={action}
+                            className="flex items-center justify-between gap-2"
+                          >
+                            <span
+                              style={{
+                                fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+                                fontSize: 9.5,
+                                letterSpacing: '0.08em',
+                                textTransform: 'uppercase',
+                                color: 'rgba(255,255,255,0.32)',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {ACTION_LABELS[action] ?? action}
+                            </span>
+                            <span
+                              style={{
+                                fontFamily: 'var(--font-inter)',
+                                fontSize: 14,
+                                fontWeight: 600,
+                                color: 'rgba(255,255,255,0.92)',
+                                fontVariantNumeric: 'tabular-nums',
+                              }}
+                            >
+                              {count}
+                            </span>
+                          </div>
+                        ))}
+                    </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-                    {Object.entries(row.action_breakdown)
-                      .sort(([, a], [, b]) => Number(b) - Number(a))
-                      .map(([action, count]) => (
-                        <div
-                          key={action}
-                          className="flex items-center justify-between text-xs text-muted-foreground"
-                        >
-                          <span className="truncate">
-                            {ACTION_LABELS[action] ?? action}
-                          </span>
-                          <span className="tabular-nums text-foreground/70 ml-2">
-                            {count}
-                          </span>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
