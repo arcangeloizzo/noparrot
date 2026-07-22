@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CognitiveNebulaCanvas } from "./CognitiveNebulaCanvas";
@@ -10,6 +10,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import type { CognitiveDensityData } from "@/hooks/useCognitiveDensity";
+import { useCognitiveDensity } from "@/hooks/useCognitiveDensity";
 import { CATEGORY_COLORS } from "@/config/categories";
 import { useUserTopicsByMacro } from "@/hooks/useUserTopicsByMacro";
 import type { TopicData } from "@/hooks/useUserTopicsByMacro";
@@ -59,13 +60,45 @@ export const NebulaExpandedSheet = ({
   onTopicSelect,
   userId,
 }: NebulaExpandedSheetProps) => {
-  const structured = isStructured(cognitiveDensity) ? cognitiveDensity : null;
+  const { user } = useAuth();
+  const effectiveUserId = userId ?? user?.id ?? null;
+
+  // Timeframe filter: 'all' | '30d' | '7d'
+  type Timeframe = "all" | "30d" | "7d";
+  const [timeframe, setTimeframe] = useState<Timeframe>("all");
+
+  const { since, until, prevSince, prevUntil } = useMemo(() => {
+    const now = new Date();
+    if (timeframe === "all") {
+      return { since: null, until: null, prevSince: null, prevUntil: null };
+    }
+    const days = timeframe === "7d" ? 7 : 30;
+    const u = now;
+    const s = new Date(now.getTime() - days * 24 * 3600 * 1000);
+    const pu = s;
+    const ps = new Date(s.getTime() - days * 24 * 3600 * 1000);
+    return { since: s, until: u, prevSince: ps, prevUntil: pu };
+  }, [timeframe]);
+
+  // Live data for current timeframe (falls back to prop if all-time)
+  const liveCurrent = useCognitiveDensity(effectiveUserId ?? undefined, {
+    since,
+    until,
+  });
+  const livePrev = useCognitiveDensity(effectiveUserId ?? undefined, {
+    since: prevSince,
+    until: prevUntil,
+  });
+
+  const activeData: CognitiveDensityData | Record<string, number> =
+    timeframe === "all" ? cognitiveDensity : liveCurrent.data;
+
+  const structured = isStructured(activeData) ? activeData : null;
   const sortedRows = structured
     ? [...structured.rows].filter((r) => r.density > 0).sort((a, b) => b.density - a.density)
     : [];
 
-  const { user } = useAuth();
-  const effectiveUserId = userId ?? user?.id ?? null;
+  const prevByMacro: Record<string, number> = livePrev.data.byMacroFlat ?? {};
 
   // Phase 4.6b — state zoom-in
   const [zoomedMacro, setZoomedMacro] = useState<string | null>(null);
@@ -202,6 +235,45 @@ export const NebulaExpandedSheet = ({
           </p>
         </SheetHeader>
 
+        {/* Timeframe pills */}
+        {!zoomedMacro && (
+          <div className="relative z-10 flex items-center gap-2 mb-4">
+            {([
+              { id: "all", label: "TUTTO" },
+              { id: "30d", label: "30 GIORNI" },
+              { id: "7d", label: "7 GIORNI" },
+            ] as { id: Timeframe; label: string }[]).map((p) => {
+              const active = timeframe === p.id;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setTimeframe(p.id)}
+                  style={{
+                    fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+                    fontSize: 10,
+                    letterSpacing: "0.14em",
+                    textTransform: "uppercase",
+                    padding: "6px 12px",
+                    borderRadius: 999,
+                    border: active
+                      ? "1px solid rgba(255,255,255,0.28)"
+                      : "1px solid rgba(255,255,255,0.10)",
+                    background: active
+                      ? "rgba(255,255,255,0.10)"
+                      : "rgba(255,255,255,0.03)",
+                    color: active
+                      ? "rgba(255,255,255,0.92)"
+                      : "rgba(255,255,255,0.52)",
+                  }}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         <div className="relative z-10 flex flex-col gap-6">
           <div className="min-h-[400px] flex items-center justify-center">
             <AnimatePresence mode="wait">
@@ -215,7 +287,7 @@ export const NebulaExpandedSheet = ({
                   transition={{ duration: 0.4 }}
                 >
                   <CognitiveNebulaCanvas
-                    data={cognitiveDensity}
+                    data={activeData}
                     showCounts
                     selectedMacro={selectedMacro}
                     onMacroClick={handlePlanetTap}
@@ -243,6 +315,41 @@ export const NebulaExpandedSheet = ({
               )}
             </AnimatePresence>
           </div>
+
+          {!zoomedMacro && sortedRows.length === 0 && timeframe !== "all" && (
+            <div
+              style={{
+                textAlign: "center",
+                padding: "24px 16px",
+                borderRadius: 18,
+                border: "1px dashed rgba(255,255,255,0.10)",
+                background: "rgba(255,255,255,0.02)",
+              }}
+            >
+              <p
+                style={{
+                  fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+                  fontSize: 11,
+                  letterSpacing: "0.12em",
+                  textTransform: "uppercase",
+                  color: "rgba(255,255,255,0.52)",
+                  marginBottom: 6,
+                }}
+              >
+                Nessuna attività
+              </p>
+              <p
+                style={{
+                  fontFamily: "var(--font-inter)",
+                  fontSize: 13,
+                  color: "rgba(255,255,255,0.38)",
+                }}
+              >
+                Non hai contribuito in questo periodo. Prova un intervallo più
+                ampio.
+              </p>
+            </div>
+          )}
 
           {!zoomedMacro && sortedRows.length > 0 && (
             <div className="space-y-2.5">
@@ -272,6 +379,8 @@ export const NebulaExpandedSheet = ({
 
               {sortedRows.map((row) => {
                 const color = CATEGORY_COLORS[row.macro_category] ?? '#888888';
+                const prev = prevByMacro[row.macro_category] ?? 0;
+                const delta = timeframe === "all" ? null : row.density - prev;
                 return (
                   <div
                     key={row.macro_category}
@@ -326,17 +435,39 @@ export const NebulaExpandedSheet = ({
                           {row.macro_category}
                         </span>
                       </div>
-                      <span
-                        style={{
-                          fontFamily: 'var(--font-inter)',
-                          fontSize: 15,
-                          fontWeight: 700,
-                          color: 'rgba(255,255,255,0.92)',
-                          fontVariantNumeric: 'tabular-nums',
-                        }}
-                      >
-                        {row.density.toFixed(1)}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {delta !== null && Math.abs(delta) >= 0.05 && (
+                          <span
+                            style={{
+                              fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+                              fontSize: 10,
+                              letterSpacing: '0.08em',
+                              padding: '2px 6px',
+                              borderRadius: 6,
+                              background:
+                                delta > 0
+                                  ? 'rgba(20,184,166,0.14)'
+                                  : 'rgba(255,255,255,0.06)',
+                              color: delta > 0 ? '#5EEAD4' : 'rgba(255,255,255,0.5)',
+                              fontVariantNumeric: 'tabular-nums',
+                            }}
+                          >
+                            {delta > 0 ? '+' : ''}
+                            {delta.toFixed(1)}
+                          </span>
+                        )}
+                        <span
+                          style={{
+                            fontFamily: 'var(--font-inter)',
+                            fontSize: 15,
+                            fontWeight: 700,
+                            color: 'rgba(255,255,255,0.92)',
+                            fontVariantNumeric: 'tabular-nums',
+                          }}
+                        >
+                          {row.density.toFixed(1)}
+                        </span>
+                      </div>
                     </div>
                     <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 mt-2">
                       {Object.entries(row.action_breakdown)

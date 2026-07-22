@@ -18,7 +18,9 @@ import { useCognitiveDensity } from "@/hooks/useCognitiveDensity";
 import { useNebulaFilter } from "@/hooks/useNebulaFilter";
 import { DiarioFilterChip } from "@/components/profile/DiarioFilterChip";
 import { normalizeCategory, CATEGORY_COLORS } from "@/config/categories";
-import { Settings, Bookmark } from "lucide-react";
+import { Settings, Bookmark, Share2 } from "lucide-react";
+import { generateNebulaShareImage } from "@/lib/nebulaShareImage";
+import { useToast } from "@/hooks/use-toast";
 
 export const Profile = () => {
   const { user } = useAuth();
@@ -27,6 +29,7 @@ export const Profile = () => {
   const [diaryFilter, setDiaryFilter] = useState<DiaryFilterType>('all');
   const [showSettings, setShowSettings] = useState(false);
   const [showNebulaExpanded, setShowNebulaExpanded] = useState(false);
+  const { toast } = useToast();
 
   // Connections Sheet State
   const [showConnections, setShowConnections] = useState(false);
@@ -285,6 +288,43 @@ export const Profile = () => {
               aria-label="Contenuti salvati"
             >
               <Bookmark className="w-5 h-5 text-muted-foreground" />
+            </button>
+            <button
+              onClick={async () => {
+                try {
+                  const blob = await generateNebulaShareImage({
+                    displayName: profile?.full_name || profile?.username || 'NoParrot',
+                    handle: profile?.username || null,
+                    comprehensionCount: summary?.comprehension_count ?? 0,
+                    byMacro: cognitiveDensity?.byMacroFlat ?? {},
+                  });
+                  const file = new File([blob], 'nebulosa.png', { type: 'image/png' });
+                  const shareUrl = `${window.location.origin}/profile/${user?.id ?? ''}`;
+                  const nav: any = navigator;
+                  if (nav.canShare?.({ files: [file] })) {
+                    await nav.share({
+                      files: [file],
+                      title: 'La mia Nebulosa Cognitiva',
+                      text: 'Scopri la mia mappa di comprensione su NoParrot',
+                      url: shareUrl,
+                    });
+                  } else {
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = 'nebulosa.png';
+                    a.click();
+                    URL.revokeObjectURL(a.href);
+                    toast({ title: 'Immagine scaricata' });
+                  }
+                } catch (e) {
+                  console.error(e);
+                  toast({ title: 'Condivisione non riuscita' });
+                }
+              }}
+              className="flex-shrink-0 p-2.5 rounded-full bg-secondary border border-border hover:border-border/50 transition-colors"
+              aria-label="Condividi la nebulosa"
+            >
+              <Share2 className="w-5 h-5 text-muted-foreground" />
             </button>
             <button
               onClick={() => setShowSettings(true)}

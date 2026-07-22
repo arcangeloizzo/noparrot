@@ -2802,6 +2802,8 @@ export type Database = {
         }[]
       }
       get_profile_summary: { Args: { target_user_id: string }; Returns: Json }
+      get_public_post: { Args: { p_id: string }; Returns: Json }
+      get_public_profile_summary: { Args: { p_user_id: string }; Returns: Json }
       get_share_counts: {
         Args: { shared_urls: string[] }
         Returns: {
@@ -2830,6 +2832,14 @@ export type Database = {
       }
       get_user_cognitive_density_fresh: {
         Args: { p_user_id: string }
+        Returns: {
+          action_breakdown: Json
+          density: number
+          macro_category: string
+        }[]
+      }
+      get_user_cognitive_density_timeframe: {
+        Args: { p_since: string; p_until: string; p_user_id: string }
         Returns: {
           action_breakdown: Json
           density: number

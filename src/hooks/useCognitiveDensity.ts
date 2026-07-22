@@ -25,26 +25,40 @@ const EMPTY: CognitiveDensityData = {
 
 export function useCognitiveDensity(
     userId?: string, 
-    options?: { forceRefresh?: boolean }
+    options?: { forceRefresh?: boolean; since?: Date | null; until?: Date | null }
 ) {
     const { user } = useAuth();
     const targetUserId = userId || user?.id;
 
     // Use fresh RPC only if explicitly requested via options
     const forceRefresh = options?.forceRefresh ?? false;
+    const since = options?.since ?? null;
+    const until = options?.until ?? null;
+    const useTimeframe = !!(since && until);
 
     const { data, isLoading } = useQuery<CognitiveDensityData>({
-        queryKey: ["cognitive-density-derived", targetUserId, forceRefresh],
+        queryKey: [
+            "cognitive-density-derived",
+            targetUserId,
+            forceRefresh,
+            useTimeframe ? since!.toISOString() : null,
+            useTimeframe ? until!.toISOString() : null,
+        ],
         queryFn: async () => {
             if (!targetUserId) return EMPTY;
 
-            const rpcName = forceRefresh
-                ? "get_user_cognitive_density_fresh"
-                : "get_user_cognitive_density";
-
-            const { data: rpcData, error } = await supabase.rpc(rpcName, {
-                p_user_id: targetUserId,
-            });
+            const { data: rpcData, error } = useTimeframe
+                ? await (supabase as any).rpc("get_user_cognitive_density_timeframe", {
+                      p_user_id: targetUserId,
+                      p_since: since!.toISOString(),
+                      p_until: until!.toISOString(),
+                  })
+                : await supabase.rpc(
+                      forceRefresh
+                          ? "get_user_cognitive_density_fresh"
+                          : "get_user_cognitive_density",
+                      { p_user_id: targetUserId }
+                  );
 
             if (error) {
                 console.error("[useCognitiveDensity] RPC error:", error);
