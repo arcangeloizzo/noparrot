@@ -1,5 +1,3 @@
-import { cn } from "@/lib/utils";
-
 export type DiaryFilterType = 'all' | 'original' | 'reshared' | 'gated';
 
 interface DiaryFiltersProps {
@@ -7,28 +5,32 @@ interface DiaryFiltersProps {
   onFilterChange: (filter: DiaryFilterType) => void;
 }
 
-const filters: { id: DiaryFilterType; label: string }[] = [
+const FILTERS: { id: DiaryFilterType; label: string }[] = [
   { id: 'all', label: 'Tutto' },
   { id: 'original', label: 'Originali' },
   { id: 'reshared', label: 'Ricondivisi' },
   { id: 'gated', label: 'Percorsi' },
 ];
 
+/**
+ * Filtri del Diario Cognitivo — pillole mono uppercase.
+ * Aderisce alla grammatica `.pill-filter` della shell (index.css).
+ */
 export const DiaryFilters = ({ activeFilter, onFilterChange }: DiaryFiltersProps) => {
   return (
-    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-      {filters.map((filter) => (
+    <div
+      className="flex gap-2 overflow-x-auto pb-2"
+      style={{ scrollbarWidth: "none" }}
+    >
+      {FILTERS.map((f) => (
         <button
-          key={filter.id}
-          onClick={() => onFilterChange(filter.id)}
-          className={cn(
-            "px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200",
-            activeFilter === filter.id
-              ? "bg-primary text-primary-foreground"
-              : "bg-secondary text-muted-foreground hover:text-foreground hover:bg-muted"
-          )}
+          key={f.id}
+          type="button"
+          onClick={() => onFilterChange(f.id)}
+          className="pill-filter"
+          data-active={activeFilter === f.id}
         >
-          {filter.label}
+          {f.label}
         </button>
       ))}
     </div>
