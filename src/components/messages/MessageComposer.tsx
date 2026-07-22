@@ -28,45 +28,34 @@ export const MessageComposer = ({ threadId, onSendWithoutThread }: MessageCompos
   const sendMessage = useSendMessage();
   const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading } = useMediaUpload();
 
-  // Debounce content per rilevamento URL (500ms)
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedContent(content);
-    }, 500);
-    return () => clearTimeout(timer);
+    const t = setTimeout(() => setDebouncedContent(content), 500);
+    return () => clearTimeout(t);
   }, [content]);
+  useMemo(() => extractFirstUrl(debouncedContent), [debouncedContent]);
 
-  // Estrai URL solo da contenuto debounced
-  const linkUrl = useMemo(() => extractFirstUrl(debouncedContent), [debouncedContent]);
-
-  const handleMediaUpload = useCallback(async (type: 'image' | 'video', capture = false) => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = type === 'image' ? 'image/*' : 'video/*';
-    if (capture) {
-      input.capture = 'environment';
-    }
+  const handleMediaUpload = useCallback(async (type: "image" | "video", capture = false) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = type === "image" ? "image/*" : "video/*";
+    if (capture) input.capture = "environment";
     input.multiple = !capture;
     input.onchange = async (e: any) => {
       const files = Array.from(e.target.files || []) as File[];
-      if (files.length > 0) {
-        await uploadMedia(files, type);
-      }
+      if (files.length > 0) await uploadMedia(files, type);
     };
     input.click();
   }, [uploadMedia]);
 
-  // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = "auto";
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 100)}px`;
     }
   }, [content]);
 
   const handleSend = useCallback(async () => {
     if ((!content.trim() && uploadedMedia.length === 0) || isProcessing || isUploading) return;
-
     haptics.light();
     const currentLinkUrl = extractFirstUrl(content);
 
@@ -81,14 +70,9 @@ export const MessageComposer = ({ threadId, onSendWithoutThread }: MessageCompos
             threadId,
             content: content.trim(),
             linkUrl: currentLinkUrl || undefined,
-            mediaIds: uploadedMedia.map(m => m.id)
+            mediaIds: uploadedMedia.map(m => m.id),
           },
-          {
-            onSuccess: () => {
-              setContent("");
-              clearMedia();
-            }
-          }
+          { onSuccess: () => { setContent(""); clearMedia(); } }
         );
       }
     };
@@ -97,12 +81,10 @@ export const MessageComposer = ({ threadId, onSendWithoutThread }: MessageCompos
       await runGateBeforeAction({
         linkUrl: currentLinkUrl,
         onSuccess: doSend,
-        onCancel: () => {
-          setIsProcessing(false);
-        },
+        onCancel: () => setIsProcessing(false),
         setIsProcessing,
         setQuizData,
-        setShowQuiz
+        setShowQuiz,
       });
     } else {
       doSend();
@@ -110,99 +92,110 @@ export const MessageComposer = ({ threadId, onSendWithoutThread }: MessageCompos
   }, [content, uploadedMedia, isProcessing, isUploading, threadId, onSendWithoutThread, sendMessage, clearMedia]);
 
   const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
   }, [handleSend]);
 
-  const canSend = (content.trim() || uploadedMedia.length > 0) && !isProcessing && !isUploading;
+  const hasText = content.trim().length > 0;
+  const canSend = (hasText || uploadedMedia.length > 0) && !isProcessing && !isUploading;
 
   return (
     <>
-      <div className="border-t border-border bg-background/95 backdrop-blur-sm px-3 py-2.5">
+      <div
+        style={{
+          background: "rgba(14,21,34,0.92)",
+          backdropFilter: "blur(18px)",
+          WebkitBackdropFilter: "blur(18px)",
+          borderTop: "1px solid rgba(255,255,255,0.06)",
+          paddingLeft: 12,
+          paddingRight: 12,
+          paddingTop: 10,
+          paddingBottom: "calc(env(safe-area-inset-bottom) + 10px)",
+        }}
+      >
         {uploadedMedia.length > 0 && (
-          <div className="mb-2.5">
+          <div style={{ marginBottom: 10 }}>
             <MediaPreviewTray media={uploadedMedia} onRemove={removeMedia} />
           </div>
         )}
 
-        <div className="flex items-center gap-3">
-          {/* Camera Button - Blue filled circle (IG style) */}
+        <div className="flex items-end gap-2">
+          {/* Ghost camera */}
           <button
-            onClick={() => {
-              haptics.light();
-              handleMediaUpload('image', true);
-            }}
+            onClick={() => { haptics.light(); handleMediaUpload("image", true); }}
             disabled={isUploading || isProcessing}
-            className={cn(
-              'flex-shrink-0 w-11 h-11 rounded-full',
-              'bg-primary hover:bg-primary/90',
-              'flex items-center justify-center',
-              'transition-all duration-200 active:scale-95',
-              'disabled:opacity-50 shadow-lg shadow-primary/20'
-            )}
+            aria-label="Fotocamera"
+            className="flex items-center justify-center flex-shrink-0 active:scale-95 transition-transform"
+            style={{
+              width: 36, height: 36, borderRadius: 18,
+              background: "transparent", color: "var(--txt-2)",
+            }}
           >
-            <Camera className="h-[22px] w-[22px] text-primary-foreground" />
+            <Camera className="h-[20px] w-[20px]" />
           </button>
 
-          {/* Input Field - pill */}
+          {/* Glass pill input */}
           <div
-            className={cn(
-              'flex-1 flex items-center',
-              'bg-secondary rounded-full',
-              'border border-border',
-              'px-4 py-2.5',
-              'transition-all duration-200',
-              'focus-within:border-border/60'
-            )}
+            className="flex-1 flex items-center"
+            style={{
+              minHeight: 46,
+              borderRadius: 23,
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(255,255,255,0.09)",
+              padding: "6px 10px 6px 18px",
+            }}
           >
             <textarea
               ref={textareaRef}
               value={content}
               onChange={(e) => setContent(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Messaggio..."
-              className={cn(
-                'flex-1 bg-transparent text-[15px] leading-[1.4] text-foreground',
-                'resize-none outline-none',
-                'placeholder:text-muted-foreground',
-                'min-h-[22px] max-h-[100px]'
-              )}
+              placeholder="Messaggio…"
               rows={1}
               disabled={isProcessing || isUploading}
+              className={cn(
+                "flex-1 bg-transparent resize-none outline-none",
+              )}
+              style={{
+                fontSize: 15,
+                lineHeight: 1.4,
+                color: "var(--txt)",
+                minHeight: 22,
+                maxHeight: 100,
+                paddingTop: 6,
+                paddingBottom: 6,
+              }}
             />
-
-            {/* Icons inside the pill on the right */}
-            <div className="flex items-center gap-1 ml-2">
-              <button
-                onClick={() => {
-                  haptics.light();
-                  handleMediaUpload('image');
-                }}
-                disabled={isUploading || isProcessing}
-                className={cn(
-                  'p-1.5 rounded-full',
-                  'hover:bg-accent transition-colors active:scale-95',
-                  'disabled:opacity-50'
-                )}
-              >
-                <ImageIcon className="h-[22px] w-[22px] text-muted-foreground" />
-              </button>
-            </div>
+            <button
+              onClick={() => { haptics.light(); handleMediaUpload("image"); }}
+              disabled={isUploading || isProcessing}
+              aria-label="Galleria"
+              className="flex items-center justify-center active:scale-95 transition-transform"
+              style={{
+                width: 36, height: 36, borderRadius: 18,
+                background: "transparent", color: "var(--txt-3)",
+              }}
+            >
+              <ImageIcon className="h-[20px] w-[20px]" />
+            </button>
           </div>
 
-          {/* Send Button - outside pill */}
+          {/* Send — blue circle only when there is content */}
           <button
             onClick={handleSend}
             disabled={!canSend}
-            className={cn(
-              'flex-shrink-0 p-2 rounded-full',
-              'transition-all duration-200 active:scale-95',
-              canSend ? 'text-primary' : 'text-muted-foreground/50'
-            )}
+            aria-label="Invia"
+            className="flex items-center justify-center flex-shrink-0 active:scale-95 transition-transform"
+            style={{
+              width: 36, height: 36, borderRadius: 18,
+              background: canSend ? "#0A7AFF" : "transparent",
+              color: canSend ? "#FFFFFF" : "var(--txt-3)",
+              boxShadow: canSend ? "0 6px 18px rgba(10,122,255,0.35)" : "none",
+            }}
           >
-            <Send className="h-6 w-6" />
+            <Send className="h-[18px] w-[18px]" />
           </button>
         </div>
       </div>
@@ -212,46 +205,31 @@ export const MessageComposer = ({ threadId, onSendWithoutThread }: MessageCompos
           questions={quizData.questions}
           qaId={quizData.qaId}
           onSubmit={async (answers: Record<string, string>) => {
-            // SECURITY HARDENED: All validation via submit-qa edge function
             try {
-              const { data, error } = await supabase.functions.invoke('submit-qa', {
-                body: {
-                  qaId: quizData.qaId, // Server-generated qaId
-                  sourceUrl: quizData.sourceUrl,
-                  answers,
-                  gateType: 'message'
-                }
+              const { data, error } = await supabase.functions.invoke("submit-qa", {
+                body: { qaId: quizData.qaId, sourceUrl: quizData.sourceUrl, answers, gateType: "message" },
               });
-
-              if (error) {
-                console.error('[MessageComposer] Validation error:', error);
-                return { passed: false, wrongIndexes: [] };
-              }
-
+              if (error) return { passed: false, wrongIndexes: [] };
               if (data?.passed) {
                 quizData.onSuccess();
-                addBreadcrumb('quiz_closed', { via: 'passed' });
-                setShowQuiz(false);
-                setQuizData(null);
+                addBreadcrumb("quiz_closed", { via: "passed" });
+                setShowQuiz(false); setQuizData(null);
               }
-
-              return { 
-                passed: data?.passed || false, 
+              return {
+                passed: data?.passed || false,
                 score: data?.score || 0,
                 total: data?.total || quizData.questions.length,
-                wrongIndexes: data?.wrongIndexes || [] 
+                wrongIndexes: data?.wrongIndexes || [],
               };
-            } catch (err) {
-              console.error('[MessageComposer] Unexpected error:', err);
-              addBreadcrumb('quiz_closed', { via: 'error' });
+            } catch {
+              addBreadcrumb("quiz_closed", { via: "error" });
               return { passed: false, wrongIndexes: [] };
             }
           }}
           onCancel={() => {
             quizData.onCancel();
-            addBreadcrumb('quiz_closed', { via: 'cancelled' });
-            setShowQuiz(false);
-            setQuizData(null);
+            addBreadcrumb("quiz_closed", { via: "cancelled" });
+            setShowQuiz(false); setQuizData(null);
           }}
           provider="gemini"
         />
@@ -262,12 +240,11 @@ export const MessageComposer = ({ threadId, onSendWithoutThread }: MessageCompos
           <div className="bg-card border border-white/10 rounded-2xl p-6 max-w-sm mx-4 shadow-2xl">
             <p className="text-foreground font-semibold mb-2">Errore</p>
             <p className="text-muted-foreground text-sm mb-4">{quizData.errorMessage}</p>
-            <button 
+            <button
               onClick={() => {
                 quizData.onCancel();
-                addBreadcrumb('quiz_closed', { via: 'error_dismissed' });
-                setShowQuiz(false);
-                setQuizData(null);
+                addBreadcrumb("quiz_closed", { via: "error_dismissed" });
+                setShowQuiz(false); setQuizData(null);
               }}
               className="w-full py-2.5 bg-primary text-primary-foreground rounded-xl font-medium"
             >
@@ -278,7 +255,7 @@ export const MessageComposer = ({ threadId, onSendWithoutThread }: MessageCompos
       )}
 
       {isProcessing && (
-        <LoadingOverlay 
+        <LoadingOverlay
           message="Verifica contenuto..."
           submessage="Preparazione del Comprehension Gate"
         />

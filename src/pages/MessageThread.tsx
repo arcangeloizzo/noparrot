@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatDistanceToNow, isToday, isYesterday, format } from "date-fns";
 import { it } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { ThreadReactionsProvider, useThreadReactions } from "@/hooks/useThreadReactions";
 
 export default function MessageThread() {
   const { threadId } = useParams<{ threadId: string }>();
@@ -27,6 +28,28 @@ export default function MessageThread() {
   const [isPinnedToBottom, setIsPinnedToBottom] = useState(true);
 
   const { data: messages, isLoading } = useMessages(threadId);
+
+  // Batch reactions for the entire thread (replaces per-bubble N+1).
+  const messageIds = useMemo(() => (messages || []).map((m) => m.id), [messages]);
+  const { map: reactionsMap, toggleLike, isPending: isReactionPending } =
+    useThreadReactions(threadId, messageIds);
+  const reactionsCtx = useMemo(
+    () => ({
+      get: (id: string) => reactionsMap.get(id) || { likes: 0, isLiked: false, likeUsers: [] },
+      toggle: (id: string, mode: "add" | "remove") => toggleLike({ messageId: id, mode }),
+      isPending: isReactionPending,
+    }),
+    [reactionsMap, toggleLike, isReactionPending]
+  );
+
+  // "Show earlier" — load only last 30 initially
+  const [showAll, setShowAll] = useState(false);
+  const visibleMessages = useMemo(() => {
+    if (!messages) return [];
+    if (showAll || messages.length <= 30) return messages;
+    return messages.slice(-30);
+  }, [messages, showAll]);
+  useEffect(() => { setShowAll(false); }, [threadId]);
 
   // Reset scroll state when threadId changes (entering a new conversation)
   useEffect(() => {
@@ -83,12 +106,12 @@ export default function MessageThread() {
 
   // Group messages by date
   const groupedMessages = useMemo(() => {
-    if (!messages) return [];
+    if (!visibleMessages) return [];
 
-    const groups: { date: string; messages: typeof messages }[] = [];
+    const groups: { date: string; messages: typeof visibleMessages }[] = [];
     let currentDate = '';
 
-    messages.forEach(msg => {
+    visibleMessages.forEach(msg => {
       const msgDate = new Date(msg.created_at);
       let dateLabel = '';
 
@@ -109,7 +132,7 @@ export default function MessageThread() {
     });
 
     return groups;
-  }, [messages]);
+  }, [visibleMessages]);
 
   // Scroll with retry for robustness
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'auto') => {
@@ -334,53 +357,87 @@ export default function MessageThread() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-background">
-      {/* Header */}
-      <div className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex items-center gap-3 px-4 h-16">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate('/messages')}
-            className="flex-shrink-0 -ml-2"
+    <ThreadReactionsProvider value={reactionsCtx}>
+    <div
+      className="flex flex-col"
+      style={{
+        minHeight: "100dvh",
+        height: "100dvh",
+        background: "var(--base)",
+        color: "var(--txt)",
+      }}
+    >
+      {/* Header — shell grammar */}
+      <div
+        className="sticky top-0 z-30"
+        style={{
+          background: "linear-gradient(180deg, var(--base) 0%, rgba(14,21,34,0.9) 55%, rgba(14,21,34,0) 100%)",
+          paddingTop: "env(safe-area-inset-top)",
+        }}
+      >
+        <div className="flex items-center gap-3 px-4" style={{ height: 60 }}>
+          <button
+            onClick={() => navigate("/messages")}
+            aria-label="Indietro"
+            className="flex items-center justify-center flex-shrink-0 rounded-full"
+            style={{ width: 36, height: 36, color: "var(--txt-2)" }}
           >
             <ArrowLeft className="h-5 w-5" />
-          </Button>
+          </button>
 
           {displayProfile && (
             <>
               <div className="relative">
-                <Avatar className="h-10 w-10">
+                <Avatar style={{ width: 34, height: 34 }}>
                   <AvatarImage src={displayProfile.avatar_url || undefined} />
-                  <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                    {displayProfile.username?.[0]?.toUpperCase() || '?'}
+                  <AvatarFallback style={{ background: "rgba(255,255,255,0.08)", color: "var(--txt-2)", fontSize: 13, fontWeight: 600 }}>
+                    {displayProfile.username?.[0]?.toUpperCase() || "?"}
                   </AvatarFallback>
                 </Avatar>
                 {isOnline && (
-                  <div className="absolute bottom-0 right-0 w-3 h-3 bg-trust-high rounded-full border-2 border-background" />
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: -1,
+                      right: -1,
+                      width: 10,
+                      height: 10,
+                      borderRadius: "50%",
+                      background: "#22C55E",
+                      border: "2px solid var(--base)",
+                    }}
+                  />
                 )}
               </div>
-              
+
               {isGroupChat ? (
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold truncate text-sm">
+                  <p className="truncate" style={{ fontSize: 16, fontWeight: 600, color: "var(--txt)" }}>
                     {getGroupDisplayName}
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p style={{ fontFamily: "var(--mono)", fontSize: 9.5, letterSpacing: "0.08em", color: "var(--txt-3)", textTransform: "uppercase" }}>
                     {otherParticipants.length} partecipanti
                   </p>
                 </div>
               ) : (
-                <button 
+                <button
                   onClick={() => navigate(`/profile/${displayProfile.id}`)}
-                  className="flex-1 min-w-0 text-left hover:opacity-80 transition-opacity"
+                  className="flex-1 min-w-0 text-left"
                 >
-                  <p className="font-semibold truncate text-sm">
+                  <p className="truncate" style={{ fontSize: 16, fontWeight: 600, color: "var(--txt)" }}>
                     {displayProfile.full_name || displayProfile.username}
                   </p>
                   {lastSeenText && (
-                    <p className="text-xs text-muted-foreground">
-                      {lastSeenText}
+                    <p
+                      style={{
+                        fontFamily: "var(--mono)",
+                        fontSize: 9.5,
+                        letterSpacing: "0.08em",
+                        color: isOnline ? "#22C55E" : "var(--txt-3)",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      {isOnline ? "Online" : lastSeenText}
                     </p>
                   )}
                 </button>
@@ -395,10 +452,10 @@ export default function MessageThread() {
         ref={containerRef} 
         onScroll={handleScroll}
         className={cn(
-          "flex-1 overflow-y-auto px-4 py-4 bg-muted/30",
+          "flex-1 overflow-y-auto px-4 py-4",
           "will-change-scroll overscroll-y-contain"
         )}
-        style={{ willChange: 'scroll-position' }}
+        style={{ willChange: 'scroll-position', background: "transparent" }}
       >
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
@@ -406,18 +463,52 @@ export default function MessageThread() {
           </div>
         ) : groupedMessages.length > 0 ? (
           <div ref={contentRef}>
+            {messages && messages.length > 30 && !showAll && (
+              <div className="flex justify-center mb-4">
+                <button
+                  onClick={() => setShowAll(true)}
+                  className="pill-filter"
+                  type="button"
+                >
+                  Mostra messaggi precedenti · {messages.length - 30}
+                </button>
+              </div>
+            )}
             {groupedMessages.map((group, groupIndex) => (
               <div key={groupIndex}>
-                {/* Date separator */}
-                <div className="flex items-center justify-center my-4">
-                  <span className="text-xs text-muted-foreground bg-background/80 px-3 py-1 rounded-full">
+                {/* Date separator — hairline + mono uppercase */}
+                <div className="flex items-center gap-3 my-5">
+                  <span className="hairline" />
+                  <span
+                    style={{
+                      fontFamily: "var(--mono)",
+                      fontSize: 10,
+                      letterSpacing: "0.12em",
+                      textTransform: "uppercase",
+                      color: "var(--txt-3)",
+                    }}
+                  >
                     {group.date}
                   </span>
+                  <span className="hairline" />
                 </div>
-                
-                {group.messages.map((message) => (
-                  <MessageBubble key={message.id} message={message} />
-                ))}
+
+                {group.messages.map((message, idx) => {
+                  const prev = group.messages[idx - 1];
+                  const next = group.messages[idx + 1];
+                  const sameAsPrev = prev && prev.sender_id === message.sender_id;
+                  const sameAsNext = next && next.sender_id === message.sender_id;
+                  const isTail = !sameAsNext;
+                  return (
+                    <MessageBubble
+                      key={message.id}
+                      message={message}
+                      showAvatar={isTail}
+                      showTime={isTail}
+                      isTail={isTail}
+                    />
+                  );
+                })}
               </div>
             ))}
             <div ref={messagesEndRef} className="h-1" />
@@ -436,5 +527,6 @@ export default function MessageThread() {
       {/* Composer */}
       <MessageComposer threadId={threadId} />
     </div>
+    </ThreadReactionsProvider>
   );
 }

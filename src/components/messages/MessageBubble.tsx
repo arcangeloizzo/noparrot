@@ -6,9 +6,9 @@ import { useDeleteMessage } from "@/hooks/useDeleteMessage";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { ExternalLink, Heart, Trash2, EyeOff } from "lucide-react";
-import { memo, useEffect, useRef, useState } from "react";
-import { fetchArticlePreview } from "@/lib/ai-helpers";
-import { useMessageReactions } from "@/hooks/useMessageReactions";
+import { memo, useRef, useState } from "react";
+import { useArticlePreview } from "@/hooks/useArticlePreview";
+import { useMessageReactionAggregate } from "@/hooks/useThreadReactions";
 import { useDoubleTap } from "@/hooks/useDoubleTap";
 import {
   Popover,
@@ -16,41 +16,56 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useLongPress } from "@/hooks/useLongPress";
-import { ReactionPicker, type ReactionType, reactionToEmoji } from "@/components/ui/reaction-picker";
+import { ReactionPicker } from "@/components/ui/reaction-picker";
 import { InternalPostPreview } from "./InternalPostPreview";
+import { ProgressiveImage } from "@/components/feed/ProgressiveImage";
 
 const getHostnameFromUrl = (url: string): string => {
   try {
-    const urlWithProtocol = url.startsWith('http') ? url : `https://${url}`;
-    return new URL(urlWithProtocol).hostname;
+    const withProto = url.startsWith("http") ? url : `https://${url}`;
+    return new URL(withProto).hostname.replace(/^www\./, "");
   } catch {
-    return 'Link';
+    return "Link";
   }
 };
 
 interface MessageBubbleProps {
   message: Message;
+  /** Received: show avatar only on the tail of a group. */
+  showAvatar?: boolean;
+  /** Show timestamp only on the tail of a group. */
+  showTime?: boolean;
+  /** Whether this bubble is the tail (last of its author group). */
+  isTail?: boolean;
 }
 
-export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
+export const MessageBubble = memo(({
+  message,
+  showAvatar = true,
+  showTime = true,
+  isTail = true,
+}: MessageBubbleProps) => {
   const { user } = useAuth();
   const isSent = message.sender_id === user?.id;
-  const [articlePreview, setArticlePreview] = useState<any>(null);
+
   const [showActions, setShowActions] = useState(false);
   const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [showHeartAnimation, setShowHeartAnimation] = useState(false);
 
   const bubbleRef = useRef<HTMLDivElement>(null);
 
-  const {
-    likes,
-    isLiked,
-    likeUsers,
-    toggleLike,
-    isMutating: isLikeMutating,
-  } = useMessageReactions(message.id);
+  const reactionsCtx = useMessageReactionAggregate(message.id);
+  const { likes, isLiked, likeUsers } = reactionsCtx.get(message.id);
+  const isLikeMutating = reactionsCtx.isPending;
 
   const deleteMessageForMe = useDeleteMessageForMe();
   const deleteMessage = useDeleteMessage();
+
+  // Cached article preview (React Query, staleTime lungo)
+  const isExternalUrl = !!message.link_url && !message.link_url.includes("/post/");
+  const { data: articlePreview } = useArticlePreview(
+    isExternalUrl ? message.link_url : undefined
+  );
 
   const handleDeleteForMe = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -64,117 +79,94 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
     deleteMessage.mutate(message.id);
   };
 
-  // Fetch article preview for link_url
-  useEffect(() => {
-    const loadPreview = async () => {
-      // Don't fetch OP preview if it's an internal post link
-      if (!message.link_url || message.link_url.includes('/post/')) {
-        setArticlePreview(null);
-        return;
-      }
-
-      try {
-        const preview = await fetchArticlePreview(message.link_url);
-        if (preview) {
-          setArticlePreview(preview);
-        }
-      } catch (error) {
-        console.error('Error fetching message link preview:', error);
-      }
-    };
-
-    loadPreview();
-  }, [message.link_url]);
-
-  // Extract internal post ID if applicable
-  const getInternalPostId = (url: string | undefined): string | null => {
+  const getInternalPostId = (url: string | undefined | null): string | null => {
     if (!url) return null;
     const match = url.match(/\/post\/([a-zA-Z0-9-]+)/);
     return match ? match[1] : null;
   };
   const internalPostId = getInternalPostId(message.link_url);
 
-  // Shake animation for error feedback
   const shakeAnimation = () => {
     if (bubbleRef.current) {
       bubbleRef.current.animate(
         [
-          { transform: 'translateX(0)' },
-          { transform: 'translateX(-4px)' },
-          { transform: 'translateX(4px)' },
-          { transform: 'translateX(-4px)' },
-          { transform: 'translateX(0)' },
+          { transform: "translateX(0)" },
+          { transform: "translateX(-4px)" },
+          { transform: "translateX(4px)" },
+          { transform: "translateX(-4px)" },
+          { transform: "translateX(0)" },
         ],
-        { duration: 250, easing: 'ease-in-out' }
+        { duration: 250, easing: "ease-in-out" }
       );
     }
   };
 
-  // Determine mode BEFORE any optimistic update
   const handleLike = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     if (!user) {
-      // useMessageReactions will toast
-      toggleLike('add');
+      reactionsCtx.toggle(message.id, "add");
       return;
     }
     if (isLikeMutating) return;
-
-    // Mode is determined by current isLiked state BEFORE mutation
-    const mode = isLiked ? 'remove' : 'add';
-    toggleLike(mode, {
-      onErrorCallback: shakeAnimation,
-    });
+    const mode = isLiked ? "remove" : "add";
+    reactionsCtx.toggle(message.id, mode, shakeAnimation);
   };
 
-  const [showHeartAnimation, setShowHeartAnimation] = useState(false);
-
-  // Long press handlers for double-tap area
   const messageLongPressHandlers = useLongPress({
     onLongPress: () => setShowReactionPicker(true),
-    onTap: () => {}, // Single tap does nothing, double tap handled separately
-    disableHaptic: true, // Haptic handled by long press itself
+    onTap: () => {},
+    disableHaptic: true,
   });
 
-  // Double tap toggles like (add or remove)
   const { handleTap } = useDoubleTap({
     onDoubleTap: () => {
-      if (!user) return;
-      if (isLikeMutating) return;
-
-      const mode = isLiked ? 'remove' : 'add';
-      
-      // Show heart animation only when adding
-      if (mode === 'add') {
+      if (!user || isLikeMutating) return;
+      const mode = isLiked ? "remove" : "add";
+      if (mode === "add") {
         setShowHeartAnimation(true);
         setTimeout(() => setShowHeartAnimation(false), 800);
       }
-      
-      toggleLike(mode, {
-        onErrorCallback: shakeAnimation,
-      });
+      reactionsCtx.toggle(message.id, mode, shakeAnimation);
     },
   });
 
-  const handleDoubleTap = () => {
-    handleTap();
-  };
+  const hasText = !!message.content?.trim();
+  const hasMedia = !!(message.media && message.media.length > 0);
+  const mediaOnly = !hasText && hasMedia && !message.link_url;
+
+  // Group tail dictates coda + margin bottom
+  const bubbleRadius = isSent
+    ? isTail
+      ? "20px 20px 6px 20px"
+      : "20px 20px 20px 20px"
+    : isTail
+      ? "20px 20px 20px 6px"
+      : "20px 20px 20px 20px";
+
+  const groupSpacing = isTail ? 14 : 3;
 
   return (
-    <div id={`message-${message.id}`} className={cn('flex gap-2 mb-4 rounded-lg', isSent ? 'flex-row-reverse' : 'flex-row')}>
-      {/* Avatar solo per messaggi ricevuti */}
+    <div
+      id={`message-${message.id}`}
+      className={cn("flex gap-2", isSent ? "flex-row-reverse" : "flex-row")}
+      style={{ marginBottom: groupSpacing }}
+    >
+      {/* Avatar reserved space — visible only on TAIL for received */}
       {!isSent && (
-        <Avatar className="h-7 w-7 flex-shrink-0 mt-1">
-          <AvatarImage src={message.sender.avatar_url || undefined} />
-          <AvatarFallback className="text-xs bg-muted">
-            {message.sender.username?.[0]?.toUpperCase() || '?'}
-          </AvatarFallback>
-        </Avatar>
+        <div style={{ width: 28, flexShrink: 0 }}>
+          {showAvatar && (
+            <Avatar className="h-7 w-7 mt-1">
+              <AvatarImage src={message.sender.avatar_url || undefined} />
+              <AvatarFallback className="text-xs bg-muted">
+                {message.sender.username?.[0]?.toUpperCase() || "?"}
+              </AvatarFallback>
+            </Avatar>
+          )}
+        </div>
       )}
 
-      <div className={cn('flex flex-col max-w-[75%] group', isSent ? 'items-end' : 'items-start')}>
+      <div className={cn("flex flex-col max-w-[75%] group", isSent ? "items-end" : "items-start")}>
         <div className="flex items-center gap-1.5">
-          {/* Action popover - posizionato a sinistra per i miei messaggi, a destra per gli altri */}
           {isSent && (
             <Popover open={showActions} onOpenChange={setShowActions}>
               <PopoverTrigger asChild>
@@ -189,23 +181,14 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
                   </div>
                 </button>
               </PopoverTrigger>
-              <PopoverContent
-                side="left"
-                align="center"
-                className="w-auto p-1.5 bg-popover/95 backdrop-blur-xl border-border"
-              >
+              <PopoverContent side="left" align="center" className="w-auto p-1.5 bg-popover/95 backdrop-blur-xl border-border">
                 <div className="flex gap-1">
-                  <div className="relative">
-                    <button
-                      onClick={(e) => handleLike(e)}
-                      className={cn(
-                        'p-2 hover:bg-accent rounded-lg transition-colors',
-                        isLiked && 'text-destructive'
-                      )}
-                    >
-                      <Heart className={cn('w-4 h-4', isLiked && 'fill-current')} />
-                    </button>
-                  </div>
+                  <button
+                    onClick={(e) => handleLike(e)}
+                    className={cn("p-2 hover:bg-accent rounded-lg transition-colors", isLiked && "text-destructive")}
+                  >
+                    <Heart className={cn("w-4 h-4", isLiked && "fill-current")} />
+                  </button>
                   <button
                     onClick={handleDeleteForMe}
                     className="p-2 hover:bg-accent rounded-lg transition-colors text-muted-foreground"
@@ -229,182 +212,183 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
             <div
               ref={bubbleRef}
               {...messageLongPressHandlers}
-              onPointerUp={(e) => {
-                e.preventDefault();
-                handleDoubleTap();
-              }}
+              onPointerUp={() => handleTap()}
               className={cn(
-                'rounded-2xl px-4 py-2.5 cursor-pointer select-none touch-manipulation',
-                isSent
-                  ? 'bg-primary text-primary-foreground rounded-br-sm'
-                  : 'bg-secondary text-secondary-foreground rounded-bl-sm'
+                "cursor-pointer select-none touch-manipulation overflow-hidden relative",
+                mediaOnly ? "p-0" : "px-4 py-2.5"
               )}
+              style={{
+                borderRadius: mediaOnly ? 18 : bubbleRadius,
+                background: isSent ? "#0A7AFF" : "rgba(255,255,255,0.06)",
+                color: isSent ? "#FFFFFF" : "var(--txt)",
+                border: isSent ? "1px solid rgba(10,122,255,0.5)" : "1px solid rgba(255,255,255,0.08)",
+              }}
             >
-              {/* Reaction Picker for long press */}
               <ReactionPicker
                 isOpen={showReactionPicker}
                 onClose={() => setShowReactionPicker(false)}
-                onSelect={(type) => {
-                  toggleLike('add');
+                onSelect={() => {
+                  reactionsCtx.toggle(message.id, "add");
                   setShowReactionPicker(false);
                 }}
                 className="left-1/2 bottom-full mb-2"
               />
-              {/* Heart animation on double tap */}
+
               {showHeartAnimation && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
                   <Heart className="w-12 h-12 text-destructive fill-destructive animate-scale-in" />
                 </div>
               )}
 
-              <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>
+              {hasText && (
+                <p
+                  style={{
+                    fontSize: 15,
+                    lineHeight: 1.45,
+                    margin: 0,
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
+                  }}
+                >
+                  {message.content}
+                </p>
+              )}
 
-              {/* Internal Post Preview (Natively rendered) */}
               {internalPostId && (
-                <div className="mt-2 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+                <div className="mt-2 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
                   <InternalPostPreview postId={internalPostId} />
                 </div>
               )}
 
-              {/* External Article Preview */}
               {message.link_url && articlePreview && !internalPostId && (
                 <div
                   className={cn(
-                    'mt-2 rounded-xl overflow-hidden cursor-pointer group/link',
-                    isSent ? 'bg-primary-foreground/10' : 'bg-muted border border-border/30'
+                    "mt-2 rounded-xl overflow-hidden cursor-pointer group/link",
+                    isSent ? "bg-white/10" : "bg-white/5 border border-white/10"
                   )}
                   onClick={(e) => {
                     e.stopPropagation();
-                    window.open(message.link_url, '_blank', 'noopener,noreferrer');
+                    window.open(message.link_url!, "_blank", "noopener,noreferrer");
                   }}
                 >
-                  {/* Image preview */}
-                  {(articlePreview.image || articlePreview.previewImg) && (
-                    <div className="aspect-video w-full overflow-hidden bg-muted">
-                      <img
-                        src={articlePreview.image || articlePreview.previewImg}
-                        alt={articlePreview.title || ''}
-                        loading="lazy"
-                        className="w-full h-full object-cover group-hover/link:scale-105 transition-transform duration-200"
+                  {articlePreview.image && (
+                    <div className="aspect-video w-full overflow-hidden">
+                      <ProgressiveImage
+                        src={articlePreview.image}
+                        alt={articlePreview.title || ""}
+                        sizePx={280}
+                        shouldLoad
+                        className="w-full h-full object-cover"
                       />
                     </div>
                   )}
-
                   <div className="p-2.5">
-                    {/* Twitter author info */}
-                    {articlePreview.platform === 'twitter' && articlePreview.author_username && (
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center">
-                          <span className="text-xs font-semibold text-primary">
-                            {articlePreview.author_username.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-xs font-semibold">
-                            {articlePreview.author_name || articlePreview.author_username}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground">@{articlePreview.author_username}</span>
-                        </div>
-                      </div>
-                    )}
-
                     <div
-                      className={cn(
-                        'flex items-center gap-1.5 text-[10px] mb-1',
-                        isSent ? 'text-primary-foreground/60' : 'text-muted-foreground'
-                      )}
+                      className="flex items-center gap-1.5 mb-1"
+                      style={{
+                        fontFamily: "var(--mono)",
+                        fontSize: 9.5,
+                        letterSpacing: "0.05em",
+                        textTransform: "uppercase",
+                        color: isSent ? "rgba(255,255,255,0.72)" : "var(--txt-3)",
+                      }}
                     >
                       <span>{getHostnameFromUrl(message.link_url)}</span>
-                      <ExternalLink className="w-2.5 h-2.5 opacity-0 group-hover/link:opacity-100 transition-opacity" />
+                      <ExternalLink className="w-2.5 h-2.5 opacity-70" />
                     </div>
-
-                    {/* Show full tweet content or article title */}
-                    {articlePreview.content && articlePreview.platform === 'twitter' ? (
-                      <p
-                        className={cn(
-                          'text-xs whitespace-pre-wrap leading-relaxed',
-                          isSent ? 'text-primary-foreground/80' : 'text-foreground/80'
-                        )}
-                      >
-                        {articlePreview.content}
-                      </p>
-                    ) : (
-                      <div
-                        className={cn(
-                          'font-medium text-xs line-clamp-2',
-                          isSent ? 'text-primary-foreground/90' : 'text-foreground/90'
-                        )}
-                      >
-                        {articlePreview.title || 'Articolo condiviso'}
-                      </div>
-                    )}
+                    <div
+                      className="font-medium line-clamp-2"
+                      style={{ fontSize: 13, color: isSent ? "#FFFFFF" : "var(--txt)" }}
+                    >
+                      {articlePreview.title || "Articolo condiviso"}
+                    </div>
                   </div>
                 </div>
               )}
 
-              {/* Basic URL link if no preview and not internal */}
               {message.link_url && !articlePreview && !internalPostId && (
                 <a
                   href={message.link_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={cn(
-                    'flex items-center gap-1 mt-2 text-xs underline',
-                    isSent
-                      ? 'text-primary-foreground/80 hover:text-primary-foreground'
-                      : 'text-muted-foreground hover:text-foreground'
-                  )}
+                  className="flex items-center gap-1 mt-2 text-xs underline"
+                  style={{ color: isSent ? "rgba(255,255,255,0.85)" : "var(--txt-2)" }}
                 >
                   <ExternalLink className="h-3 w-3" />
                   Link
                 </a>
               )}
 
-              {message.media && message.media.length > 0 && (
-                <div className="mt-2 space-y-2">
-                  {message.media.map((media) => (
-                    <div key={media.id} className="rounded-lg overflow-hidden">
-                      {media.type === 'image' ? (
-                        <img
+              {hasMedia && (
+                <div className={cn(mediaOnly ? "" : "mt-2", "space-y-2 relative")}>
+                  {message.media!.map((media) => (
+                    <div
+                      key={media.id}
+                      style={{
+                        borderRadius: mediaOnly ? 18 : 12,
+                        overflow: "hidden",
+                        aspectRatio: "4 / 5",
+                        background: "rgba(0,0,0,0.2)",
+                      }}
+                    >
+                      {media.type === "image" ? (
+                        <ProgressiveImage
                           src={media.thumbnail_url || media.url}
                           alt=""
-                          loading="lazy"
-                          className="max-w-full h-auto rounded-lg"
+                          sizePx={280}
+                          shouldLoad
+                          className="w-full h-full object-cover"
                         />
                       ) : (
                         <video
                           src={media.url}
+                          poster={media.thumbnail_url || undefined}
                           controls
-                          preload="metadata"
-                          className="max-w-full h-auto rounded-lg"
+                          preload="none"
+                          className="w-full h-full object-cover"
                         />
                       )}
                     </div>
                   ))}
+                  {mediaOnly && showTime && (
+                    <span
+                      style={{
+                        position: "absolute",
+                        bottom: 8,
+                        right: 8,
+                        background: "rgba(0,0,0,0.55)",
+                        color: "#FFFFFF",
+                        borderRadius: 10,
+                        padding: "3px 8px",
+                        fontFamily: "var(--mono)",
+                        fontSize: 9.5,
+                        letterSpacing: "0.05em",
+                      }}
+                    >
+                      {format(new Date(message.created_at), "HH:mm", { locale: it })}
+                    </span>
+                  )}
                 </div>
               )}
             </div>
 
-            {/* Instagram-style like indicator - pill below bubble corner */}
-            {/* Rendering basato su likes > 0, non su likeUsers.length */}
             {likes > 0 && (
               <div
                 className={cn(
-                  'absolute -bottom-3 flex items-center',
-                  'bg-secondary/95 rounded-full shadow-xl',
-                  'px-2 py-1 min-w-[28px] justify-center',
-                  isSent ? 'right-2' : 'left-2'
+                  "absolute -bottom-3 flex items-center rounded-full shadow-xl px-2 py-1 min-w-[28px] justify-center",
+                  isSent ? "right-2" : "left-2"
                 )}
+                style={{ background: "rgba(14,21,34,0.9)", border: "1px solid rgba(255,255,255,0.1)" }}
               >
                 <Heart className="w-4 h-4 text-destructive fill-destructive" />
                 {likeUsers && likeUsers.length > 0 ? (
                   <>
                     <div className="flex -space-x-1.5 ml-1">
                       {likeUsers.slice(0, 2).map((likeUser) => (
-                        <Avatar key={likeUser.id} className="w-5 h-5 border-2 border-secondary">
+                        <Avatar key={likeUser.id} className="w-5 h-5 border-2" style={{ borderColor: "rgba(14,21,34,0.9)" }}>
                           <AvatarImage src={likeUser.avatar_url || undefined} />
                           <AvatarFallback className="text-[8px] bg-muted text-muted-foreground">
-                            {likeUser.username?.[0]?.toUpperCase() || '?'}
+                            {likeUser.username?.[0]?.toUpperCase() || "?"}
                           </AvatarFallback>
                         </Avatar>
                       ))}
@@ -412,14 +396,12 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
                     {likes > 2 && <span className="text-[10px] text-muted-foreground ml-1">+{likes - 2}</span>}
                   </>
                 ) : (
-                  // Fallback: mostra solo count quando likeUsers non disponibili
                   likes > 1 && <span className="text-[10px] text-muted-foreground ml-1">{likes}</span>
                 )}
               </div>
             )}
           </div>
 
-          {/* Action popover for received messages */}
           {!isSent && (
             <Popover open={showActions} onOpenChange={setShowActions}>
               <PopoverTrigger asChild>
@@ -434,22 +416,14 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
                   </div>
                 </button>
               </PopoverTrigger>
-              <PopoverContent
-                side="right"
-                align="center"
-                className="w-auto p-1.5 bg-popover/95 backdrop-blur-xl border-border"
-              >
+              <PopoverContent side="right" align="center" className="w-auto p-1.5 bg-popover/95 backdrop-blur-xl border-border">
                 <div className="flex gap-1">
                   <button
                     onClick={(e) => handleLike(e)}
-                    className={cn(
-                      'p-2 hover:bg-accent rounded-lg transition-colors',
-                      isLiked && 'text-destructive'
-                    )}
+                    className={cn("p-2 hover:bg-accent rounded-lg transition-colors", isLiked && "text-destructive")}
                   >
-                    <Heart className={cn('w-4 h-4', isLiked && 'fill-current')} />
+                    <Heart className={cn("w-4 h-4", isLiked && "fill-current")} />
                   </button>
-                  {/* Solo "Nascondi per me" per messaggi ricevuti - NO elimina per tutti */}
                   <button
                     onClick={handleDeleteForMe}
                     className="p-2 hover:bg-accent rounded-lg transition-colors text-muted-foreground"
@@ -463,19 +437,30 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
           )}
         </div>
 
-        {/* Timestamp row - with extra margin when likes present */}
-        <div
-          className={cn(
-            'flex items-center gap-2 px-1',
-            isSent ? 'flex-row-reverse' : 'flex-row',
-            likes > 0 ? 'mt-3' : 'mt-1'
-          )}
-        >
-          <span className="text-[10px] text-muted-foreground">
-            {format(new Date(message.created_at), 'HH:mm', { locale: it })}
-          </span>
-        </div>
+        {showTime && !mediaOnly && (
+          <div
+            className={cn(
+              "flex items-center gap-2 px-1",
+              isSent ? "flex-row-reverse" : "flex-row",
+              likes > 0 ? "mt-3" : "mt-1"
+            )}
+          >
+            <span
+              style={{
+                fontFamily: "var(--mono)",
+                fontSize: 9.5,
+                letterSpacing: "0.05em",
+                color: "var(--txt-4)",
+                textTransform: "uppercase",
+              }}
+            >
+              {format(new Date(message.created_at), "HH:mm", { locale: it })}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
 });
+
+MessageBubble.displayName = "MessageBubble";
