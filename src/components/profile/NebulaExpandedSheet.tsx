@@ -126,7 +126,6 @@ export const NebulaExpandedSheet = ({
         side="bottom"
         className="h-[85vh] px-4 pb-8 pt-3 overflow-y-auto border-0"
         hideClose
-        overlayClassName="bg-black/70"
         style={{
           background: '#0E1522',
           borderTopLeftRadius: 28,
