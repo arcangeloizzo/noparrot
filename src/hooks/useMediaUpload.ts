@@ -100,6 +100,14 @@ export const useMediaUpload = () => {
           height = meta.height;
           duration_sec = meta.duration_sec;
           console.log(`[useMediaUpload] Video ${width}x${height}, duration: ${duration_sec}s`);
+          if (duration_sec && duration_sec > 180) {
+            toast({
+              title: 'Video troppo lungo',
+              description: 'Limite tecnico: massimo 3 minuti per video',
+              variant: 'destructive'
+            });
+            continue; // Skip this file
+          }
         }
 
         const { ratio, orientation } = classifyOrientation(width ?? 0, height ?? 0);
