@@ -73,6 +73,7 @@ const VideoEl = ({ item, contain }: { item: MediaFrameItem; contain: boolean }) 
     height: '100%',
     objectFit: contain ? 'contain' : 'cover',
     display: 'block',
+    transform: 'translateZ(0)',
   };
 
   if (!poster) {
@@ -113,6 +114,7 @@ const renderMediaEl = (m: MediaFrameItem, contain: boolean) => {
         height: '100%',
         objectFit: 'contain',
         display: 'block',
+        transform: 'translateZ(0)',
       }
     : commonStyle;
   return <img src={m.url} decoding="async" style={imgStyle} alt="" />;
@@ -162,13 +164,14 @@ export const MediaMosaic = ({ media, onMediaClick }: MediaFrameProps) => {
             overflow: 'hidden',
             background: '#07090f',
             cursor: 'pointer',
+            zIndex: 0,
           }}
         >
           <div
             style={{
               position: 'absolute',
               inset: 0,
-              zIndex: 0,
+              zIndex: -1,
               backgroundImage: `url(${m.thumbnail_url || m.url})`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
