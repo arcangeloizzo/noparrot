@@ -5,7 +5,7 @@ import type { EmblaCarouselType } from 'embla-carousel';
 export const ENABLE_OVERSCROLL_TRANSITION = true;
 
 // Tuning constants
-const COMMIT_RATIO = 0.22;   // fraction of viewport height needed to commit card change
+const COMMIT_RATIO = 0.15;   // fraction of viewport height needed to commit card change
 const RESISTANCE = 0.5;      // visual translation damping over accumulated overscroll
 const RELEASE_MS = 220;      // ease-out snap-back duration (also matches Embla settle window)
 const H_BIAS = 1.2;          // ignore gestures more horizontal than vertical (|dx|*bias > |dy|)
@@ -146,6 +146,7 @@ export function useOverscrollCardTransition({ getEmbla, getViewportHeight, getTa
     const x = e.touches[0].clientX;
     const dy = y - startY.current;
     const dx = x - startX.current;
+    const prevY = lastY.current;
 
     // Horizontal gestures (e.g. editorial carousel) bail out.
     if (!horizontalLocked.current && engaged.current === 'none') {
@@ -170,7 +171,7 @@ export function useOverscrollCardTransition({ getEmbla, getViewportHeight, getTa
     if (engaged.current === 'none') {
       if (atBottom && movingUp) {
         engaged.current = 'bottom';
-        anchorY.current = y;
+        anchorY.current = prevY;
         overscroll.current = 0;
         ensureWillChange();
       } else if (atTop && movingDown) {
@@ -180,7 +181,7 @@ export function useOverscrollCardTransition({ getEmbla, getViewportHeight, getTa
         const embla = getEmbla();
         if (embla && embla.selectedScrollSnap() === 0) return;
         engaged.current = 'top';
-        anchorY.current = y;
+        anchorY.current = prevY;
         overscroll.current = 0;
         ensureWillChange();
       }
@@ -189,18 +190,24 @@ export function useOverscrollCardTransition({ getEmbla, getViewportHeight, getTa
     if (engaged.current === 'bottom') {
       // overscroll positive = finger travelled UP past anchor
       const raw = anchorY.current - y;
-      overscroll.current = Math.max(0, raw);
-      writeOffset(-overscroll.current * RESISTANCE);
-      if (overscroll.current === 0) {
+      if (raw < 0) {
         engaged.current = 'none';
+        overscroll.current = 0;
+        writeOffset(0);
+      } else {
+        overscroll.current = raw;
+        writeOffset(-raw * RESISTANCE);
       }
     } else if (engaged.current === 'top') {
       // overscroll positive = finger travelled DOWN past anchor
       const raw = y - anchorY.current;
-      overscroll.current = Math.max(0, raw);
-      writeOffset(overscroll.current * RESISTANCE);
-      if (overscroll.current === 0) {
+      if (raw < 0) {
         engaged.current = 'none';
+        overscroll.current = 0;
+        writeOffset(0);
+      } else {
+        overscroll.current = raw;
+        writeOffset(raw * RESISTANCE);
       }
     }
   }, [ensureWillChange, getEmbla, writeOffset]);
