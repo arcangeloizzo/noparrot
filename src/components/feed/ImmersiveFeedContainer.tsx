@@ -97,6 +97,11 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
   const overscroll = useOverscrollCardTransition({
     getEmbla: () => emblaApi,
     getViewportHeight: () => containerRef.current?.clientHeight ?? window.innerHeight,
+    // The viewport hosts the `--overscroll-offset` CSS variable which
+    // every slide reads through the `.np-overscroll-slide` rule. We shift
+    // the slides together (not just the current one) so the neighbouring
+    // card genuinely peeks into view instead of leaving a hole below.
+    getTarget: () => containerRef.current,
   });
 
   // Expose scroll methods to parent
@@ -309,12 +314,12 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
             <div
               key={item.id ?? actualIndex}
               data-slide-wrapper="true"
+              className="w-full np-overscroll-slide"
               style={{
                 flex: '0 0 var(--feed-viewport-h)',
                 minHeight: 'var(--feed-viewport-h)',
                 maxHeight: 'var(--feed-viewport-h)',
               }}
-              className="w-full"
             >
               <div
                 data-slide-scroll="true"

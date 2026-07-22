@@ -5,29 +5,36 @@ import type { EmblaCarouselType } from 'embla-carousel';
 export const ENABLE_OVERSCROLL_TRANSITION = true;
 
 // Tuning constants
-const COMMIT_RATIO = 0.15;   // fraction of viewport height needed to commit card change
-const RESISTANCE = 0.45;     // visual translation damping over accumulated overscroll
-const RELEASE_MS = 180;      // ease-out snap-back duration when under threshold
+const COMMIT_RATIO = 0.22;   // fraction of viewport height needed to commit card change
+const RESISTANCE = 0.5;      // visual translation damping over accumulated overscroll
+const RELEASE_MS = 220;      // ease-out snap-back duration (also matches Embla settle window)
 const H_BIAS = 1.2;          // ignore gestures more horizontal than vertical (|dx|*bias > |dy|)
 
 interface Options {
   getEmbla: () => EmblaCarouselType | undefined;
   getViewportHeight: () => number;
+  // Element on which we write the `--overscroll-offset` CSS variable.
+  // Slides read it via a stylesheet rule and translate together, so Embla's
+  // own container transform is never touched.
+  getTarget: () => HTMLElement | null;
 }
 
 /**
  * Overscroll-to-change-card gesture.
  *
- * When the inner scroller hits its end and the finger keeps going, we stop
- * scrolling text and start lifting the slide with resistance. Release above
- * COMMIT_RATIO * viewportH commits to next/prev; below, the slide snaps back.
+ * When the inner scroller hits its end and the finger keeps going, we lift
+ * ALL slides together with resistance by writing a `--overscroll-offset`
+ * CSS variable on the viewport. Slides consume that variable through a
+ * CSS rule (`.np-overscroll-slide`) so Embla's container transform stays
+ * untouched and the next/prev card genuinely peeks into view.
  *
- * The accumulator measures REAL finger travel past end-of-scroll, not total
- * delta from touchstart, so pixels spent scrolling content don't count.
+ * Release above COMMIT_RATIO * viewportH commits to next/prev; below, the
+ * offset eases back to 0. On commit we do NOT clear the offset before
+ * `scrollNext/scrollPrev` — we ease it to 0 concurrently with Embla's snap
+ * so there is no back-jump before the transition.
  */
-export function useOverscrollCardTransition({ getEmbla, getViewportHeight }: Options) {
+export function useOverscrollCardTransition({ getEmbla, getViewportHeight, getTarget }: Options) {
   const scrollerRef = useRef<HTMLElement | null>(null);
-  const wrapperRef = useRef<HTMLElement | null>(null);
 
   const startY = useRef(0);
   const startX = useRef(0);
@@ -41,49 +48,83 @@ export function useOverscrollCardTransition({ getEmbla, getViewportHeight }: Opt
   const anchorY = useRef(0);
   const horizontalLocked = useRef(false);
 
+  // will-change is only applied WHILE overscroll is engaged. Promoting the
+  // viewport to a layer unconditionally can break nested native scrolling
+  // on iOS Safari (`-webkit-overflow-scrolling: touch`).
+  const willChangeSet = useRef(false);
+  const currentOffsetPx = useRef(0);
   const rafId = useRef<number | null>(null);
-  const pendingTransform = useRef<number>(0);
+  const pendingOffset = useRef(0);
+  const releaseRafId = useRef<number | null>(null);
 
-  const applyTransform = useCallback((tx: number) => {
-    pendingTransform.current = tx;
+  const writeOffset = useCallback((px: number) => {
+    currentOffsetPx.current = px;
+    pendingOffset.current = px;
     if (rafId.current != null) return;
     rafId.current = requestAnimationFrame(() => {
       rafId.current = null;
-      const el = wrapperRef.current;
-      if (!el) return;
-      const v = pendingTransform.current;
-      el.style.transform = v === 0 ? '' : `translateY(${v}px)`;
+      const t = getTarget();
+      if (!t) return;
+      const v = pendingOffset.current;
+      if (v === 0) t.style.removeProperty('--overscroll-offset');
+      else t.style.setProperty('--overscroll-offset', `${v}px`);
     });
-  }, []);
+  }, [getTarget]);
 
-  const resetTransform = useCallback((animated: boolean) => {
-    const el = wrapperRef.current;
-    if (!el) return;
-    const reduced = typeof window !== 'undefined' &&
-      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    if (animated && !reduced) {
-      el.style.transition = `transform ${RELEASE_MS}ms ease-out`;
-      el.style.transform = '';
-      window.setTimeout(() => {
-        if (wrapperRef.current === el) {
-          el.style.transition = '';
-          el.style.willChange = '';
-        }
-      }, RELEASE_MS + 20);
-    } else {
-      el.style.transition = '';
-      el.style.transform = '';
-      el.style.willChange = '';
+  const ensureWillChange = useCallback(() => {
+    if (willChangeSet.current) return;
+    const t = getTarget();
+    if (!t) return;
+    t.style.willChange = 'transform';
+    willChangeSet.current = true;
+  }, [getTarget]);
+
+  const clearWillChange = useCallback(() => {
+    if (!willChangeSet.current) return;
+    const t = getTarget();
+    if (t) t.style.willChange = '';
+    willChangeSet.current = false;
+  }, [getTarget]);
+
+  const cancelRelease = useCallback(() => {
+    if (releaseRafId.current != null) {
+      cancelAnimationFrame(releaseRafId.current);
+      releaseRafId.current = null;
     }
   }, []);
+
+  const animateOffsetTo = useCallback((toPx: number, durationMs: number, onDone?: () => void) => {
+    cancelRelease();
+    const fromPx = currentOffsetPx.current;
+    if (fromPx === toPx) { onDone?.(); return; }
+    const reduced = typeof window !== 'undefined' &&
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (reduced || durationMs <= 0) {
+      writeOffset(toPx);
+      onDone?.();
+      return;
+    }
+    const startTs = performance.now();
+    const step = (now: number) => {
+      const p = Math.min(1, (now - startTs) / durationMs);
+      const eased = 1 - Math.pow(1 - p, 3);
+      const v = fromPx + (toPx - fromPx) * eased;
+      writeOffset(v);
+      if (p < 1) {
+        releaseRafId.current = requestAnimationFrame(step);
+      } else {
+        releaseRafId.current = null;
+        onDone?.();
+      }
+    };
+    releaseRafId.current = requestAnimationFrame(step);
+  }, [cancelRelease, writeOffset]);
 
   const onTouchStart = useCallback((e: React.TouchEvent) => {
     if (!ENABLE_OVERSCROLL_TRANSITION) return;
     const t = e.target as HTMLElement | null;
     const sc = t?.closest?.('[data-slide-scroll="true"]') as HTMLElement | null;
-    const wr = t?.closest?.('[data-slide-wrapper="true"]') as HTMLElement | null;
     scrollerRef.current = sc;
-    wrapperRef.current = wr;
     startY.current = e.touches[0].clientY;
     startX.current = e.touches[0].clientX;
     lastY.current = startY.current;
@@ -91,11 +132,11 @@ export function useOverscrollCardTransition({ getEmbla, getViewportHeight }: Opt
     engaged.current = 'none';
     anchorY.current = 0;
     horizontalLocked.current = false;
-    if (wr) {
-      wr.style.transition = '';
-      wr.style.willChange = 'transform';
-    }
-  }, []);
+    // Do NOT set will-change here — only when overscroll actually engages.
+    // Cancel any in-flight release from a previous gesture so this touch
+    // takes over cleanly.
+    cancelRelease();
+  }, [cancelRelease]);
 
   const onTouchMove = useCallback((e: React.TouchEvent) => {
     if (!ENABLE_OVERSCROLL_TRANSITION) return;
@@ -131,10 +172,17 @@ export function useOverscrollCardTransition({ getEmbla, getViewportHeight }: Opt
         engaged.current = 'bottom';
         anchorY.current = y;
         overscroll.current = 0;
+        ensureWillChange();
       } else if (atTop && movingDown) {
+        // On the FIRST slide, top overscroll is owned by pull-to-refresh.
+        // Never engage here — otherwise the two gestures fight in the
+        // 0..~120px band and the user sees two overlapping motions.
+        const embla = getEmbla();
+        if (embla && embla.selectedScrollSnap() === 0) return;
         engaged.current = 'top';
         anchorY.current = y;
         overscroll.current = 0;
+        ensureWillChange();
       }
     }
 
@@ -142,24 +190,20 @@ export function useOverscrollCardTransition({ getEmbla, getViewportHeight }: Opt
       // overscroll positive = finger travelled UP past anchor
       const raw = anchorY.current - y;
       overscroll.current = Math.max(0, raw);
+      writeOffset(-overscroll.current * RESISTANCE);
       if (overscroll.current === 0) {
         engaged.current = 'none';
-        applyTransform(0);
-        return;
       }
-      applyTransform(-overscroll.current * RESISTANCE);
     } else if (engaged.current === 'top') {
       // overscroll positive = finger travelled DOWN past anchor
       const raw = y - anchorY.current;
       overscroll.current = Math.max(0, raw);
+      writeOffset(overscroll.current * RESISTANCE);
       if (overscroll.current === 0) {
         engaged.current = 'none';
-        applyTransform(0);
-        return;
       }
-      applyTransform(overscroll.current * RESISTANCE);
     }
-  }, [applyTransform]);
+  }, [ensureWillChange, getEmbla, writeOffset]);
 
   const onTouchEnd = useCallback(() => {
     if (!ENABLE_OVERSCROLL_TRANSITION) return;
@@ -171,29 +215,36 @@ export function useOverscrollCardTransition({ getEmbla, getViewportHeight }: Opt
     engaged.current = 'none';
     overscroll.current = 0;
     horizontalLocked.current = false;
+    scrollerRef.current = null;
+    // NOTE: the target element (viewport) is NEVER nulled — it must retain
+    // the `--overscroll-offset` variable until the release animation
+    // finishes writing 0 into it.
 
     if (dir === 'none' || amount <= 0) {
-      // No transform was applied — nothing to reset.
-      const el = wrapperRef.current;
-      if (el) el.style.willChange = '';
-      scrollerRef.current = null;
-      wrapperRef.current = null;
+      // No overscroll was applied — but a stray offset can linger if a
+      // previous release was cancelled by a new touch that never engaged.
+      // Guarantee we always land on 0.
+      if (currentOffsetPx.current !== 0) {
+        animateOffsetTo(0, RELEASE_MS, clearWillChange);
+      } else {
+        clearWillChange();
+      }
       return;
     }
 
     const embla = getEmbla();
     if (amount >= threshold && embla) {
-      // Commit: drop our transform immediately, let Embla animate the snap.
-      resetTransform(false);
+      // Commit: DO NOT snap the offset back to 0 before Embla moves — that
+      // caused a visible back-jump. Kick Embla, then ease the offset to 0
+      // concurrently with the snap animation. The two motions overlap so
+      // the visible content transitions continuously.
       if (dir === 'bottom') embla.scrollNext();
       else embla.scrollPrev();
+      animateOffsetTo(0, RELEASE_MS, clearWillChange);
     } else {
-      resetTransform(true);
+      animateOffsetTo(0, RELEASE_MS, clearWillChange);
     }
-
-    scrollerRef.current = null;
-    wrapperRef.current = null;
-  }, [getEmbla, getViewportHeight, resetTransform]);
+  }, [animateOffsetTo, clearWillChange, getEmbla, getViewportHeight]);
 
   return { onTouchStart, onTouchMove, onTouchEnd };
 }
