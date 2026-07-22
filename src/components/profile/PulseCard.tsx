@@ -96,7 +96,9 @@ export const PulseCard = ({ onExploreTap }: PulseCardProps = {}) => {
   };
 
   return (
-    <div style={cardStyle} className="np-grain">
+    <div style={cardStyle}>
+      {/* Grain veil — must be a child, mai sul contenitore stesso */}
+      <div className="np-grain" aria-hidden />
       {/* Costola bicolore (viola → giallo) — firma della Pulse card */}
       <span
         aria-hidden

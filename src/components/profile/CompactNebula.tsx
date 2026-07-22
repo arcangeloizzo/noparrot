@@ -380,7 +380,19 @@ export const CompactNebula = ({ data, onExpand, selectedMacro, onMacroClick }: C
       {/* Header with title and explicit expand button (4.5 bug-fix) */}
       <div className="flex items-center justify-between mb-2 relative z-10">
         <div>
-          <h4 className="text-base font-semibold text-foreground">Nebulosa Cognitiva</h4>
+          <h4
+            style={{
+              fontFamily: "var(--display)",
+              fontSize: 15,
+              fontWeight: 400,
+              letterSpacing: "0.02em",
+              textTransform: "uppercase",
+              color: "var(--txt)",
+              lineHeight: 1.05,
+            }}
+          >
+            Nebulosa Cognitiva
+          </h4>
           <p className="text-xs text-muted-foreground/70 mt-0.5">
             Tap su un pianeta per filtrare il diario
           </p>
@@ -438,7 +450,7 @@ export const CompactNebula = ({ data, onExpand, selectedMacro, onMacroClick }: C
                 e.stopPropagation();
                 onMacroClick?.(pos.name);
               }}
-              className="absolute z-20 text-[11px] font-semibold whitespace-nowrap transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer px-1.5 py-0.5"
+              className="absolute z-20 whitespace-nowrap transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer px-1.5 py-0.5"
               style={{
                 color: CATEGORY_COLORS[pos.name],
                 left: `${lx}px`,
@@ -446,7 +458,11 @@ export const CompactNebula = ({ data, onExpand, selectedMacro, onMacroClick }: C
                 transform: `translate(${translateX}, -50%) ${isSelected ? 'scale(1.15)' : 'scale(1)'}`,
                 textShadow: '0 1px 3px rgba(0,0,0,0.8)',
                 opacity: isDimmed ? 0.45 : 1,
-                fontWeight: isSelected ? 800 : 600,
+                fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+                fontSize: 8.5,
+                fontWeight: isSelected ? 700 : 600,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
                 pointerEvents: 'auto',
               }}
               aria-label={`Filtra Diario per ${pos.name}`}

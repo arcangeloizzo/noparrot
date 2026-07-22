@@ -17,7 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useCognitiveDensity } from "@/hooks/useCognitiveDensity";
 import { useNebulaFilter } from "@/hooks/useNebulaFilter";
 import { DiarioFilterChip } from "@/components/profile/DiarioFilterChip";
-import { normalizeCategory } from "@/config/categories";
+import { normalizeCategory, CATEGORY_COLORS } from "@/config/categories";
 import { Settings, Bookmark } from "lucide-react";
 
 export const Profile = () => {
@@ -258,6 +258,20 @@ export const Profile = () => {
   const totalPaths = summary?.comprehension_count ?? 0;
   const activeTopics = summary?.territories_count ?? 0;
 
+  // Dominant territory color for hero gradient endpoint
+  const dominantColor = (() => {
+    const flat = (cognitiveDensity as any)?.byMacroFlat as Record<string, number> | undefined;
+    if (!flat) return "#A78BFA";
+    let best: string | null = null;
+    let bestVal = -1;
+    for (const [k, v] of Object.entries(flat)) {
+      const key = normalizeCategory(k) ?? k;
+      if ((v ?? 0) > bestVal) { bestVal = v ?? 0; best = key; }
+    }
+    return (best && CATEGORY_COLORS[best]) || "#A78BFA";
+  })();
+  const displayHandle = getDisplayUsername(profile?.username || '');
+
   return (
     <div className="min-h-screen bg-background pb-24 urban-texture">
       <div className="max-w-[600px] mx-auto">
@@ -309,19 +323,21 @@ export const Profile = () => {
                   ? profile.full_name
                   : getDisplayUsername(profile?.username || '')}
               </h1>
-              <p
-                style={{
-                  fontFamily: "var(--mono)",
-                  fontSize: 11,
-                  fontWeight: 500,
-                  color: "var(--txt-3)",
-                  textTransform: "lowercase",
-                  letterSpacing: "0.02em",
-                  marginTop: 4,
-                }}
-              >
-                @{getDisplayUsername(profile?.username || '')}
-              </p>
+              {displayHandle && (
+                <p
+                  style={{
+                    fontFamily: "var(--mono)",
+                    fontSize: 11,
+                    fontWeight: 500,
+                    color: "var(--txt-3)",
+                    textTransform: "lowercase",
+                    letterSpacing: "0.02em",
+                    marginTop: 4,
+                  }}
+                >
+                  @{displayHandle}
+                </p>
+              )}
 
               {profile?.bio ? (
                 <p
@@ -354,9 +370,9 @@ export const Profile = () => {
             <button
               type="button"
               onClick={() => scrollToSection(diaryRef)}
-              className="text-left w-full"
+              className="text-left w-full flex items-end gap-3"
             >
-              <div
+              <span
                 style={{
                   fontFamily: "var(--display)",
                   fontSize: 62,
@@ -364,58 +380,81 @@ export const Profile = () => {
                   letterSpacing: "-0.01em",
                   lineHeight: 0.92,
                   textTransform: "uppercase",
-                  background: "linear-gradient(135deg, #FFFFFF 0%, #A78BFA 100%)",
+                  background: `linear-gradient(135deg, #FFFFFF 0%, ${dominantColor} 100%)`,
                   WebkitBackgroundClip: "text",
                   backgroundClip: "text",
                   WebkitTextFillColor: "transparent",
                   color: "transparent",
+                  display: "inline-block",
                 }}
               >
-                {Math.round(totalPaths)} cose
-              </div>
-              <div
+                {Math.round(totalPaths)}
+              </span>
+              <span
                 style={{
-                  fontFamily: "var(--display)",
-                  fontSize: 62,
-                  fontWeight: 400,
-                  letterSpacing: "-0.01em",
-                  lineHeight: 0.92,
+                  fontFamily: "var(--mono)",
+                  fontSize: 11,
+                  lineHeight: 1.15,
                   textTransform: "uppercase",
-                  color: "var(--txt)",
-                  marginTop: 2,
+                  letterSpacing: "0.08em",
+                  paddingBottom: 6,
+                  display: "inline-flex",
+                  flexDirection: "column",
                 }}
               >
-                comprese
-              </div>
+                <span style={{ color: "var(--txt-3)", fontWeight: 500 }}>cose</span>
+                <span style={{ color: "var(--txt)", fontWeight: 700 }}>COMPRESE</span>
+              </span>
             </button>
 
-            {/* Secondary row */}
+            {/* Secondary row — 3 celle con hairline */}
             <div
-              className="mt-2.5 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-muted-foreground"
-              style={{ fontSize: 13 }}
+              className="mt-4 grid grid-cols-3"
+              style={{
+                borderTop: "1px solid rgba(255,255,255,0.08)",
+                borderBottom: "1px solid rgba(255,255,255,0.08)",
+              }}
             >
-              <button
-                type="button"
-                onClick={() => scrollToSection(nebulaRef)}
-                className="hover:text-foreground transition-colors"
-              >
-                <b className="text-foreground/80" style={{ fontWeight: 600 }}>{activeTopics}</b> territori esplorati
-              </button>
-              <button
-                type="button"
-                onClick={openConnections}
-                className="hover:text-foreground transition-colors"
-              >
-                <b className="text-foreground/80" style={{ fontWeight: 600 }}>{summary?.following_count || 0}</b> persone seguite
-              </button>
-              <span aria-hidden style={{ opacity: 0.4 }}>·</span>
-              <button
-                type="button"
-                onClick={openFollowers}
-                className="hover:text-foreground transition-colors"
-              >
-                <b className="text-foreground/80" style={{ fontWeight: 600 }}>{summary?.followers_count || 0}</b> ti seguono
-              </button>
+              {[
+                { label: "TERRITORI", value: activeTopics, onClick: () => scrollToSection(nebulaRef) },
+                { label: "SEGUI", value: summary?.following_count || 0, onClick: openConnections },
+                { label: "TI SEGUONO", value: summary?.followers_count || 0, onClick: openFollowers },
+              ].map((cell, i) => (
+                <button
+                  key={cell.label}
+                  type="button"
+                  onClick={cell.onClick}
+                  className="flex flex-col items-center justify-center py-2.5 hover:bg-white/[0.02] transition-colors"
+                  style={{
+                    borderLeft: i > 0 ? "1px solid rgba(255,255,255,0.08)" : undefined,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontFamily: "var(--body, Inter), Inter, sans-serif",
+                      fontSize: 16,
+                      fontWeight: 700,
+                      color: "var(--txt)",
+                      lineHeight: 1.1,
+                    }}
+                  >
+                    {cell.value}
+                  </span>
+                  <span
+                    style={{
+                      fontFamily: "var(--mono)",
+                      fontSize: 9,
+                      fontWeight: 600,
+                      letterSpacing: "0.1em",
+                      textTransform: "uppercase",
+                      color: "var(--txt-4)",
+                      marginTop: 3,
+                    }}
+                  >
+                    {cell.label}
+                  </span>
+                </button>
+              ))}
             </div>
           </div>
         </div>
@@ -438,8 +477,27 @@ export const Profile = () => {
         {/* Cognitive Diary */}
         <div id="diario-section" ref={diaryRef} className="px-4 pb-6 scroll-mt-20" data-section="diario">
           <div className="mb-3">
-            <h3 className="text-base font-semibold">Diario Cognitivo</h3>
-            <p className="text-xs text-muted-foreground">
+            <h3
+              style={{
+                fontFamily: "var(--display)",
+                fontSize: 19,
+                fontWeight: 400,
+                letterSpacing: "0.005em",
+                textTransform: "uppercase",
+                color: "var(--txt)",
+                lineHeight: 1.05,
+              }}
+            >
+              Diario Cognitivo
+            </h3>
+            <p
+              style={{
+                fontFamily: "var(--body, Inter), Inter, sans-serif",
+                fontSize: 12.5,
+                color: "var(--txt-4)",
+                marginTop: 4,
+              }}
+            >
               Tutto ciò che hai compreso, condiviso e creato.
             </p>
           </div>
