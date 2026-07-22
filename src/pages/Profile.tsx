@@ -17,7 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useCognitiveDensity } from "@/hooks/useCognitiveDensity";
 import { useNebulaFilter } from "@/hooks/useNebulaFilter";
 import { DiarioFilterChip } from "@/components/profile/DiarioFilterChip";
-import { normalizeCategory } from "@/config/categories";
+import { normalizeCategory, CATEGORY_COLORS } from "@/config/categories";
 import { Settings, Bookmark } from "lucide-react";
 
 export const Profile = () => {
