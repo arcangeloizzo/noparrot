@@ -3,6 +3,7 @@ import { ArrowLeft, Search, MessageSquarePlus, MessageCircle } from "lucide-reac
 import { useNavigate } from "react-router-dom";
 import { useMessageThreads } from "@/hooks/useMessageThreads";
 import { ThreadList } from "@/components/messages/ThreadList";
+import { ThreadListSkeleton } from "@/components/messages/ThreadListSkeleton";
 import { PeoplePicker } from "@/components/share/PeoplePicker";
 import { NewMessageSheet } from "@/components/messages/NewMessageSheet";
 import { supabase } from "@/integrations/supabase/client";
@@ -144,10 +145,8 @@ export default function Messages() {
 
       {/* Content */}
       <div>
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-          </div>
+        {isLoading && threads.length === 0 ? (
+          <ThreadListSkeleton />
         ) : filteredThreads.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 px-6 animate-fade-in">
             <div className="w-20 h-20 rounded-full bg-accent/50 flex items-center justify-center mb-6">

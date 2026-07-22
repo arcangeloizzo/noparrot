@@ -79,6 +79,7 @@ const ThreadItem = memo(({
             className="w-full h-full object-cover relative z-10"
             priority={index < 8}
             dominantColor="transparent"
+            sizePx={56}
           />
         </div>
         {isOnline && (
