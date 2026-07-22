@@ -473,7 +473,10 @@ export const CompactNebula = ({ data, onExpand, selectedMacro, onMacroClick }: C
 
       {/* Empty state */}
       {activeCategories.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center z-20 bg-card/80 rounded-2xl">
+        <div
+          className="absolute inset-0 flex items-center justify-center z-20 rounded-2xl"
+          style={{ background: 'rgba(14, 21, 34, 0.72)' }}
+        >
           <p className="text-sm text-muted-foreground text-center px-8">
             Esplora contenuti per attivare la tua nebulosa cognitiva
           </p>
