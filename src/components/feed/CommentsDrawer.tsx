@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom';
 import { Heart, MessageCircle, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useComments, useAddComment, useDeleteComment } from '@/hooks/useComments';
 import { useFocusComments, useAddFocusComment, useDeleteFocusComment } from '@/hooks/useFocusComments';
 import { useCommentReactions } from '@/hooks/useCommentReactions';
@@ -29,7 +28,7 @@ import { QuizModal } from '@/components/ui/quiz-modal';
 import { toast as sonnerToast } from 'sonner';
 import { LogoVertical } from '@/components/ui/LogoVertical';
 import { getAvatarImageUrl } from "@/lib/mediaUtils";
-import { getWordCount, getPostFullText, getTestModeWithSource } from '@/lib/gate-utils';
+import { getWordCount, getPostFullText, getTestModeWithSource, MIN_EXTRACTED_CHARS } from '@/lib/gate-utils';
 import { generateQA, fetchArticlePreview } from '@/lib/ai-helpers';
 import { addBreadcrumb } from '@/lib/crashBreadcrumbs';
 import { useLongPress } from '@/hooks/useLongPress';
@@ -53,13 +52,17 @@ interface CommentsDrawerProps {
 export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId }: CommentsDrawerProps) => {
   const { user } = useAuth();
   
-  // [FIX] Check for sources - include both URL-based sources AND media with OCR text
-  const postMediaWithExtractedText = (post as any).media?.find((m: any) => 
-    m.extracted_status === 'done' && 
-    m.extracted_text && 
-    m.extracted_text.length > 120
+  // [FIX] Consider the WHOLE carousel: concat all extracted_text (order_idx) and
+  // compare the aggregate against the unified MIN_EXTRACTED_CHARS threshold.
+  const postMediaExtracted = ((post as any).media || [])
+    .filter((m: any) => m.extracted_status === 'done' && m.extracted_text)
+    .sort((a: any, b: any) => (a.order_idx ?? 0) - (b.order_idx ?? 0));
+  const postExtractedTotal = postMediaExtracted.reduce(
+    (n: number, m: any) => n + (m.extracted_text?.length || 0), 0
   );
-  const postHasSource = !!post.shared_url || !!postMediaWithExtractedText;
+  const postHasMediaText = postExtractedTotal >= MIN_EXTRACTED_CHARS;
+  const postPrimaryExtractedMedia = postHasMediaText ? postMediaExtracted[0] : null;
+  const postHasSource = !!post.shared_url || postHasMediaText;
   const isFocusContent = post.shared_url === 'focus://internal';
   const accent = getCategoryColor((post as any).category) || '#0A7AFF';
 
@@ -108,6 +111,12 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
   const [showCommentTypeChoice, setShowCommentTypeChoice] = useState(false);
   const [selectedCommentType, setSelectedCommentType] = useState<'spontaneous' | 'informed' | null>(null);
   const [isProcessingGate, setIsProcessingGate] = useState(false);
+
+  // #8 Header filter: TUTTI / CONSAPEVOLI
+  const [awareOnly, setAwareOnly] = useState(false);
+  const visibleComments = awareOnly
+    ? (comments as any[]).filter((c: any) => c.passed_gate)
+    : comments;
 
   const keyboardOffset = useVisualViewportOffset();
   const isKeyboardOpen = keyboardOffset > 0;
@@ -384,6 +393,36 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
             <DrawerTitle className="text-center text-lg font-semibold text-foreground mb-4">
               Commenti <span style={{ fontFamily:'var(--mono)', fontSize:'12px', color:'var(--txt-3)', fontWeight:600 }}>· {comments.length}</span>
             </DrawerTitle>
+
+            {/* Filter pills: TUTTI / CONSAPEVOLI */}
+            <div className="flex justify-center gap-2 mb-3">
+              {([
+                { key: 'all', label: 'TUTTI' },
+                { key: 'aware', label: 'CONSAPEVOLI' },
+              ] as const).map(opt => {
+                const active = (opt.key === 'aware') === awareOnly;
+                return (
+                  <button
+                    key={opt.key}
+                    onClick={() => setAwareOnly(opt.key === 'aware')}
+                    style={{
+                      fontFamily: 'var(--mono)',
+                      fontSize: 10,
+                      letterSpacing: '0.10em',
+                      fontWeight: 700,
+                      padding: '5px 12px',
+                      borderRadius: 999,
+                      color: active ? '#0E1522' : 'var(--txt-3)',
+                      background: active ? '#F2F5FA' : 'rgba(255,255,255,0.06)',
+                      border: '1px solid rgba(255,255,255,0.09)',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
             
             {/* Post Preview - Compact card */}
             <div className="mx-2 p-3 rounded-2xl flex gap-2.5 items-stretch" style={{ background:`${accent}12`, border:`1px solid ${accent}2E` }}>
@@ -457,9 +496,14 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                   Sii il primo a entrare nella conversazione
                 </p>
               </div>
+            ) : visibleComments.length === 0 ? (
+              <div className="text-center py-16 px-6 relative z-10">
+                <p className="text-foreground/80 font-medium mb-1">Nessun commento consapevole</p>
+                <p className="text-sm text-muted-foreground">Cambia filtro per vedere tutti i commenti.</p>
+              </div>
             ) : (
               <div className="space-y-1 relative z-10">
-                {comments.map((comment: any) => (
+                {visibleComments.map((comment: any) => (
                   <CommentItem
                     key={comment.id}
                     comment={comment}
@@ -482,6 +526,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                     getUserAvatar={getUserAvatar}
                     postHasSource={postHasSource}
                     postHasLongText={postHasLongText}
+                    postAuthorId={post.author?.id}
                     commentKind={isFocusContent ? 'focus' : 'post'}
                   />
                 ))}
@@ -491,6 +536,214 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
 
           {/* Fixed Bottom Composer - Compact inline style */}
           <div className={cn("sticky bottom-0 z-30", !isKeyboardOpen && "pb-[env(safe-area-inset-bottom)]")} style={{ background:'rgba(12,18,30,0.75)', backdropFilter:'blur(16px)', WebkitBackdropFilter:'blur(16px)', boxShadow:'0 -1px 0 rgba(255,255,255,0.06)' }}>
+            {/* #9 In-drawer gate choice panel (replaces the old Dialog) */}
+            {showCommentTypeChoice && user?.id !== post.author?.id && (
+              <div
+                className="mx-3 mt-3 mb-2 p-3 rounded-2xl"
+                style={{
+                  background: 'rgba(18,26,42,0.88)',
+                  backdropFilter: 'blur(22px) saturate(140%)',
+                  WebkitBackdropFilter: 'blur(22px) saturate(140%)',
+                  border: '1px solid rgba(255,255,255,0.09)',
+                  boxShadow: '0 1px 0 rgba(255,255,255,0.06) inset',
+                }}
+              >
+                <p
+                  style={{
+                    fontFamily: 'var(--mono)',
+                    fontSize: 10,
+                    letterSpacing: '0.10em',
+                    color: 'var(--txt-3)',
+                    textTransform: 'uppercase',
+                    marginBottom: 10,
+                    textAlign: 'center',
+                  }}
+                >
+                  Come vuoi entrare nella conversazione
+                </p>
+
+                {/* Primary (order inverted): Leggi prima la fonte */}
+                <button
+                  disabled={isProcessingGate}
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    // Bypass if user already passed gate
+                    if (user) {
+                      const { data: existingAttempt } = await supabase
+                        .from('post_gate_attempts')
+                        .select('id')
+                        .eq('user_id', user.id)
+                        .eq('post_id', post.id)
+                        .eq('passed', true)
+                        .limit(1)
+                        .maybeSingle();
+                      if (existingAttempt) {
+                        setShowCommentTypeChoice(false);
+                        setSelectedCommentType('informed');
+                        sonnerToast.success('Gate già superato! Puoi commentare.');
+                        setTimeout(() => textareaRef.current?.focus(), 150);
+                        return;
+                      }
+                    }
+
+                    setShowCommentTypeChoice(false);
+                    setIsProcessingGate(true);
+
+                    // Long-text-only path
+                    if (postHasLongText && !post.shared_url && !postPrimaryExtractedMedia) {
+                      sonnerToast.info('Sto preparando ciò che ti serve per orientarti…');
+                      await runGateBeforeAction({
+                        linkUrl: `internal://post/${post.id}`,
+                        intentPostContent: [(post as any).title, post.content].filter(Boolean).join('\n\n'),
+                        onSuccess: () => {
+                          setSelectedCommentType('informed');
+                          setTimeout(() => textareaRef.current?.focus(), 150);
+                        },
+                        onCancel: () => setSelectedCommentType(null),
+                        setIsProcessing: setIsProcessingGate,
+                        setQuizData,
+                        setShowQuiz,
+                      });
+                      return;
+                    }
+
+                    try {
+                      // #1 FIX: testMode è calcolato sul TESTO DELL'AUTORE del post,
+                      // NON sul commento in bozza. E userText inviato a generateQA è
+                      // il testo dell'autore del post.
+                      const authorText = getPostFullText(post);
+                      const authorWordCount = getWordCount(authorText);
+                      const testMode = getTestModeWithSource(authorWordCount);
+
+                      sonnerToast.info('Sto preparando ciò che ti serve per orientarti…');
+
+                      // Media OCR case (no URL)
+                      if (postPrimaryExtractedMedia && !post.shared_url) {
+                        const result = await generateQA({
+                          contentId: post.id,
+                          title: '',
+                          qaSourceRef: { kind: 'mediaId', id: postPrimaryExtractedMedia.id },
+                          userText: authorText, // #1 FIX
+                          sourceUrl: undefined,
+                          testMode: 'SOURCE_ONLY',
+                        });
+                        if (result.insufficient_context || result.error || !result.questions) {
+                          sonnerToast.error(result.error || 'Contenuto insufficiente per il quiz');
+                          setIsProcessingGate(false);
+                          return;
+                        }
+                        setQuizData({
+                          qaId: result.qaId,
+                          questions: result.questions,
+                          sourceUrl: `media://${postPrimaryExtractedMedia.id}`,
+                        });
+                        setShowQuiz(true);
+                        setIsProcessingGate(false);
+                        return;
+                      }
+
+                      // URL-based source
+                      const isFocus = post.shared_url === 'focus://internal';
+                      let fullContent = '';
+                      let contentTitle = '';
+                      let externalPreview: any = null;
+
+                      if (isFocus && (post as any).article_content) {
+                        fullContent = (post as any).article_content;
+                        contentTitle = (post as any).shared_title || '';
+                      } else {
+                        externalPreview = await fetchArticlePreview(post.shared_url!);
+                        if (!externalPreview) {
+                          sonnerToast.error('Impossibile recuperare il contenuto della fonte');
+                          setIsProcessingGate(false);
+                          return;
+                        }
+                        fullContent = externalPreview.content || externalPreview.summary || externalPreview.excerpt || '';
+                        contentTitle = externalPreview.title || (post as any).shared_title || '';
+                      }
+
+                      const result = await generateQA({
+                        contentId: post.id,
+                        title: contentTitle,
+                        summary: isFocus ? fullContent : undefined,
+                        qaSourceRef: !isFocus ? externalPreview?.qaSourceRef : undefined,
+                        userText: authorText, // #1 FIX
+                        sourceUrl: post.shared_url!,
+                        testMode,
+                      });
+
+                      if (result.insufficient_context) {
+                        sonnerToast.error('Contenuto troppo breve per generare il quiz');
+                        setIsProcessingGate(false);
+                        return;
+                      }
+                      if (result.error || !result.questions) {
+                        sonnerToast.error(result.error || 'Errore generazione quiz');
+                        setIsProcessingGate(false);
+                        return;
+                      }
+
+                      setQuizData({
+                        qaId: result.qaId,
+                        questions: result.questions,
+                        sourceUrl: post.shared_url,
+                      });
+                      setShowQuiz(true);
+                    } catch (err) {
+                      console.error('Error running informed comment gate:', err);
+                      sonnerToast.error('Errore durante la verifica del contenuto');
+                    } finally {
+                      setIsProcessingGate(false);
+                    }
+                  }}
+                  className="w-full text-left rounded-xl p-3 mb-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(10,122,255,0.16), rgba(10,122,255,0.05))',
+                    border: '1px solid rgba(10,122,255,0.45)',
+                    boxShadow: '0 0 16px rgba(10,122,255,0.20)',
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div style={{ padding: 8, borderRadius: 12, background: 'rgba(10,122,255,0.20)' }}>
+                      <LogoVertical hideText={true} className="w-6 h-6" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[14px] font-semibold text-foreground mb-0.5">Leggi prima la fonte</p>
+                      <p className="text-[12px] text-muted-foreground/80">Il tuo commento porterà il segno "HA LETTO"</p>
+                    </div>
+                  </div>
+                </button>
+
+                {/* Secondary: Partecipa subito */}
+                <button
+                  disabled={isProcessingGate}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setSelectedCommentType('spontaneous');
+                    setShowCommentTypeChoice(false);
+                    setTimeout(() => textareaRef.current?.focus(), 150);
+                  }}
+                  className="w-full text-left rounded-xl p-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div style={{ padding: 8, borderRadius: 12, background: 'rgba(255,255,255,0.05)' }}>
+                      <MessageCircle className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[14px] font-semibold text-foreground mb-0.5">Partecipa subito</p>
+                      <p className="text-[12px] text-muted-foreground/80">Commenta senza consultare la fonte</p>
+                    </div>
+                  </div>
+                </button>
+              </div>
+            )}
+
             <div className="px-3 py-3">
               {/* Reply indicator */}
               {replyingTo && (
@@ -586,11 +839,12 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                         ? "Entra nella conversazione…"
                         : "Scrivi un commento..."
                     }
+                    disabled={showCommentTypeChoice && user?.id !== post.author?.id}
                     className={cn(
                       "flex-1 bg-transparent border-none focus:outline-none focus:ring-0 resize-none",
                       "text-sm text-foreground placeholder:text-muted-foreground/50",
                       "min-h-[42px] max-h-[120px] py-3 pl-4 pr-2",
-                      requiresGateChoice && selectedCommentType === null && "opacity-50 cursor-not-allowed"
+                      ((requiresGateChoice && selectedCommentType === null) || showCommentTypeChoice) && "opacity-50 cursor-not-allowed"
                     )}
                     maxLength={500}
                     rows={1}
