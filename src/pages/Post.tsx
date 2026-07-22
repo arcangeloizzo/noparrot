@@ -1,4 +1,4 @@
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,11 +15,62 @@ export const Post = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // Fetch post with same structure as feed
+  // Fetch post with same structure as feed. Guests use a public RPC.
   const { data: post, isLoading, error } = useQuery<PostType>({
-    queryKey: ['post', postId],
+    queryKey: ['post', postId, user?.id ?? 'guest'],
     queryFn: async () => {
       if (!postId) throw new Error('Post ID is required');
+
+      // -------- GUEST PATH: RPC returns already-shaped public payload --------
+      if (!user) {
+        const { data: raw, error } = await (supabase as any).rpc(
+          'get_public_post',
+          { p_id: postId }
+        );
+        if (error) throw error;
+        if (!raw) throw new Error('Post not found');
+        const byType = (raw.reactions_by_type || {}) as Record<string, number>;
+        return {
+          id: raw.id,
+          author: raw.author,
+          title: raw.title,
+          body_text: (raw as any).body_text,
+          content: raw.content,
+          topic_tag: raw.topic_tag,
+          shared_title: raw.shared_title,
+          shared_url: raw.shared_url,
+          preview_img: raw.preview_img,
+          trust_level: raw.trust_level as any,
+          stance: raw.stance as any,
+          sources: Array.isArray(raw.sources) ? raw.sources : [],
+          created_at: raw.created_at,
+          quoted_post_id: raw.quoted_post_id,
+          category: raw.category ?? null,
+          post_type: raw.post_type || 'standard',
+          voice_post: raw.voice_post || null,
+          challenge: raw.challenge
+            ? { ...raw.challenge, voice_post: null }
+            : null,
+          quoted_post: null,
+          media: raw.media || [],
+          reactions: {
+            hearts: byType.heart || 0,
+            comments: raw.comments_count || 0,
+            byType,
+          },
+          user_reactions: {
+            has_hearted: false,
+            has_bookmarked: false,
+            myReactionType: null,
+          },
+          questions: (raw.questions || []).map((q: any) => ({
+            id: q.id,
+            question_text: q.question_text,
+            options: q.options as string[],
+            correct_index: q.correct_index,
+          })),
+        } as any;
+      }
 
       const { data, error } = await supabase
         .from('posts')
