@@ -52,7 +52,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { detectPlatformFromUrl } from "@/components/media/utils/mediaUtils";
 import { AnalysisOverlay } from "@/components/ui/AnalysisOverlay";
 import { cn, getDisplayUsername, decodeHTMLEntities } from "@/lib/utils";
-import { fetchTrustScore } from "@/lib/comprehension-gate";
+import { fetchTrustScore } from "@/lib/trustScore";
 import { generateQA, fetchArticlePreview } from "@/lib/ai-helpers";
 import { supabase } from "@/integrations/supabase/client";
 import { uniqueSources } from "@/lib/url";
