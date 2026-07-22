@@ -1,6 +1,7 @@
 import React, { useRef, useState, forwardRef, useImperativeHandle, useCallback, createContext, useContext, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import useEmblaCarousel from "embla-carousel-react";
+import { useOverscrollCardTransition, ENABLE_OVERSCROLL_TRANSITION } from "@/hooks/useOverscrollCardTransition";
 
 // Export OVERSCAN constant for easy tuning
 // Reduced from 3 -> 1 to mount only 3 cards (1+1+1) instead of 7.
@@ -75,11 +76,6 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
   const [isRefreshing, setIsRefreshing] = useState(false);
   const lastReportedIndex = useRef<number>(activeIndex);
 
-  // TRIAL EMBLA: edge-swipe change-card refs
-  const edgeTouchStartY = useRef(0);
-  const edgeAtTopRef = useRef(false);
-  const edgeAtBottomRef = useRef(false);
-
   // TRIAL EMBLA: vertical carousel with nested-scroll guard
   const [emblaRef, emblaApi] = useEmblaCarousel({
     axis: 'y',
@@ -95,6 +91,12 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
       const canScrollInside = scroller.scrollHeight > scroller.clientHeight + 1;
       return !canScrollInside; // scrollable → native only; short → Embla drags
     },
+  });
+
+  // Overscroll → change-card gesture (finger-tracked, real-time feedback).
+  const overscroll = useOverscrollCardTransition({
+    getEmbla: () => emblaApi,
+    getViewportHeight: () => containerRef.current?.clientHeight ?? window.innerHeight,
   });
 
   // Expose scroll methods to parent
@@ -263,18 +265,7 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
         touchStartY.current = e.touches[0].clientY;
       }
     }
-
-    // TRIAL EMBLA: edge-swipe tracking on tall cards
-    const t = e.target as HTMLElement;
-    const sc = t?.closest?.('[data-slide-scroll="true"]') as HTMLElement | null;
-    edgeTouchStartY.current = e.touches[0].clientY;
-    if (sc && sc.scrollHeight > sc.clientHeight + 1) {
-      edgeAtTopRef.current = sc.scrollTop <= 0;
-      edgeAtBottomRef.current = sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 1;
-    } else {
-      edgeAtTopRef.current = false;
-      edgeAtBottomRef.current = false;
-    }
+    if (ENABLE_OVERSCROLL_TRANSITION) overscroll.onTouchStart(e);
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
@@ -282,9 +273,12 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
       const currentY = e.touches[0].clientY;
       pullDistance.current = currentY - touchStartY.current;
     }
+    if (ENABLE_OVERSCROLL_TRANSITION) overscroll.onTouchMove(e);
   };
 
   const handleTouchEnd = async (e: React.TouchEvent) => {
+    if (ENABLE_OVERSCROLL_TRANSITION) overscroll.onTouchEnd();
+
     if (pullDistance.current > 80 && !isRefreshing) {
       setIsRefreshing(true);
       await queryClient.invalidateQueries({ queryKey: ['posts'] });
@@ -293,17 +287,6 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
       if (onRefresh) await onRefresh();
       setIsRefreshing(false);
     }
-
-    // TRIAL EMBLA: edge-swipe → change card on tall content
-    const endY = e.changedTouches?.[0]?.clientY ?? 0;
-    const deltaY = edgeTouchStartY.current - endY; // >0 = finger up = wants next
-    const SWIPE_MIN = 50;
-    if (emblaApi) {
-      if (edgeAtBottomRef.current && deltaY > SWIPE_MIN) emblaApi.scrollNext();
-      else if (edgeAtTopRef.current && deltaY < -SWIPE_MIN) emblaApi.scrollPrev();
-    }
-    edgeAtTopRef.current = false;
-    edgeAtBottomRef.current = false;
 
     touchStartY.current = 0;
     pullDistance.current = 0;
@@ -325,6 +308,7 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
           return (
             <div
               key={item.id ?? actualIndex}
+              data-slide-wrapper="true"
               style={{
                 flex: '0 0 var(--feed-viewport-h)',
                 minHeight: 'var(--feed-viewport-h)',
