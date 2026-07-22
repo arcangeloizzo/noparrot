@@ -88,14 +88,17 @@ const VoiceCastBodyInner = ({
     if (!media) return [];
     return media.map(item => ({
       ...item,
-      // Video: mai trasformare l'URL (render/image fallisce sul file video).
-      url: item.type === 'video' ? item.url : getCardImageUrl(item.url, 1200, 75),
-      thumbnail_url: item.thumbnail_url ? getCardImageUrl(item.thumbnail_url, 1200, 75) : undefined
+      // Video: URL invariato. Immagini: preferisci thumbnail_url raw se esiste
+      // (mitigazione performance interim con /render/image/ disattivato).
+      url: item.type === 'video'
+        ? item.url
+        : (item.thumbnail_url || item.url),
+      thumbnail_url: item.thumbnail_url || undefined,
     }));
   }, [media]);
 
   const downscaledMediaUrl = useMemo(() => {
-    return getCardImageUrl(mediaUrl, 1200, 75);
+    return mediaUrl;
   }, [mediaUrl]);
   const handleDescriptionRef = (node: HTMLDivElement | null) => {
     registerRef("essential-description")(node);
