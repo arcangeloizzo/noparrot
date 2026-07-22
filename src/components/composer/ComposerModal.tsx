@@ -15,7 +15,7 @@ import { PostTypeChooser } from "./PostTypeChooser";
 import { MediaPreviewModal } from "@/components/media/MediaPreviewModal";
 import { SourceReaderGate } from "./SourceReaderGate";
 import { QuizModal } from "@/components/ui/quiz-modal";
-import { getWordCount, getPostWordCount, getTestModeWithSource, getMediaTestMode, getMediaGateForComposer, getQuestionCountForIntentReshare } from '@/lib/gate-utils';
+import { getWordCount, getPostWordCount, getTestModeWithSource, getMediaTestMode, getMediaGateForComposer, getQuestionCountForIntentReshare, MIN_EXTRACTED_CHARS } from '@/lib/gate-utils';
 import { useQueryClient } from "@tanstack/react-query";
 // Phase 4.4: rimosso import updateCognitiveDensityWeighted (sistema density refactored a vista derivata).
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
