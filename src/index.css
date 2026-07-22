@@ -16,11 +16,21 @@
   --txt:   rgba(255,255,255,0.92);
   --txt-2: rgba(255,255,255,0.78);
   --txt-3: rgba(255,255,255,0.52);
+  --txt-4: rgba(255,255,255,0.32);
   --display: 'Anton','Impact','Haettenschweiler','Arial Narrow',sans-serif;
   --body:    'Inter',-apple-system,'Segoe UI',Roboto,sans-serif;
   --mono:    'JetBrains Mono',ui-monospace,'SF Mono',Menlo,monospace;
   --nav-h: 64px;
   --pad: 22px;
+  /* ===== Shell — territory palette (Nebulosa) ===== */
+  --t-cultura:    #A78BFA;
+  --t-scienza:    #2AD2C9;
+  --t-tecnologia: #0A7AFF;
+  --t-ambiente:   #22C55E;
+  --t-benessere:  #F472B6;
+  --t-societa:    #E41E52;
+  --t-politica:   #FFD464;
+  --t-economia:   #F97316;
 }
 
 /* ===== Global card scrim (§2.2) ===== */
