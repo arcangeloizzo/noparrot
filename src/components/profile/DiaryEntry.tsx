@@ -1,17 +1,18 @@
 import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
-import { 
-  PenLine, 
-  Repeat2, 
-  FileCheck, 
-  Newspaper, 
-  Music, 
-  Linkedin, 
-  Play, 
-  Globe 
+import {
+  PenLine,
+  Repeat2,
+  FileCheck,
+  Newspaper,
+  Music,
+  Linkedin,
+  Play,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Row } from "@/components/shell/Row";
+import { getTerritoryColor } from "@/lib/territory";
 
 export type DiaryEntryType = 'original' | 'reshared' | 'gated' | 'editorial';
 
@@ -147,58 +148,72 @@ export const DiaryEntry = ({ entry }: DiaryEntryProps) => {
     ? formatDistanceToNow(new Date(entry.created_at), { addSuffix: true, locale: it })
     : '';
 
+  const rib = getTerritoryColor(entry.category) ?? "rgba(255,255,255,0.14)";
+
   return (
-    <div
+    <Row
+      as="button"
+      ribColor={rib}
       onClick={() => navigate(`/post/${entry.id}`)}
-      className={cn(
-        "p-4 rounded-xl cursor-pointer transition-all duration-200",
-        "bg-card border border-border hover:border-border/50",
-        "hover:bg-muted active:scale-[0.98]"
-      )}
+      ariaLabel={`Apri voce del diario: ${displayText || config.label}`}
     >
-      <div className="flex gap-3">
-        {/* Icon */}
-        <div className={cn("flex-shrink-0 p-2 rounded-lg", config.bgColor)}>
-          <Icon className={cn("w-4 h-4", config.color)} />
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          <p className="text-sm text-foreground line-clamp-2 leading-snug mb-1.5">
-            {displayText}
-          </p>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span className={cn("font-medium", config.color)}>{config.label}</span>
-            {entry.category && (
-              <>
-                <span className="text-border">•</span>
-                <span>{entry.category}</span>
-              </>
-            )}
-            <span className="text-border">•</span>
-            <span>{timeAgo}</span>
-          </div>
-        </div>
-
-        {/* Thumbnail if available */}
-        {entry.preview_img ? (
-          <div className="flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden">
-            <img 
-              src={entry.preview_img} 
-              alt="" 
-              className="w-full h-full object-cover"
-            />
-          </div>
-        ) : (entry.media_url && entry.media_type?.startsWith('image/')) ? (
-          <div className="flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden">
-            <img 
-              src={entry.media_url} 
-              alt="" 
-              className="w-full h-full object-cover"
-            />
-          </div>
-        ) : null}
+      {/* Icona tipizzata 34px */}
+      <div
+        className={cn("flex-shrink-0 flex items-center justify-center", config.bgColor)}
+        style={{
+          width: 34,
+          height: 34,
+          borderRadius: 10,
+        }}
+      >
+        <Icon className={cn("w-4 h-4", config.color)} />
       </div>
-    </div>
+
+      {/* Content */}
+      <div className="flex-1 min-w-0 flex flex-col justify-center">
+        <p className="row-title line-clamp-2" style={{ lineHeight: 1.35 }}>
+          {displayText}
+        </p>
+        <div
+          className="flex items-center gap-2 mt-1"
+          style={{
+            fontFamily: "var(--mono)",
+            fontSize: 9.5,
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+            color: "var(--txt-3)",
+          }}
+        >
+          <span className={cn(config.color)} style={{ fontWeight: 600 }}>
+            {config.label}
+          </span>
+          {entry.category && (
+            <>
+              <span aria-hidden style={{ opacity: 0.35 }}>·</span>
+              <span>{entry.category}</span>
+            </>
+          )}
+          <span aria-hidden style={{ opacity: 0.35 }}>·</span>
+          <span>{timeAgo}</span>
+        </div>
+      </div>
+
+      {/* Thumbnail if available */}
+      {entry.preview_img ? (
+        <div
+          className="flex-shrink-0 overflow-hidden"
+          style={{ width: 52, height: 52, borderRadius: 12 }}
+        >
+          <img src={entry.preview_img} alt="" className="w-full h-full object-cover" />
+        </div>
+      ) : entry.media_url && entry.media_type?.startsWith("image/") ? (
+        <div
+          className="flex-shrink-0 overflow-hidden"
+          style={{ width: 52, height: 52, borderRadius: 12 }}
+        >
+          <img src={entry.media_url} alt="" className="w-full h-full object-cover" />
+        </div>
+      ) : null}
+    </Row>
   );
 };

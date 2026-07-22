@@ -1,18 +1,15 @@
-import { Link } from "react-router-dom";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useNavigate } from "react-router-dom";
 import { ProgressiveImage } from "@/components/feed/ProgressiveImage";
-import { formatDistanceToNow } from "date-fns";
-import { it } from "date-fns/locale";
 import { useAuth } from "@/contexts/AuthContext";
 import { MessageThread } from "@/hooks/useMessageThreads";
 import { memo } from "react";
+import { Row } from "@/components/shell/Row";
 
 interface ThreadListProps {
   threads: MessageThread[];
   onlineUsers: Set<string>;
 }
 
-// Helper function to get display username
 const getDisplayUsername = (username: string | null | undefined): string => {
   if (!username) return 'utente';
   if (username.includes('@')) {
@@ -21,7 +18,6 @@ const getDisplayUsername = (username: string | null | undefined): string => {
   return username;
 };
 
-// Format timestamp to compact form (e.g., "2h", "3g", "1s")
 const formatCompactTime = (date: Date): string => {
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
@@ -30,28 +26,125 @@ const formatCompactTime = (date: Date): string => {
   const diffDays = Math.floor(diffMs / 86400000);
   const diffWeeks = Math.floor(diffDays / 7);
 
-  if (diffMins < 1) return 'ora';
+  if (diffMins < 1) return 'ORA';
   if (diffMins < 60) return `${diffMins}m`;
   if (diffHours < 24) return `${diffHours}h`;
   if (diffDays < 7) return `${diffDays}g`;
   return `${diffWeeks}s`;
 };
 
+const AVATAR = 50;
+const AVATAR_SMALL = 34;
+
+function AvatarCircle({
+  src,
+  fallback,
+  size = AVATAR,
+  online,
+  priority,
+}: {
+  src?: string | null;
+  fallback: string;
+  size?: number;
+  online?: boolean;
+  priority?: boolean;
+}) {
+  return (
+    <div
+      className="relative flex-shrink-0"
+      style={{ width: size, height: size }}
+    >
+      <div
+        className="rounded-full overflow-hidden bg-white/[0.06] flex items-center justify-center"
+        style={{ width: size, height: size }}
+      >
+        <span
+          className="absolute z-0 font-semibold"
+          style={{ fontSize: size * 0.34, color: "var(--txt-2)" }}
+        >
+          {fallback}
+        </span>
+        <ProgressiveImage
+          src={src || undefined}
+          className="w-full h-full object-cover relative z-10"
+          priority={priority}
+          dominantColor="transparent"
+          sizePx={size}
+        />
+      </div>
+      {online && (
+        <span
+          className="absolute rounded-full"
+          style={{
+            width: 13,
+            height: 13,
+            right: -1,
+            bottom: -1,
+            background: "#22C55E",
+            border: "2.5px solid var(--base)",
+            zIndex: 20,
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function StackedGroupAvatar({
+  participants,
+}: {
+  participants: MessageThread["participants"];
+}) {
+  const [a, b] = participants.slice(0, 2);
+  const initial = (p: any) =>
+    (p?.profile?.username || p?.profile?.full_name || "?")[0]?.toUpperCase() ??
+    "?";
+
+  return (
+    <div className="relative flex-shrink-0" style={{ width: AVATAR, height: AVATAR }}>
+      <div className="absolute" style={{ top: 0, left: 0 }}>
+        <AvatarCircle
+          src={a?.profile?.avatar_url}
+          fallback={initial(a)}
+          size={AVATAR_SMALL}
+        />
+      </div>
+      <div
+        className="absolute rounded-full"
+        style={{
+          bottom: 0,
+          right: 0,
+          padding: 2,
+          background: "var(--base)",
+          borderRadius: "50%",
+        }}
+      >
+        <AvatarCircle
+          src={b?.profile?.avatar_url}
+          fallback={initial(b)}
+          size={AVATAR_SMALL}
+        />
+      </div>
+    </div>
+  );
+}
+
 const ThreadItem = memo(({ 
   thread, 
   userId, 
   isOnline,
-  index 
+  index,
+  onNavigate,
 }: { 
   thread: MessageThread; 
   userId: string;
   isOnline: boolean;
   index: number;
+  onNavigate: (id: string) => void;
 }) => {
   const otherParticipants = thread.participants?.filter((p: any) => p.user_id !== userId) || [];
   const isGroupChat = otherParticipants.length > 1;
   const displayProfile = otherParticipants[0]?.profile;
-  const otherUserId = otherParticipants[0]?.user_id;
 
   if (!displayProfile) return null;
 
@@ -59,69 +152,76 @@ const ThreadItem = memo(({
   const unreadCount = thread.unread_count || 0;
 
   const displayName = isGroupChat 
-    ? otherParticipants.map(p => getDisplayUsername(p.profile?.username) || p.profile?.full_name).join(', ')
+    ? otherParticipants
+        .slice(0, 2)
+        .map(p => p.profile?.full_name?.split(" ")[0] || getDisplayUsername(p.profile?.username))
+        .join(", ")
     : (displayProfile.full_name || getDisplayUsername(displayProfile.username));
+  const initial = (displayProfile.username || "?")[0]?.toUpperCase() ?? "?";
+  const lastMsgIsMine = thread.last_message?.sender_id === userId;
 
   return (
-    <Link
-      to={`/messages/${thread.id}`}
-      className="flex items-center gap-4 p-4 hover:bg-accent/30 active:bg-accent/50 transition-colors duration-200"
+    <Row
+      as="button"
+      unread={isUnread}
+      onClick={() => onNavigate(thread.id)}
+      ariaLabel={`Apri conversazione con ${displayName}`}
     >
-      {/* Avatar with online indicator */}
-      <div className="relative flex-shrink-0">
-        <div className="h-14 w-14 rounded-full overflow-hidden ring-2 ring-background relative bg-accent flex items-center justify-center">
-          {/* Always render fallback initially behind the image */}
-          <span className="text-lg font-medium absolute z-0 text-foreground">
-            {displayProfile.username?.[0]?.toUpperCase() || '?'}
-          </span>
-          <ProgressiveImage
-            src={displayProfile.avatar_url || undefined}
-            className="w-full h-full object-cover relative z-10"
-            priority={index < 8}
-            dominantColor="transparent"
-            sizePx={56}
-          />
-        </div>
-        {isOnline && (
-          <span className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-2 border-background rounded-full z-20" />
-        )}
-      </div>
+      {isGroupChat ? (
+        <StackedGroupAvatar participants={otherParticipants} />
+      ) : (
+        <AvatarCircle
+          src={displayProfile.avatar_url}
+          fallback={initial}
+          size={AVATAR}
+          online={isOnline}
+          priority={index < 8}
+        />
+      )}
 
-      {/* Content */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-0.5">
-          <span className={`font-semibold truncate ${isUnread ? 'text-foreground' : 'text-foreground/80'}`}>
-            {displayName}
-          </span>
-          {isUnread && (
-            <span className="w-2 h-2 bg-primary rounded-full flex-shrink-0" />
-          )}
+      <div className="flex-1 min-w-0 flex flex-col justify-center gap-1">
+        <div className="row-title truncate" style={{ fontWeight: isUnread ? 600 : 500 }}>
+          {displayName}
         </div>
-
-        {thread.last_message && (
-          <div className="flex items-center gap-2">
-            <p className={`text-sm truncate flex-1 ${isUnread ? 'font-medium text-foreground' : 'text-muted-foreground'}`}>
-              {thread.last_message.sender_id === userId ? 'Tu: ' : ''}
-              {thread.last_message.content}
-            </p>
+        {thread.last_message ? (
+          <div className="row-preview" style={{ color: isUnread ? "var(--txt)" : "var(--txt-2)" }}>
+            {lastMsgIsMine && (
+              <span style={{ color: "var(--txt-4)", marginRight: 4 }}>Tu:</span>
+            )}
+            {thread.last_message.content}
+          </div>
+        ) : (
+          <div className="row-preview" style={{ color: "var(--txt-4)", fontStyle: "italic" }}>
+            Nessun messaggio
           </div>
         )}
       </div>
 
-      {/* Right side: time and unread badge */}
-      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+      <div className="flex flex-col items-end justify-center gap-1.5 flex-shrink-0" style={{ minWidth: 42 }}>
         {thread.last_message && (
-          <span className="text-xs text-muted-foreground">
+          <span className="row-time">
             {formatCompactTime(new Date(thread.last_message.created_at))}
           </span>
         )}
-        {unreadCount > 1 && (
-          <span className="bg-primary text-primary-foreground text-xs font-semibold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-            {unreadCount}
+        {unreadCount > 0 && (
+          <span
+            className="inline-flex items-center justify-center px-1.5 rounded-full"
+            style={{
+              minWidth: 19,
+              height: 19,
+              background: "var(--blue)",
+              color: "#fff",
+              fontFamily: "var(--mono)",
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: "0.02em",
+            }}
+          >
+            {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
       </div>
-    </Link>
+    </Row>
   );
 });
 
@@ -129,13 +229,14 @@ ThreadItem.displayName = 'ThreadItem';
 
 export const ThreadList = ({ threads, onlineUsers }: ThreadListProps) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   if (threads.length === 0) {
     return null;
   }
 
   return (
-    <div className="divide-y divide-border/50">
+    <div className="flex flex-col" style={{ paddingTop: 4 }}>
       {threads.map((thread, index) => {
         const otherParticipants = thread.participants?.filter((p: any) => p.user_id !== user?.id) || [];
         const otherUserId = otherParticipants[0]?.user_id;
@@ -148,6 +249,7 @@ export const ThreadList = ({ threads, onlineUsers }: ThreadListProps) => {
             userId={user?.id || ''} 
             isOnline={isOnline}
             index={index}
+            onNavigate={(id) => navigate(`/messages/${id}`)}
           />
         );
       })}

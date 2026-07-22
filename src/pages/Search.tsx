@@ -1,6 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Header } from "@/components/navigation/Header";
 import { BottomNavigation } from "@/components/navigation/BottomNavigation";
 import { ComposerModal } from "@/components/composer/ComposerModal";
 import { SearchBar } from "@/components/search/SearchBar";
@@ -8,10 +7,11 @@ import { SearchTabs, SearchTab } from "@/components/search/SearchTabs";
 import { SearchResults } from "@/components/search/SearchResults";
 import { SearchFilters, SearchFiltersState } from "@/components/search/SearchFilters";
 import { QuickFilters } from "@/components/search/QuickFilters";
-import { TrendingTopicCard } from "@/components/search/TrendingTopicCard";
 import { useTrendingTopics } from "@/hooks/useTrendingTopics";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Search as SearchIcon } from "lucide-react";
+import { Row } from "@/components/shell/Row";
+import { TERRITORY_ORDER, TERRITORY_COLORS } from "@/lib/territory";
 
 export const Search = () => {
   const navigate = useNavigate();
@@ -76,103 +76,242 @@ export const Search = () => {
 
   const hasActiveQuery = searchQuery.trim().length > 0;
 
+  // Territori inesplorati = quelli senza topic nella risposta trending
+  const exploredTerritories = useMemo(() => {
+    const set = new Set<string>();
+    trendingData?.topics?.forEach((t) => {
+      if (t.badge_category) set.add(t.badge_category);
+    });
+    return set;
+  }, [trendingData]);
+
+  const unexplored = useMemo(
+    () => TERRITORY_ORDER.filter((t) => !exploredTerritories.has(t)),
+    [exploredTerritories]
+  );
+
   return (
-    <div className="min-h-screen bg-background pb-20">
-      {/* Header - align with Feed (immersive transparent variant) */}
-      <Header variant="immersive" />
-      
-      <div className="mobile-container max-w-[600px] mx-auto pt-14">
-        {/* Search Bar */}
-        <div className="sticky top-14 bg-background/95 backdrop-blur-sm z-20 p-4">
-          <SearchBar 
+    <div className="shell-page">
+      <header className="shell-header">
+        <h1 className="shell-title">Cerca</h1>
+        <div style={{ marginTop: 14 }}>
+          <SearchBar
             value={searchQuery}
             onChange={setSearchQuery}
             onSearch={handleSearch}
           />
         </div>
+      </header>
 
-        {!hasActiveQuery ? (
-          /* Trending Topics View */
-          <div className="p-4 space-y-4">
-            <div className="space-y-1">
-              <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-                <span>🔥</span>
-                <span>Di cosa parla la community</span>
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                {trendingData?.mode === 'TRENDING' 
-                  ? 'Le discussioni più attive degli ultimi 7 giorni'
-                  : 'Scopri cosa sta succedendo'
-                }
-              </p>
+      {!hasActiveQuery ? (
+        <div className="pb-6">
+          {/* Rail territori */}
+          <div style={{ padding: "6px 0 4px" }}>
+            <div className="mono-eyebrow" style={{ padding: "0 var(--pad) 10px" }}>
+              Territori
             </div>
-            
-            <div className="space-y-3">
+            <div className="filter-rail">
+              {TERRITORY_ORDER.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  className="pill-filter"
+                  onClick={() => handleTopicClick(t, t)}
+                >
+                  <span
+                    aria-hidden
+                    style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: "50%",
+                      background: TERRITORY_COLORS[t],
+                      display: "inline-block",
+                    }}
+                  />
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Sezione Trend */}
+          <div style={{ marginTop: 22 }}>
+            <div
+              className="flex items-center gap-3"
+              style={{ padding: "0 var(--pad) 12px" }}
+            >
+              <span className="mono-eyebrow">Trend · Ultimi 7 giorni</span>
+              <span className="hairline" />
+            </div>
+
+            <div className="flex flex-col">
               {isLoading ? (
-                // Loading skeletons
                 Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="bg-muted rounded-xl p-4 space-y-2">
-                    <Skeleton className="h-5 w-3/4" />
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-2/3" />
+                  <div key={i} className="row" style={{ pointerEvents: "none" }}>
+                    <Skeleton style={{ width: 28, height: 28, borderRadius: 8 }} />
+                    <div className="flex-1 space-y-2 py-1">
+                      <Skeleton className="h-4 w-3/4 rounded" />
+                      <Skeleton className="h-3 w-1/2 rounded" />
+                    </div>
                   </div>
                 ))
-              ) : trendingData?.mode === 'TRENDING' && trendingData.topics && trendingData.topics.length > 0 ? (
-                // Trending Topics mode
-                trendingData.topics.map((topic) => (
-                  <TrendingTopicCard
-                    key={topic.topic_id}
-                    title={topic.title}
-                    summary={topic.summary}
-                    badgeCategory={topic.badge_category}
-                    postCount={topic.stats.posts}
-                    commentCount={topic.stats.comments}
-                    onClick={() => handleTopicClick(topic.topic_id, topic.title)}
-                  />
-                ))
+              ) : trendingData?.mode === "TRENDING" &&
+                trendingData.topics &&
+                trendingData.topics.length > 0 ? (
+                trendingData.topics.map((topic, i) => {
+                  const rib = TERRITORY_COLORS[topic.badge_category as keyof typeof TERRITORY_COLORS];
+                  const totalComprehensions = topic.stats.posts + topic.stats.comments;
+                  // sparkline placeholder — 5 barrette variabili in base al conteggio
+                  const bars = [0.6, 1, 0.8, 0.5, 0.9];
+                  return (
+                    <Row
+                      key={topic.topic_id}
+                      as="button"
+                      ribColor={rib}
+                      onClick={() => handleTopicClick(topic.topic_id, topic.title)}
+                    >
+                      <div
+                        className="flex-shrink-0 flex items-center justify-center"
+                        style={{
+                          width: 34,
+                          fontFamily: "var(--display)",
+                          fontSize: 22,
+                          lineHeight: 1,
+                          color: "var(--txt-2)",
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        {String(i + 1).padStart(2, "0")}
+                      </div>
+                      <div className="flex-1 min-w-0 flex flex-col justify-center gap-1">
+                        <div className="row-title line-clamp-1">{topic.title}</div>
+                        <div className="mono-meta">
+                          {totalComprehensions} comprensioni · {topic.badge_category ?? "—"}
+                        </div>
+                      </div>
+                      {/* Sparkline */}
+                      <div
+                        className="flex items-end gap-0.5 flex-shrink-0"
+                        style={{ height: 18 }}
+                      >
+                        {bars.map((h, k) => (
+                          <span
+                            key={k}
+                            style={{
+                              width: 3,
+                              height: `${h * 18}px`,
+                              background: rib || "rgba(255,255,255,0.4)",
+                              borderRadius: 1,
+                              opacity: 0.7,
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </Row>
+                  );
+                })
               ) : (
-                // Empty state - no trending topics
-                <div className="text-center py-8 px-6 bg-primary/5 rounded-xl border border-primary/10">
-                  <Sparkles className="w-6 h-6 text-primary mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">
+                <div
+                  className="text-center py-8 mx-[var(--pad)]"
+                  style={{
+                    background: "rgba(255,255,255,0.035)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    borderRadius: 18,
+                  }}
+                >
+                  <Sparkles
+                    className="w-6 h-6 mx-auto mb-2"
+                    style={{ color: "var(--txt-3)" }}
+                  />
+                  <p style={{ color: "var(--txt-2)", fontSize: 14 }}>
                     La community sta iniziando a muoversi
                   </p>
-                  <p className="text-xs text-muted-foreground/70 mt-1">
+                  <p style={{ color: "var(--txt-3)", fontSize: 12.5, marginTop: 4 }}>
                     Torna più tardi per scoprire le discussioni più attive
                   </p>
                 </div>
               )}
             </div>
           </div>
-        ) : (
-          /* Search Results View */
-          <div className="space-y-4">
-            {/* Tabs */}
-            <SearchTabs activeTab={activeTab} onTabChange={handleTabChange} />
 
-            {/* Filters */}
-            <div className="px-4 space-y-3">
-              <QuickFilters
-                activeFilters={quickFilters}
-                onToggle={handleQuickFilterToggle}
-              />
-              <SearchFilters
-                filters={filters}
-                onFiltersChange={setFilters}
-              />
+          {/* Territori inesplorati */}
+          {unexplored.length > 0 && (
+            <div style={{ marginTop: 22 }}>
+              <div
+                className="flex items-center gap-3"
+                style={{ padding: "0 var(--pad) 12px" }}
+              >
+                <span className="mono-eyebrow">Inesplorati · 0 comprensioni</span>
+                <span className="hairline" />
+              </div>
+
+              <div className="dashed-block">
+                <div className="flex flex-wrap gap-2">
+                  {unexplored.map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => handleTopicClick(t, t)}
+                      className="inline-flex items-center gap-2 rounded-full transition-colors"
+                      style={{
+                        padding: "8px 14px",
+                        background: "rgba(255,255,255,0.03)",
+                        border: "1px solid rgba(255,255,255,0.12)",
+                        fontFamily: "var(--mono)",
+                        fontSize: 10.5,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.08em",
+                        color: "var(--txt-2)",
+                      }}
+                    >
+                      <span
+                        aria-hidden
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: "50%",
+                          background: TERRITORY_COLORS[t],
+                          opacity: 0.9,
+                        }}
+                      />
+                      {t}
+                    </button>
+                  ))}
+                </div>
+                <p
+                  style={{
+                    color: "var(--txt-3)",
+                    fontSize: 12.5,
+                    marginTop: 14,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  Pianeti ancora tutti da scoprire. Esplora un territorio per iniziare
+                  ad accendere la tua Nebulosa.
+                </p>
+              </div>
             </div>
-
-            {/* Results */}
-            <SearchResults
-              query={searchQuery}
-              tab={activeTab}
-              filters={filters}
-              quickFilters={quickFilters}
-              searchType={typeParam || undefined}
+          )}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <SearchTabs activeTab={activeTab} onTabChange={handleTabChange} />
+          <div className="px-4 space-y-3">
+            <QuickFilters
+              activeFilters={quickFilters}
+              onToggle={handleQuickFilterToggle}
             />
+            <SearchFilters filters={filters} onFiltersChange={setFilters} />
           </div>
-        )}
-      </div>
+          <SearchResults
+            query={searchQuery}
+            tab={activeTab}
+            filters={filters}
+            quickFilters={quickFilters}
+            searchType={typeParam || undefined}
+          />
+        </div>
+      )}
 
       <BottomNavigation 
         activeTab="search"

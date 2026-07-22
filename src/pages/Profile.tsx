@@ -289,21 +289,36 @@ export const Profile = () => {
               src={profile?.avatar_url}
               alt={profile?.full_name || profile?.username || "Avatar"}
               fallback={getInitials(getDisplayUsername(profile?.username || "U"))}
-              size={88}
+              size={74}
             />
 
             <div className="flex-1 min-w-0 pt-1">
               <h1
-                className="font-inter font-bold text-foreground truncate"
-                style={{ fontSize: 22, letterSpacing: "-0.02em", lineHeight: 1.1 }}
+                className="truncate"
+                style={{
+                  fontFamily: "var(--display)",
+                  fontSize: 27,
+                  fontWeight: 400,
+                  letterSpacing: "0.005em",
+                  lineHeight: 1.05,
+                  textTransform: "uppercase",
+                  color: "var(--txt)",
+                }}
               >
                 {profile?.full_name?.trim() && !profile.full_name.includes('@') && profile.full_name.includes(' ')
                   ? profile.full_name
                   : getDisplayUsername(profile?.username || '')}
               </h1>
               <p
-                className="text-muted-foreground"
-                style={{ fontSize: 14, fontWeight: 400, marginTop: 2 }}
+                style={{
+                  fontFamily: "var(--mono)",
+                  fontSize: 11,
+                  fontWeight: 500,
+                  color: "var(--txt-3)",
+                  textTransform: "lowercase",
+                  letterSpacing: "0.02em",
+                  marginTop: 4,
+                }}
               >
                 @{getDisplayUsername(profile?.username || '')}
               </p>
@@ -334,21 +349,21 @@ export const Profile = () => {
             </div>
           </div>
 
-          {/* Metrics block — hierarchical */}
-          <div className="px-5 pt-5">
-            {/* Hero row: total comprehensions */}
+          {/* Metrics block — hero counter */}
+          <div className="px-5 pt-6">
             <button
               type="button"
               onClick={() => scrollToSection(diaryRef)}
-              className="flex items-baseline gap-2.5 text-left"
+              className="text-left w-full"
             >
-              <span
+              <div
                 style={{
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: 44,
-                  fontWeight: 800,
-                  letterSpacing: "-0.03em",
-                  lineHeight: 1,
+                  fontFamily: "var(--display)",
+                  fontSize: 62,
+                  fontWeight: 400,
+                  letterSpacing: "-0.01em",
+                  lineHeight: 0.92,
+                  textTransform: "uppercase",
                   background: "linear-gradient(135deg, #FFFFFF 0%, #A78BFA 100%)",
                   WebkitBackgroundClip: "text",
                   backgroundClip: "text",
@@ -356,17 +371,22 @@ export const Profile = () => {
                   color: "transparent",
                 }}
               >
-                {Math.round(totalPaths)}
-              </span>
-              <span
-                className="text-muted-foreground"
-                style={{ fontSize: 14, fontWeight: 500 }}
+                {Math.round(totalPaths)} cose
+              </div>
+              <div
+                style={{
+                  fontFamily: "var(--display)",
+                  fontSize: 62,
+                  fontWeight: 400,
+                  letterSpacing: "-0.01em",
+                  lineHeight: 0.92,
+                  textTransform: "uppercase",
+                  color: "var(--txt)",
+                  marginTop: 2,
+                }}
               >
-                cose{" "}
-                <strong className="text-foreground" style={{ fontWeight: 600 }}>
-                  comprese
-                </strong>
-              </span>
+                comprese
+              </div>
             </button>
 
             {/* Secondary row */}

@@ -84,20 +84,35 @@ export const PulseCard = ({ onExploreTap }: PulseCardProps = {}) => {
   const dominantCategories = data ? [data.trajectory_label, data.focus_phrase].filter(Boolean) : [];
 
   const cardStyle: React.CSSProperties = {
-    padding: "16px 18px",
+    padding: "16px 18px 14px 20px",
     borderRadius: 18,
-    border: "1px solid rgba(167, 139, 250, 0.2)",
-    background: `
-      radial-gradient(ellipse at top left, rgba(228, 30, 82, 0.06), transparent 60%),
-      radial-gradient(ellipse at bottom right, rgba(10, 122, 255, 0.06), transparent 60%),
-      linear-gradient(135deg, rgba(167, 139, 250, 0.04), rgba(255, 212, 100, 0.03))
-    `,
+    border: "1px solid rgba(255, 255, 255, 0.09)",
+    background: "rgba(26, 35, 54, 0.55)",
+    backdropFilter: "blur(22px) saturate(140%)",
+    WebkitBackdropFilter: "blur(22px) saturate(140%)",
+    boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.06)",
     position: "relative",
     overflow: "hidden",
   };
 
   return (
-    <div style={cardStyle}>
+    <div style={cardStyle} className="np-grain">
+      {/* Costola bicolore (viola → giallo) — firma della Pulse card */}
+      <span
+        aria-hidden
+        style={{
+          position: "absolute",
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: 2,
+          background:
+            "linear-gradient(180deg, #A78BFA 0%, #FFD464 100%)",
+          boxShadow: "0 0 12px rgba(167, 139, 250, 0.45)",
+          pointerEvents: "none",
+          zIndex: 1,
+        }}
+      />
       {/* Pulse keyframes (scoped via inline <style>) */}
       <style>{`
         @keyframes pulseCardDot {

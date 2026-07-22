@@ -5,7 +5,7 @@ interface AvatarWithRingProps {
   src?: string | null;
   alt?: string;
   fallback?: string;
-  /** Diametro avatar in px (default 88) */
+  /** Diametro avatar in px (default 74) */
   size?: number;
   /**
    * Colori del conic-gradient dell'anello.
@@ -34,7 +34,7 @@ export const AvatarWithRing = ({
   src,
   alt,
   fallback,
-  size = 88,
+  size = 74,
   ringColors = DEFAULT_RING_COLORS,
   className,
 }: AvatarWithRingProps) => {
