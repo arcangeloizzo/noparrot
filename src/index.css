@@ -8,6 +8,9 @@
 :root {
   --base: #0E1522;
   --feed-viewport-h: calc(var(--vh, 1vh) * 100);
+  /* Overscroll gesture — shared vertical offset consumed by every slide
+     wrapper. Written by useOverscrollCardTransition; defaults to 0px. */
+  --overscroll-offset: 0px;
   --blue: #0A7AFF;
   --blue-l: #4DA3FF;
   --pink: #E41E52;
@@ -31,6 +34,14 @@
   --t-societa:    #E41E52;
   --t-politica:   #FFD464;
   --t-economia:   #F97316;
+}
+
+/* Overscroll gesture — every mounted slide reads the shared
+   `--overscroll-offset` set on the viewport so all slides move together.
+   This composes visually with Embla's container transform without
+   overwriting it. */
+.np-overscroll-slide {
+  transform: translate3d(0, var(--overscroll-offset, 0px), 0);
 }
 
 /* ===== Global card scrim (§2.2) ===== */
