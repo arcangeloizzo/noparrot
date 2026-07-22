@@ -1,44 +1,71 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
 /**
- * Skeleton for ImmersivePostCard - matches the exact layout to prevent layout shift.
- * Uses min-height matching the actual card for stable snap scrolling.
+ * Skeleton per ImmersivePostCard — riflette la struttura reale
+ * (.card-shell → .zone-header → .zone-badge → .zone-mid → .zone-bottom).
+ * Fondo pieno #0E1522 (var(--base)), nessun gradiente legacy.
  */
 export const PostCardSkeleton = () => {
   return (
-    <div className="h-[100dvh] w-full snap-start relative flex flex-col overflow-hidden bg-gradient-to-b from-[#1F3347] via-[#172635] to-[#0E1A24]">
-      {/* Header skeleton */}
-      <div className="absolute top-16 left-4 right-4 z-10 flex items-center gap-3">
-        <Skeleton className="w-10 h-10 rounded-full" />
-        <div className="flex-1 space-y-2">
-          <Skeleton className="h-4 w-32" />
-          <Skeleton className="h-3 w-24" />
+    <div
+      className="h-[100dvh] w-full snap-start relative flex flex-col overflow-hidden"
+      style={{ background: "#0E1522" }}
+    >
+      <div
+        className="flex flex-col flex-1"
+        style={{ padding: "0 18px 20px", paddingTop: 0 }}
+      >
+        {/* zone-header */}
+        <div
+          className="flex items-center gap-[10px]"
+          style={{ minHeight: 44, paddingTop: 56 }}
+        >
+          <Skeleton className="rounded-full" style={{ width: 36, height: 36 }} />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-3.5 rounded" style={{ width: "45%" }} />
+            <Skeleton className="h-3 rounded" style={{ width: "30%" }} />
+          </div>
         </div>
-        <Skeleton className="w-8 h-8 rounded-full" />
-      </div>
 
-      {/* Content area */}
-      <div className="flex-1 flex flex-col justify-center px-6 pt-32 pb-40">
-        {/* Text content skeleton */}
-        <div className="space-y-3 mb-6">
-          <Skeleton className="h-6 w-full" />
-          <Skeleton className="h-6 w-4/5" />
-          <Skeleton className="h-6 w-3/4" />
+        {/* zone-badge */}
+        <div
+          className="flex items-center gap-2"
+          style={{ minHeight: 26, marginTop: 13 }}
+        >
+          <Skeleton className="rounded-full" style={{ width: 84, height: 22 }} />
+          <Skeleton className="rounded-full" style={{ width: 64, height: 22 }} />
         </div>
-        
-        {/* Image placeholder skeleton */}
-        <div className="aspect-video w-full rounded-2xl overflow-hidden">
-          <Skeleton className="w-full h-full" />
-        </div>
-      </div>
 
-      {/* Action bar skeleton */}
-      <div className="absolute bottom-24 left-4 right-4 flex items-center justify-between">
-        <Skeleton className="h-10 w-32 rounded-2xl" />
-        <div className="flex items-center gap-4">
-          <Skeleton className="w-10 h-10 rounded-full" />
-          <Skeleton className="w-10 h-10 rounded-full" />
-          <Skeleton className="w-10 h-10 rounded-full" />
+        {/* zone-mid */}
+        <div
+          className="flex flex-col"
+          style={{ marginTop: 12, paddingRight: 30, flex: "0 0 auto" }}
+        >
+          <div className="space-y-3">
+            <Skeleton className="h-8 rounded" style={{ width: "95%" }} />
+            <Skeleton className="h-8 rounded" style={{ width: "88%" }} />
+            <Skeleton className="h-8 rounded" style={{ width: "72%" }} />
+          </div>
+          <div className="space-y-2" style={{ marginTop: 18 }}>
+            <Skeleton className="h-3.5 rounded" style={{ width: "80%" }} />
+            <Skeleton className="h-3.5 rounded" style={{ width: "60%" }} />
+          </div>
+        </div>
+
+        {/* filler */}
+        <div className="flex-1" />
+
+        {/* zone-bottom (action bar) */}
+        <div
+          className="flex items-center justify-between"
+          style={{ marginTop: 16 }}
+        >
+          <Skeleton className="rounded-full" style={{ height: 40, width: 140 }} />
+          <div className="flex items-center gap-3">
+            <Skeleton className="rounded-full" style={{ width: 40, height: 40 }} />
+            <Skeleton className="rounded-full" style={{ width: 40, height: 40 }} />
+            <Skeleton className="rounded-full" style={{ width: 40, height: 40 }} />
+          </div>
         </div>
       </div>
     </div>

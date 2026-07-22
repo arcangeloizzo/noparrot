@@ -6,11 +6,10 @@ import { Skeleton } from "@/components/ui/skeleton";
  */
 export const EditorialSlideSkeleton = () => {
   return (
-    <div className="h-[100dvh] w-full snap-start relative flex flex-col overflow-hidden">
-      {/* Editorial Background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[#0A0F14] via-[#121A23] to-[#0A0F14] z-0" />
-      
-      {/* Content Layer */}
+    <div
+      className="h-[100dvh] w-full snap-start relative flex flex-col overflow-hidden"
+      style={{ background: "#0E1522" }}
+    >
       <div className="relative z-10 w-full h-full flex flex-col pt-14 pb-24">
         <div className="flex-1 px-6 flex flex-col justify-center">
           {/* Header badge skeleton */}

@@ -33,21 +33,48 @@ export function useMessageThreads() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  // Setup realtime subscription
+  // Realtime: only apply surgical updates for threads already in cache.
   useEffect(() => {
     if (!user) return;
+    const queryKey = ['message-threads', user.id];
 
     const channel = supabase
       .channel('message-threads-realtime')
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'messages'
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['message-threads', user.id] });
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        (payload) => {
+          const newMsg = payload.new as {
+            id: string;
+            thread_id: string;
+            content: string;
+            created_at: string;
+            sender_id: string;
+          };
+
+          const cached = queryClient.getQueryData<MessageThread[]>(queryKey);
+          if (!cached) return;
+          const idx = cached.findIndex((t) => t.id === newMsg.thread_id);
+          if (idx < 0) {
+            // Unknown thread — do a full refetch just this once.
+            queryClient.invalidateQueries({ queryKey });
+            return;
+          }
+
+          const next = cached.slice();
+          const target = { ...next[idx] };
+          target.last_message = {
+            id: newMsg.id,
+            content: newMsg.content,
+            created_at: newMsg.created_at,
+            sender_id: newMsg.sender_id,
+          };
+          if (newMsg.sender_id !== user.id) {
+            target.unread_count = (target.unread_count || 0) + 1;
+          }
+          next.splice(idx, 1);
+          next.unshift(target);
+          queryClient.setQueryData(queryKey, next);
         }
       )
       .subscribe();
@@ -62,63 +89,32 @@ export function useMessageThreads() {
     queryFn: async () => {
       if (!user) return [];
 
-      const { data: threads, error } = await supabase
-        .from('message_threads')
-        .select(`
-          id,
-          created_at,
-          updated_at,
-          participants:thread_participants(
-            id,
-            user_id,
-            last_read_at,
-            profile:public_profiles(id, username, full_name, avatar_url)
-          )
-        `)
-        .order('updated_at', { ascending: false })
-        .limit(20);
-
+      // Single-round-trip RPC replaces the previous N+1 waterfall.
+      const { data, error } = await supabase.rpc('get_thread_overviews', { p_limit: 20 });
       if (error) throw error;
 
-      // Fetch ultimo messaggio e unread count in parallelo per tutti i thread
-      const enrichedThreads = await Promise.all(
-        (threads || []).map(async (thread) => {
-          const myParticipant = thread.participants?.find((p: any) => p.user_id === user.id);
-          const lastReadAt = myParticipant?.last_read_at;
+      const rows = (data || []) as Array<{
+        thread_id: string;
+        created_at: string;
+        updated_at: string;
+        participants: MessageThread['participants'] | null;
+        last_message: MessageThread['last_message'] | null;
+        unread_count: number | null;
+      }>;
 
-          // Single query per thread invece di 2
-          const [{ data: lastMsg }, { count: unreadCount }] = await Promise.all([
-            supabase
-              .from('messages')
-              .select('id, content, created_at, sender_id')
-              .eq('thread_id', thread.id)
-              .order('created_at', { ascending: false })
-              .limit(1)
-              .maybeSingle(),
-            lastReadAt
-              ? supabase
-                  .from('messages')
-                  .select('*', { count: 'exact', head: true })
-                  .eq('thread_id', thread.id)
-                  .gt('created_at', lastReadAt)
-                  .neq('sender_id', user.id)
-              : Promise.resolve({ count: 0 })
-          ]);
-
-          return {
-            ...thread,
-            last_message: lastMsg || undefined,
-            unread_count: unreadCount || 0
-          };
-        })
-      );
-
-      return enrichedThreads as MessageThread[];
+      return rows.map((r) => ({
+        id: r.thread_id,
+        created_at: r.created_at,
+        updated_at: r.updated_at,
+        participants: r.participants || [],
+        last_message: r.last_message || undefined,
+        unread_count: r.unread_count || 0,
+      })) as MessageThread[];
     },
     enabled: !!user,
     staleTime: 5 * 60 * 1000, // 5 minuti
     gcTime: 10 * 60 * 1000, // 10 minuti di cache per evitare flash di caricamento
-    refetchInterval: 30 * 1000, // Polling ogni 30 secondi
+    refetchInterval: 120 * 1000, // Polling di sicurezza ogni 2 minuti (realtime fa il grosso)
     refetchOnWindowFocus: true, // Ri-fetch quando app torna in focus
     refetchOnReconnect: true, // Ri-fetch quando rete si riconnette
     refetchOnMount: false, // Evita refetch immediato se la cache è valida (previene flickering all'ingresso della pagina)
