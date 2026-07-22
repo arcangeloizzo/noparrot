@@ -113,8 +113,8 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Default fallback image: app logo
-    const defaultImage = `${APP_URL}/apple-touch-icon.png`;
+    // Default fallback image: brand card
+    const defaultImage = `${APP_URL}/og-default.png`;
     // Il Punto editorial image
     const ilPuntoImage = `${APP_URL}/og-ilpunto.png`;
 
