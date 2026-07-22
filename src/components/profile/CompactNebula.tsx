@@ -126,8 +126,8 @@ export const CompactNebula = ({ data, onExpand, selectedMacro, onMacroClick }: C
 
   const initializeParticles = useCallback((weights: Record<string, number>) => {
     const particles: Particle[] = [];
-    const baseCount = 3;
-    const extraCount = 14;
+    const baseCount = 2;
+    const extraCount = 8;
 
     CATEGORIES.forEach(category => {
       const weight = weights[category] || 0;
@@ -143,7 +143,7 @@ export const CompactNebula = ({ data, onExpand, selectedMacro, onMacroClick }: C
           category,
           localAngle,
           localDistanceRatio,
-          size: 0.6 + Math.random() * 1.2,
+          size: 1.5 + Math.random() * 0.5,
           driftPhase: Math.random() * Math.PI * 2,
           twinklePhase: Math.random() * Math.PI * 2,
           color
@@ -197,18 +197,13 @@ export const CompactNebula = ({ data, onExpand, selectedMacro, onMacroClick }: C
       const radius = geom.radius * (isSelected ? 1.1 : 1);
       const { r, g, b } = geom.color;
 
-      const innerAlpha = isSelected ? 0.55 : isDimmed ? 0.18 : 0.35;
-      const midAlpha = isSelected ? 0.3 : isDimmed ? 0.08 : 0.18;
-      const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
-      grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${innerAlpha})`);
-      grad.addColorStop(0.6, `rgba(${r}, ${g}, ${b}, ${midAlpha})`);
-      grad.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
-      ctx.fillStyle = grad;
+      const fillAlpha = isSelected ? 0.28 : isDimmed ? 0.06 : 0.14;
+      ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${fillAlpha})`;
       ctx.beginPath();
       ctx.arc(cx, cy, radius, 0, Math.PI * 2);
       ctx.fill();
 
-      const borderAlpha = isSelected ? 0.7 : isDimmed ? 0.2 : 0.4;
+      const borderAlpha = isSelected ? 0.75 : isDimmed ? 0.22 : 0.45;
       ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${borderAlpha})`;
       ctx.lineWidth = isSelected ? 1.5 : 1;
       ctx.beginPath();
@@ -235,7 +230,7 @@ export const CompactNebula = ({ data, onExpand, selectedMacro, onMacroClick }: C
       const x = cx + Math.cos(particle.localAngle) * distance + driftX;
       const y = cy + Math.sin(particle.localAngle) * distance + driftY;
 
-      const baseAlpha = 0.55 + 0.45 * twinkle;
+      const baseAlpha = 0.55 + 0.15 * twinkle;
       const alpha = baseAlpha * (isDimmed ? 0.3 : 1);
       const sizeMul = isSelected ? 1.15 : 1;
 
@@ -369,13 +364,16 @@ export const CompactNebula = ({ data, onExpand, selectedMacro, onMacroClick }: C
 
   return (
     <div
-      className="w-full rounded-2xl bg-card border border-border p-4 relative overflow-hidden"
+      className="w-full rounded-2xl p-4 relative overflow-hidden"
+      style={{
+        background: 'rgba(26, 35, 54, 0.55)',
+        border: '1px solid rgba(255, 255, 255, 0.09)',
+        backdropFilter: 'blur(22px) saturate(140%)',
+        WebkitBackdropFilter: 'blur(22px) saturate(140%)',
+        boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.06)',
+      }}
     >
-      {/* Strong urban texture background - GPU optimized */}
-      <div className="absolute inset-0 pointer-events-none opacity-[0.08] urban-noise-overlay" />
-      
-      {/* Subtle gradient overlay for depth */}
-      <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-black/20 pointer-events-none" />
+      <div className="np-grain" aria-hidden />
       
       {/* Header with title and explicit expand button (4.5 bug-fix) */}
       <div className="flex items-center justify-between mb-2 relative z-10">
