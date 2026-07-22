@@ -73,6 +73,12 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
   const containerRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef<number>(0);
   const pullDistance = useRef<number>(0);
+  // Fallback (used ONLY when ENABLE_OVERSCROLL_TRANSITION is false):
+  // preserves the legacy edge-swipe behavior so tall cards can still advance.
+  const edgeAtTop = useRef<boolean>(false);
+  const edgeAtBottom = useRef<boolean>(false);
+  const fallbackStartY = useRef<number>(0);
+  const SWIPE_MIN = 50;
   const [isRefreshing, setIsRefreshing] = useState(false);
   const lastReportedIndex = useRef<number>(activeIndex);
 
@@ -270,7 +276,20 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
         touchStartY.current = e.touches[0].clientY;
       }
     }
-    if (ENABLE_OVERSCROLL_TRANSITION) overscroll.onTouchStart(e);
+    if (ENABLE_OVERSCROLL_TRANSITION) {
+      overscroll.onTouchStart(e);
+    } else {
+      const target = e.target as HTMLElement;
+      const sc = target?.closest?.('[data-slide-scroll="true"]') as HTMLElement | null;
+      if (sc) {
+        edgeAtTop.current = sc.scrollTop <= 0;
+        edgeAtBottom.current = sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 1;
+      } else {
+        edgeAtTop.current = false;
+        edgeAtBottom.current = false;
+      }
+      fallbackStartY.current = e.touches[0].clientY;
+    }
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
@@ -282,7 +301,17 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
   };
 
   const handleTouchEnd = async (e: React.TouchEvent) => {
-    if (ENABLE_OVERSCROLL_TRANSITION) overscroll.onTouchEnd();
+    if (ENABLE_OVERSCROLL_TRANSITION) {
+      overscroll.onTouchEnd();
+    } else if (emblaApi && fallbackStartY.current) {
+      const endY = e.changedTouches[0]?.clientY ?? fallbackStartY.current;
+      const dy = endY - fallbackStartY.current;
+      if (edgeAtBottom.current && dy < -SWIPE_MIN) emblaApi.scrollNext();
+      else if (edgeAtTop.current && dy > SWIPE_MIN) emblaApi.scrollPrev();
+      edgeAtTop.current = false;
+      edgeAtBottom.current = false;
+      fallbackStartY.current = 0;
+    }
 
     if (pullDistance.current > 80 && !isRefreshing) {
       setIsRefreshing(true);
