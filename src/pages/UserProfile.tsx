@@ -52,6 +52,18 @@ export const UserProfile = () => {
   });
   const userId = (resolvedId ?? undefined) as string | undefined;
 
+  // Safety timeout: if the resolver hangs for more than 10s, expose a
+  // retryable error state instead of an infinite "Caricamento profilo…".
+  const [resolveTimedOut, setResolveTimedOut] = useState(false);
+  useEffect(() => {
+    if (!resolvingId) {
+      setResolveTimedOut(false);
+      return;
+    }
+    const t = setTimeout(() => setResolveTimedOut(true), 10_000);
+    return () => clearTimeout(t);
+  }, [resolvingId]);
+
   const [showNebulaExpanded, setShowNebulaExpanded] = useState(false);
   const [diaryFilter, setDiaryFilter] = useState<DiaryFilterType>('all');
 
