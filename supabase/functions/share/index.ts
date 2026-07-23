@@ -14,7 +14,7 @@ const corsHeaders = {
   'x-share-version': '3',
 };
 
-const DEFAULT_APP_URL = 'https://noparrot.lovable.app';
+const DEFAULT_APP_URL = 'https://noparrot.app';
 // Configurable via secret (e.g. preview deployments). Falls back to production.
 const APP_URL = (Deno.env.get('PUBLIC_APP_URL') ?? DEFAULT_APP_URL).replace(/\/+$/, '');
 
@@ -124,8 +124,8 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Brand fallback (1200x630, hosted in public/). Never apple-touch-icon.
-    const defaultImage = `${DEFAULT_APP_URL}/og-default.png`;
-    const ilPuntoImage = `${DEFAULT_APP_URL}/og-ilpunto.png`;
+    const defaultImage = `${APP_URL}/og-default.png`;
+    const ilPuntoImage = `${APP_URL}/og-ilpunto.png`;
 
     let title = 'NoParrot';
     let description = 'Read. Understand. Then share.';
@@ -135,7 +135,7 @@ Deno.serve(async (req) => {
 
     if (type === 'il_punto') {
       redirectUrl = `${APP_URL}/?focus=${id}`;
-      canonicalUrl = `${DEFAULT_APP_URL}/?focus=${id}`;
+      canonicalUrl = `${APP_URL}/?focus=${id}`;
       image = ilPuntoImage;
 
       const { data: focus, error } = await supabase
@@ -156,7 +156,7 @@ Deno.serve(async (req) => {
       }
     } else if (type === 'post') {
       redirectUrl = `${APP_URL}/post/${id}`;
-      canonicalUrl = `${DEFAULT_APP_URL}/post/${id}`;
+      canonicalUrl = `${APP_URL}/post/${id}`;
 
       const { data: post, error } = await supabase
         .from('posts')
@@ -183,7 +183,7 @@ Deno.serve(async (req) => {
       }
     } else if (type === 'challenge') {
       redirectUrl = `${APP_URL}/post/${id}`;
-      canonicalUrl = `${DEFAULT_APP_URL}/post/${id}`;
+      canonicalUrl = `${APP_URL}/post/${id}`;
 
       const { data: post, error } = await supabase
         .from('posts')
@@ -209,7 +209,7 @@ Deno.serve(async (req) => {
       }
     } else if (type === 'profile') {
       redirectUrl = `${APP_URL}/profile/${id}`;
-      canonicalUrl = `${DEFAULT_APP_URL}/profile/${id}`;
+      canonicalUrl = `${APP_URL}/profile/${id}`;
 
       const { data: summary, error } = await supabase
         .rpc('get_public_profile_summary', { p_user_id: id })
@@ -243,7 +243,7 @@ Deno.serve(async (req) => {
       }
     } else {
       redirectUrl = `${APP_URL}/?focus=${id}`;
-      canonicalUrl = `${DEFAULT_APP_URL}/?focus=${id}`;
+      canonicalUrl = `${APP_URL}/?focus=${id}`;
     }
 
     const html = buildOgHtml({
