@@ -13,6 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { PENDING_SHARE_KEY } from "@/pages/ShareTargetHandler";
 import { restoreSessionFromUrlHash } from "@/lib/authUrlSession";
+import { checkPassword, mapPasswordError, PASSWORD_POLICY } from "@/config/passwordPolicy";
+import { Check, Circle } from "lucide-react";
 
 export interface AuthPageProps {
   initialMode?: 'login' | 'signup';
@@ -179,8 +181,9 @@ export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: 
       return;
     }
 
-    if (password.length < 6) {
-      toast.error("La password deve essere almeno 6 caratteri");
+    const pwCheck = checkPassword(password);
+    if (!pwCheck.ok) {
+      toast.error(`La password deve essere di almeno ${PASSWORD_POLICY.minLength} caratteri.`);
       setIsLoading(false);
       return;
     }
@@ -200,8 +203,17 @@ export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: 
       if (error.message?.includes('16 anni')) {
         localStorage.setItem(AGE_GATE_FAILED_KEY, Date.now().toString());
         setAgeGateBlocked(true);
+        toast.error(error.message);
+      } else if (
+        (error as { error_code?: string; code?: string | number }).error_code === "weak_password" ||
+        error.message?.toLowerCase().includes("weak") ||
+        error.message?.toLowerCase().includes("pwned") ||
+        error.message?.toLowerCase().includes("known to be weak")
+      ) {
+        toast.error(mapPasswordError(error));
+      } else {
+        toast.error(error.message);
       }
-      toast.error(error.message);
     } else {
       toast.success("Codice di verifica inviato alla tua email!");
       setRegistrationStep(2);
@@ -310,8 +322,8 @@ export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: 
       return;
     }
 
-    if (newPassword.length < 6) {
-      toast.error("La password deve essere almeno 6 caratteri");
+    if (!checkPassword(newPassword).ok) {
+      toast.error(`La password deve essere di almeno ${PASSWORD_POLICY.minLength} caratteri.`);
       setIsLoading(false);
       return;
     }
@@ -337,13 +349,7 @@ export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: 
 
       if (error) {
         console.error('[Auth] updateUser error:', error);
-        // HIBP / password policy errors
-        const msg = error.message?.toLowerCase() || '';
-        if (msg.includes('pwned') || msg.includes('leaked') || msg.includes('breach')) {
-          toast.error("Questa password è stata compromessa in un data breach. Scegline un'altra più sicura.");
-        } else {
-          toast.error(error.message || "Errore nell'aggiornamento della password");
-        }
+        toast.error(mapPasswordError(error));
       } else {
         const { data: { session: nextSession } } = await supabase.auth.getSession();
 
