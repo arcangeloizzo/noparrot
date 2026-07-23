@@ -2880,6 +2880,7 @@ export type Database = {
       normalize_category: { Args: { raw: string }; Returns: string }
       refresh_user_cognitive_density: { Args: never; Returns: undefined }
       resolve_post_slug: { Args: { p_slug: string }; Returns: string }
+      resolve_profile_handle: { Args: { p_handle: string }; Returns: string }
       slugify_text: { Args: { input: string }; Returns: string }
       update_last_seen: { Args: never; Returns: undefined }
       user_can_react_to_message: {
