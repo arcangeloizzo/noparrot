@@ -300,6 +300,7 @@ const ImmersivePostCardInner = ({
     perfStore.incrementPostCard();
   }
   const { user } = useAuth();
+  const { requireAuth } = useAuthPrompt();
   const { availableHeight } = useCardLayout();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -579,6 +580,7 @@ const ImmersivePostCardInner = ({
 
   const handleHeart = (e?: React.MouseEvent, reactionType: ReactionType | 'heart' = 'heart') => {
     e?.stopPropagation();
+    if (!requireAuth()) return;
     haptics.light();
     // For like reactions, always use 'heart' as the base type for posts
     toggleReaction.mutate({ postId: post.id, reactionType: reactionType as any });
@@ -599,6 +601,7 @@ const ImmersivePostCardInner = ({
 
   const { handleTap: handleDoubleTap } = useDoubleTap({
     onDoubleTap: () => {
+      if (!requireAuth()) return;
       if (!post.user_reactions?.has_hearted) {
         handleHeart();
         setShowHeartAnimation(true);
@@ -610,6 +613,7 @@ const ImmersivePostCardInner = ({
 
   const handleBookmark = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!requireAuth()) return;
     haptics.light();
     toggleReaction.mutate({ postId: post.id, reactionType: 'bookmark' });
   };
@@ -643,12 +647,7 @@ const ImmersivePostCardInner = ({
   // Share handlers
   const handleShareClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!user) {
-      toast.warning(TOASTS.AUTH_REQUIRED.description, {
-        action: TOASTS.AUTH_REQUIRED.action
-      });
-      return;
-    }
+    if (!requireAuth()) return;
     setShowShareSheet(true);
   };
 
