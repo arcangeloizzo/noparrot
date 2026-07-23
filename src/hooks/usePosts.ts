@@ -182,6 +182,7 @@ export const usePosts = () => {
         .from('posts') as any)
         .select(`
           id,
+          slug,
           author_id,
           content,
           topic_tag,
@@ -905,6 +906,7 @@ export const useQuotedPost = (quotedPostId: string | null) => {
         .from('posts')
         .select(`
           id,
+          slug,
           content,
           title,
           created_at,
