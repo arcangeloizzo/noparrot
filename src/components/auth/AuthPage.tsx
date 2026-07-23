@@ -38,9 +38,11 @@ function calculateAge(dateOfBirth: string): number {
 export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: AuthPageProps) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  // Preserve the `next` param through email/password login, signup, and OAuth
-  // so OAuth-consent flows return the user to the original consent URL.
-  const rawNext = searchParams.get("next");
+  // Preserve the return path through email/password login, signup, and OAuth
+  // so OAuth-consent flows and post-gating prompts return the user to the
+  // original URL. Accepts both `next` (legacy) and `redirect` (used by
+  // AuthPromptSheet); `next` wins when both are set.
+  const rawNext = searchParams.get("next") ?? searchParams.get("redirect");
   const nextPath =
     rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : null;
   const oauthRedirectUri = nextPath
