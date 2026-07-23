@@ -22,6 +22,7 @@ import { QuizModal } from "@/components/ui/quiz-modal";
 import { SourcesDrawer } from "@/components/feed/SourcesDrawer";
 import { supabase } from "@/integrations/supabase/client";
 import { haptics } from "@/lib/haptics";
+import { buildShareUrl } from "@/config/share";
 import { addBreadcrumb } from "@/lib/crashBreadcrumbs";
 import { useLongPress } from "@/hooks/useLongPress";
 import { ReactionPicker, reactionToEmoji, type ReactionType } from "@/components/ui/reaction-picker";
@@ -448,8 +449,7 @@ const ImmersiveEditorialCarouselInner = ({
           onShareToFeed={() => handleShareWithGate(itemToShare, 'feed')}
           onShareToFriend={() => handleShareWithGate(itemToShare, 'friend')}
           onShareNatively={async () => {
-            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-            const shareUrl = `${supabaseUrl}/functions/v1/share?id=${itemToShare.id}&type=il_punto`;
+            const shareUrl = buildShareUrl('il_punto', itemToShare.id);
             const shareData = {
               title: `Il Punto di Oggi: ${itemToShare.title || 'NoParrot'}`,
               text: itemToShare.summary?.substring(0, 100) || '',

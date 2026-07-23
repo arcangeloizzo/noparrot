@@ -26,6 +26,7 @@ import { it } from "date-fns/locale";
 import { useCardLayout } from "@/contexts/CardLayoutContext";
 import { CategoryChip } from "@/components/ui/category-chip";
 import { getCategoryColor } from "@/config/categories";
+import { buildShareUrl } from "@/config/share";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/ui/logo";
 import { VoicePlayer } from "@/components/media/VoicePlayer";
@@ -3526,9 +3527,8 @@ const ImmersivePostCardInner = ({
           onShareToFeed={handleShareToFeed}
           onShareToFriend={handleShareToFriend}
           onShareNatively={async () => {
-            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
             const shareType = post.post_type === 'challenge' ? 'challenge' : 'post';
-            const shareUrl = `${supabaseUrl}/functions/v1/share?id=${post.id}&type=${shareType}`;
+            const shareUrl = buildShareUrl(shareType, post.id);
             const shareData = {
               title: post.title || post.shared_title || 'Post su NoParrot',
               text: post.content?.substring(0, 100) || '',

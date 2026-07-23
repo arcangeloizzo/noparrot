@@ -11,12 +11,14 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'x-share-version': '3',
+  'x-share-version': '4',
 };
 
 const DEFAULT_APP_URL = 'https://noparrot.app';
 // Configurable via secret (e.g. preview deployments). Falls back to production.
 const APP_URL = (Deno.env.get('PUBLIC_APP_URL') ?? DEFAULT_APP_URL).replace(/\/+$/, '');
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function escapeHtml(str: string): string {
   return str
@@ -208,11 +210,35 @@ Deno.serve(async (req) => {
         description = 'Mettiti alla prova su NoParrot e verifica le tue conoscenze!';
       }
     } else if (type === 'profile') {
-      redirectUrl = `${APP_URL}/profile/${id}`;
-      canonicalUrl = `${APP_URL}/profile/${id}`;
+      // Accept both UUID and username. Resolve to UUID for the RPC and prefer
+      // the username (when available) for the human-readable redirect/canonical.
+      let resolvedUserId = id;
+      let handle: string | null = null;
+      if (!UUID_RE.test(id)) {
+        const { data: byHandle } = await supabase
+          .from('public_profiles')
+          .select('id, username')
+          .ilike('username', id)
+          .maybeSingle();
+        if (byHandle?.id) {
+          resolvedUserId = byHandle.id;
+          handle = byHandle.username ?? id;
+        }
+      } else {
+        const { data: byId } = await supabase
+          .from('public_profiles')
+          .select('username')
+          .eq('id', id)
+          .maybeSingle();
+        handle = byId?.username ?? null;
+      }
+
+      const profileSlug = handle && handle.trim() ? handle.trim() : resolvedUserId;
+      redirectUrl = `${APP_URL}/profile/${profileSlug}`;
+      canonicalUrl = `${APP_URL}/profile/${profileSlug}`;
 
       const { data: summary, error } = await supabase
-        .rpc('get_public_profile_summary', { p_user_id: id })
+        .rpc('get_public_profile_summary', { p_user_id: resolvedUserId })
         .maybeSingle();
 
       if (!error && summary) {

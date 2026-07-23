@@ -1,6 +1,9 @@
-import { CATEGORY_COLORS, normalizeCategory } from "@/config/categories";
+import { CATEGORY_COLORS, CATEGORY_NAMES, normalizeCategory } from "@/config/categories";
 import { computeNebulaLayout } from "@/lib/nebulaLayout";
-import LogoVerticalAsset from "@/assets/Logo Verticale.svg";
+// Raster asset used by the FAB (blue parrot). PNG is the safe path for
+// canvas drawImage on Safari/WebKit — the SVG codepath with a 9-arg source
+// rect was unreliable and was falling back to the wordmark.
+import LogoRasterAsset from "@/assets/Logo.png";
 
 export interface NebulaShareData {
   displayName: string;
@@ -26,6 +29,34 @@ async function loadImage(src: string): Promise<HTMLImageElement> {
     img.onerror = reject;
     img.src = src;
   });
+}
+
+// Lowercase category name → hex, for word-by-word colored rendering in the
+// Pulse text. Case-insensitive lookup, punctuation is stripped from the token.
+const CATEGORY_LOOKUP: Record<string, string> = (() => {
+  const map: Record<string, string> = {};
+  for (const name of CATEGORY_NAMES) {
+    map[name.toLowerCase()] = CATEGORY_COLORS[name];
+  }
+  return map;
+})();
+
+const PULSE_BASE_COLOR = "rgba(255,255,255,0.85)";
+const PULSE_PADDING = 48;
+const PULSE_EYEBROW_ZONE = 62; // dot + eyebrow row
+const PULSE_LINE_HEIGHT = 44;
+const PULSE_RADIUS = 24;
+const PULSE_BODY_FONT = "400 30px Inter, system-ui, sans-serif";
+const PULSE_BODY_FONT_BOLD = "600 30px Inter, system-ui, sans-serif";
+
+function stripPunct(word: string): string {
+  return word.replace(/^[\p{P}\p{S}]+|[\p{P}\p{S}]+$/gu, "");
+}
+
+function categoryColorForWord(word: string): string | null {
+  const stripped = stripPunct(word).toLowerCase();
+  if (!stripped) return null;
+  return CATEGORY_LOOKUP[stripped] ?? null;
 }
 
 async function ensureFonts(): Promise<void> {
@@ -87,10 +118,10 @@ export async function generateNebulaShareImage(
 
   // ---- 1) Current FAB logo at top-right, with conic brand ring ----
   try {
-    const logo = await loadImage(LogoVerticalAsset);
+    const logo = await loadImage(LogoRasterAsset);
     drawFabLogo(ctx, logo, W - MARGIN - 120, MARGIN, 120);
-  } catch {
-    // Fallback: compact wordmark if logo fails to load
+  } catch (err) {
+    console.warn("[nebulaShareImage] logo raster failed, using wordmark fallback", err);
     ctx.fillStyle = "#ffffff";
     ctx.font = "400 42px 'Anton', 'Impact', sans-serif";
     ctx.textAlign = "right";
@@ -134,7 +165,7 @@ export async function generateNebulaShareImage(
 
   // ---- 4) Poster nebula (shared layout, richer visual only for share image) ----
   const NEB_TOP = heroY + 54;
-  const NEB_H = hasPulse ? 790 : 1030;
+  const NEB_H = hasPulse ? 760 : 1030;
   const NEB_W = W;
   const layout = computeNebulaLayout(countsForLayout, NEB_W, NEB_H, {
     minRadius: hasPulse ? 28 : 32,
@@ -150,12 +181,14 @@ export async function generateNebulaShareImage(
 
   // ---- 5) Weekly Pulse card (optional) ----
   const pulseTop = NEB_TOP + NEB_H + (hasPulse ? 28 : 0);
+  let pulseBottom = pulseTop;
   if (hasPulse) {
-    drawPulseCard(ctx, data.pulseText!.trim(), MARGIN, pulseTop, W - MARGIN * 2);
+    pulseBottom = drawPulseCard(ctx, data.pulseText!.trim(), MARGIN, pulseTop, W - MARGIN * 2);
   }
 
   // ---- 6) Footer: hairline + wordmark + tagline ----
-  const FOOTER_TOP = H - 160;
+  // Ensure at least 60px of air between Pulse card and the footer hairline.
+  const FOOTER_TOP = Math.max(H - 160, pulseBottom + 60);
   ctx.strokeStyle = "rgba(255,255,255,0.10)";
   ctx.lineWidth = 1;
   ctx.beginPath();
@@ -200,10 +233,15 @@ function drawPulseCard(
   x: number,
   y: number,
   width: number
-): void {
-  const padding = 48;
-  const radius = 24;
-  const cardHeight = 300;
+): number {
+  const padding = PULSE_PADDING;
+  const radius = PULSE_RADIUS;
+
+  // Measure body first so the card grows to fit.
+  ctx.font = PULSE_BODY_FONT;
+  const lines = wrapColoredText(ctx, text, width - padding * 2, 6);
+  const bodyHeight = lines.length * PULSE_LINE_HEIGHT;
+  const cardHeight = padding + PULSE_EYEBROW_ZONE + bodyHeight + padding;
 
   roundedRect(ctx, x, y, width, cardHeight, radius);
   ctx.fillStyle = "rgba(26,35,54,0.65)";
@@ -222,13 +260,82 @@ function drawPulseCard(
   ctx.textAlign = "left";
   ctx.fillText("PULSE DELLA SETTIMANA", x + padding + 30, y + padding);
 
-  ctx.font = "400 30px Inter, system-ui, sans-serif";
-  ctx.fillStyle = "rgba(255,255,255,0.85)";
-  const lines = wrapText(ctx, text, width - padding * 2, 5);
-  const lineHeight = 45;
-  lines.forEach((line, i) => {
-    ctx.fillText(line, x + padding, y + padding + 62 + i * lineHeight);
+  // Body — draw each token with its category color when applicable.
+  const bodyLeft = x + padding;
+  const bodyTop = y + padding + PULSE_EYEBROW_ZONE;
+  lines.forEach((tokens, i) => {
+    let cursor = bodyLeft;
+    const baseline = bodyTop + i * PULSE_LINE_HEIGHT;
+    for (const t of tokens) {
+      ctx.font = t.color ? PULSE_BODY_FONT_BOLD : PULSE_BODY_FONT;
+      ctx.fillStyle = t.color ?? PULSE_BASE_COLOR;
+      ctx.fillText(t.text, cursor, baseline);
+      cursor += t.width;
+    }
   });
+
+  return y + cardHeight;
+}
+
+interface PulseToken {
+  text: string;
+  width: number;
+  color: string | null;
+}
+
+function measureToken(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  color: string | null
+): number {
+  ctx.font = color ? PULSE_BODY_FONT_BOLD : PULSE_BODY_FONT;
+  return ctx.measureText(text).width;
+}
+
+/**
+ * Wrap Pulse text token-by-token while assigning per-word colors when a token
+ * matches a category name. Returns an array of lines; each line is a sequence
+ * of tokens including their trailing space so the visual gap is preserved.
+ */
+function wrapColoredText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+  maxLines: number
+): PulseToken[][] {
+  const words = text.replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+  const lines: PulseToken[][] = [];
+  let current: PulseToken[] = [];
+  let currentWidth = 0;
+
+  for (let i = 0; i < words.length; i++) {
+    const isLast = i === words.length - 1;
+    const raw = words[i];
+    const color = categoryColorForWord(raw);
+    const rendered = isLast ? raw : `${raw} `;
+    const tokenWidth = measureToken(ctx, rendered, color);
+
+    if (currentWidth + tokenWidth > maxWidth && current.length > 0) {
+      lines.push(current);
+      if (lines.length === maxLines) break;
+      current = [];
+      currentWidth = 0;
+    }
+    current.push({ text: rendered, width: tokenWidth, color });
+    currentWidth += tokenWidth;
+  }
+  if (current.length && lines.length < maxLines) lines.push(current);
+
+  // Ellipsize the last line if we truncated.
+  if (lines.length === maxLines && current !== lines[lines.length - 1]) {
+    const last = lines[lines.length - 1];
+    const ellipsisWidth = measureToken(ctx, "…", null);
+    while (last.length > 0 && last.reduce((s, t) => s + t.width, 0) + ellipsisWidth > maxWidth) {
+      last.pop();
+    }
+    last.push({ text: "…", width: ellipsisWidth, color: null });
+  }
+  return lines;
 }
 
 function drawFabLogo(
@@ -261,8 +368,11 @@ function drawFabLogo(
   ctx.beginPath();
   ctx.arc(cx, cy, radius - 10, 0, Math.PI * 2);
   ctx.clip();
-  // Same crop used by LogoVertical hideText viewBox: "120 60 720 720".
-  ctx.drawImage(logo, 120, 60, 720, 720, x + 5, y + 5, size - 10, size - 10);
+  // Use the 5-arg drawImage (no source crop): reliable across Safari/WebKit
+  // and preserves the intrinsic PNG frame of the FAB logo.
+  const inset = 10;
+  const drawSize = size - inset * 2;
+  ctx.drawImage(logo, x + inset, y + inset, drawSize, drawSize);
   ctx.restore();
 }
 
