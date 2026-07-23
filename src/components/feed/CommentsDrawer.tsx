@@ -796,8 +796,20 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                   <textarea
                     ref={textareaRef}
                     value={newComment}
-                    onChange={handleTextChange}
+                    onChange={(e) => {
+                      if (!requireAuth()) {
+                        textareaRef.current?.blur();
+                        return;
+                      }
+                      handleTextChange(e);
+                    }}
                     onFocus={() => {
+                      // Guests must sign in before writing anything.
+                      if (!user) {
+                        requireAuth();
+                        textareaRef.current?.blur();
+                        return;
+                      }
                       // [UX FIX] Bypass gate choice if user is the post author
                       // Author doesn't need to pass gate on their own content
                       if (user?.id === post.author?.id) {
