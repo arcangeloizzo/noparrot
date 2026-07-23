@@ -82,6 +82,7 @@ export const Post = () => {
         .from('posts')
         .select(`
           id,
+          slug,
           author_id,
           content,
           topic_tag,
