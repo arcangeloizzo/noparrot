@@ -105,8 +105,12 @@ Deno.serve(async (req) => {
 
   try {
     const url = new URL(req.url);
-    const id = url.searchParams.get('id');
-    const type = url.searchParams.get('type') || 'post';
+    const pathParts = url.pathname.split('/').filter(Boolean);
+    const shareIndex = pathParts.lastIndexOf('share');
+    const pathType = shareIndex >= 0 ? pathParts[shareIndex + 1] : null;
+    const pathId = shareIndex >= 0 ? pathParts[shareIndex + 2] : null;
+    const type = pathType || url.searchParams.get('type') || 'post';
+    const id = pathId || url.searchParams.get('id');
 
     if (!id) {
       return new Response(null, {

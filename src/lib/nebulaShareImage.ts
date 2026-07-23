@@ -1,6 +1,6 @@
 import { CATEGORY_COLORS, normalizeCategory } from "@/config/categories";
 import { computeNebulaLayout } from "@/lib/nebulaLayout";
-import LogoOrizzontale from "@/assets/LogoBianco.png";
+import LogoVerticalAsset from "@/assets/Logo Verticale.svg";
 
 export interface NebulaShareData {
   displayName: string;
@@ -47,7 +47,7 @@ async function ensureFonts(): Promise<void> {
 
 /**
  * 1080x1920 Instagram-Story share card of the user's cognitive nebula.
- * Layout: logo → name → hero count → real nebula → legend → footer.
+ * Layout: name + logo → hero count → poster nebula → Pulse → footer.
  */
 export async function generateNebulaShareImage(
   data: NebulaShareData
@@ -85,31 +85,29 @@ export async function generateNebulaShareImage(
 
   const MARGIN = 80;
 
-  // ---- 1) Logo at the top ----
+  // ---- 1) Current FAB logo at top-right, with conic brand ring ----
   try {
-    const logo = await loadImage(LogoOrizzontale);
-    const logoH = 84;
-    const logoW = (logo.width / logo.height) * logoH;
-    ctx.drawImage(logo, (W - logoW) / 2, 80, logoW, logoH);
+    const logo = await loadImage(LogoVerticalAsset);
+    drawFabLogo(ctx, logo, W - MARGIN - 120, MARGIN, 120);
   } catch {
-    // Fallback: text wordmark if logo fails to load
+    // Fallback: compact wordmark if logo fails to load
     ctx.fillStyle = "#ffffff";
-    ctx.font = "400 64px 'Anton', 'Impact', sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("NOPARROT", W / 2, 140);
+    ctx.font = "400 42px 'Anton', 'Impact', sans-serif";
+    ctx.textAlign = "right";
+    ctx.fillText("NOPARROT", W - MARGIN, 148);
   }
 
   // ---- 2) User name ----
-  const nameY = 260;
+  const nameY = 156;
   ctx.textAlign = "left";
   ctx.fillStyle = "#ffffff";
   ctx.font = "400 72px 'Anton', 'Impact', sans-serif";
   const nameText = (data.displayName || "NoParrot").toUpperCase();
-  ctx.fillText(nameText, MARGIN, nameY);
+  drawFittedText(ctx, nameText, MARGIN, nameY, W - MARGIN * 2 - 154, 72, "'Anton', 'Impact', sans-serif");
 
   // ---- 3) Hero counter (gradient white → dominant) + "COSE / COMPRESE" ----
   const dominant = data.dominantColor || "#A78BFA";
-  const heroY = nameY + 200; // baseline for the giant number
+  const heroY = nameY + 230; // baseline for the giant number
   const countText = String(data.comprehensionCount ?? 0);
 
   ctx.font = "400 200px 'Anton', 'Impact', sans-serif";
@@ -134,90 +132,29 @@ export async function generateNebulaShareImage(
   const hasPulse = Boolean(data.pulseText?.trim());
   const countsForLayout = normalizeCounts(data.byMacroCounts, data.byMacro);
 
-  // ---- 4) Real nebula (shared layout) ----
-  const NEB_TOP = heroY + 44;
-  const NEB_H = hasPulse ? 700 : 800;
+  // ---- 4) Poster nebula (shared layout, richer visual only for share image) ----
+  const NEB_TOP = heroY + 54;
+  const NEB_H = hasPulse ? 790 : 1030;
   const NEB_W = W;
   const layout = computeNebulaLayout(countsForLayout, NEB_W, NEB_H, {
-    minRadius: hasPulse ? 22 : 26,
-    maxRadius: hasPulse ? 96 : 110,
+    minRadius: hasPulse ? 28 : 32,
+    maxRadius: hasPulse ? 116 : 132,
   });
 
   ctx.save();
   ctx.translate(0, NEB_TOP);
 
-  // Draw planets (fill 14%, border 45%, matches app)
-  layout.planets.forEach((p) => {
-    if (p.radius <= 0) return;
-    const rgb = hexToRgb(p.color);
-
-    ctx.fillStyle = `rgba(${rgb.r},${rgb.g},${rgb.b},0.14)`;
-    ctx.beginPath();
-    ctx.arc(p.cx, p.cy, p.radius, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.strokeStyle = `rgba(${rgb.r},${rgb.g},${rgb.b},0.45)`;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(p.cx, p.cy, p.radius, 0, Math.PI * 2);
-    ctx.stroke();
-
-    // Sparse particles inside (no glow)
-    const count = Math.min(28, Math.floor(4 + (p.radius / 110) * 24));
-    for (let i = 0; i < count; i++) {
-      const a = Math.random() * Math.PI * 2;
-      const d = Math.sqrt(Math.random()) * p.radius * 0.85;
-      const px = p.cx + Math.cos(a) * d;
-      const py = p.cy + Math.sin(a) * d;
-      const size = 1.5 + Math.random() * 0.6;
-      ctx.beginPath();
-      ctx.arc(px, py, size, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(${rgb.r},${rgb.g},${rgb.b},0.65)`;
-      ctx.fill();
-    }
-  });
+  layout.planets.forEach((p) => drawPosterPlanet(ctx, p, layout.cx, layout.cy, W));
 
   ctx.restore();
 
-  // ---- 5) Legend of active territories, 2 columns ----
-  const active = layout.planets
-    .filter((p) => p.count > 0)
-    .sort((a, b) => b.count - a.count);
-
-  const LEG_TOP = NEB_TOP + NEB_H + 8;
-  const COL_W = (W - MARGIN * 2) / 2;
-  const ROW_H = hasPulse ? 40 : 44;
-  ctx.font = "500 24px 'JetBrains Mono', ui-monospace, monospace";
-
-  active.forEach((p, i) => {
-    const col = i % 2;
-    const row = Math.floor(i / 2);
-    const x = MARGIN + col * COL_W;
-    const y = LEG_TOP + row * ROW_H;
-
-    ctx.fillStyle = p.color;
-    ctx.beginPath();
-    ctx.arc(x + 10, y - 8, 10, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = "rgba(255,255,255,0.85)";
-    ctx.textAlign = "left";
-    ctx.fillText(p.name.toUpperCase(), x + 34, y);
-
-    ctx.fillStyle = "rgba(255,255,255,0.45)";
-    ctx.textAlign = "right";
-    ctx.fillText(String(Math.round(p.count)), x + COL_W - 28, y);
-    ctx.textAlign = "left";
-  });
-
-  // ---- 6) Weekly Pulse card (optional) ----
-  const legendRows = Math.ceil(active.length / 2);
-  const legendBottom = LEG_TOP + Math.max(legendRows, 1) * ROW_H;
+  // ---- 5) Weekly Pulse card (optional) ----
+  const pulseTop = NEB_TOP + NEB_H + (hasPulse ? 28 : 0);
   if (hasPulse) {
-    drawPulseCard(ctx, data.pulseText!.trim(), MARGIN, legendBottom + 34, W - MARGIN * 2);
+    drawPulseCard(ctx, data.pulseText!.trim(), MARGIN, pulseTop, W - MARGIN * 2);
   }
 
-  // ---- 7) Footer: hairline + wordmark + tagline ----
+  // ---- 6) Footer: hairline + wordmark + tagline ----
   const FOOTER_TOP = H - 160;
   ctx.strokeStyle = "rgba(255,255,255,0.10)";
   ctx.lineWidth = 1;
@@ -292,6 +229,145 @@ function drawPulseCard(
   lines.forEach((line, i) => {
     ctx.fillText(line, x + padding, y + padding + 62 + i * lineHeight);
   });
+}
+
+function drawFabLogo(
+  ctx: CanvasRenderingContext2D,
+  logo: HTMLImageElement,
+  x: number,
+  y: number,
+  size: number
+): void {
+  const cx = x + size / 2;
+  const cy = y + size / 2;
+  const radius = size / 2;
+
+  const ring = ctx.createConicGradient(-Math.PI / 2, cx, cy);
+  ring.addColorStop(0, "#0A7AFF");
+  ring.addColorStop(0.33, "#E41E52");
+  ring.addColorStop(0.66, "#FFD464");
+  ring.addColorStop(1, "#0A7AFF");
+  ctx.fillStyle = ring;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "rgba(13,18,28,0.88)";
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius - 6, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius - 10, 0, Math.PI * 2);
+  ctx.clip();
+  // Same crop used by LogoVertical hideText viewBox: "120 60 720 720".
+  ctx.drawImage(logo, 120, 60, 720, 720, x + 5, y + 5, size - 10, size - 10);
+  ctx.restore();
+}
+
+function drawPosterPlanet(
+  ctx: CanvasRenderingContext2D,
+  p: { name: string; color: string; count: number; cx: number; cy: number; radius: number },
+  nebulaCx: number,
+  nebulaCy: number,
+  canvasWidth: number
+): void {
+  if (p.radius <= 0 || p.count <= 0) return;
+  const rgb = hexToRgb(p.color);
+
+  const halo = ctx.createRadialGradient(p.cx, p.cy, p.radius * 0.72, p.cx, p.cy, p.radius * 1.35);
+  halo.addColorStop(0, `rgba(${rgb.r},${rgb.g},${rgb.b},0.12)`);
+  halo.addColorStop(1, `rgba(${rgb.r},${rgb.g},${rgb.b},0)`);
+  ctx.fillStyle = halo;
+  ctx.beginPath();
+  ctx.arc(p.cx, p.cy, p.radius * 1.35, 0, Math.PI * 2);
+  ctx.fill();
+
+  const fill = ctx.createRadialGradient(
+    p.cx - p.radius * 0.2,
+    p.cy - p.radius * 0.2,
+    0,
+    p.cx,
+    p.cy,
+    p.radius
+  );
+  fill.addColorStop(0, `rgba(${rgb.r},${rgb.g},${rgb.b},0.32)`);
+  fill.addColorStop(1, `rgba(${rgb.r},${rgb.g},${rgb.b},0.08)`);
+  ctx.fillStyle = fill;
+  ctx.beginPath();
+  ctx.arc(p.cx, p.cy, p.radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = `rgba(${rgb.r},${rgb.g},${rgb.b},0.55)`;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(p.cx, p.cy, p.radius, 0, Math.PI * 2);
+  ctx.stroke();
+
+  const particleCount = Math.min(44, Math.floor(10 + (p.radius / 116) * 34));
+  for (let i = 0; i < particleCount; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const d = Math.sqrt(Math.random()) * p.radius * 0.86;
+    const px = p.cx + Math.cos(a) * d;
+    const py = p.cy + Math.sin(a) * d;
+    const size = 1.5 + Math.random() * 0.5;
+    ctx.beginPath();
+    ctx.arc(px, py, size, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${rgb.r},${rgb.g},${rgb.b},0.85)`;
+    ctx.fill();
+  }
+
+  drawPlanetLabel(ctx, p, nebulaCx, nebulaCy, canvasWidth);
+}
+
+function drawPlanetLabel(
+  ctx: CanvasRenderingContext2D,
+  p: { name: string; color: string; count: number; cx: number; cy: number; radius: number },
+  nebulaCx: number,
+  nebulaCy: number,
+  canvasWidth: number
+): void {
+  const dx = p.cx - nebulaCx;
+  const dy = p.cy - nebulaCy;
+  const horizontal = Math.abs(dx) >= Math.abs(dy);
+  const outwardX = horizontal ? (dx >= 0 ? 1 : -1) : dx >= 0 ? 0.55 : -0.55;
+  const outwardY = horizontal ? (dy >= 0 ? 0.25 : -0.25) : dy >= 0 ? 1 : -1;
+  const rawX = p.cx + outwardX * (p.radius + 24);
+  const rawY = p.cy + outwardY * (p.radius + 20);
+  const label = `${p.name.toUpperCase()} · ${Math.round(p.count)}`;
+
+  ctx.font = "700 22px 'JetBrains Mono', ui-monospace, monospace";
+  const textWidth = ctx.measureText(label).width;
+  const alignRight = outwardX < 0;
+  const minX = 52;
+  const maxX = canvasWidth - 52;
+  let x = alignRight ? rawX : rawX;
+  if (alignRight && x - textWidth < minX) x = minX + textWidth;
+  if (!alignRight && x + textWidth > maxX) x = maxX - textWidth;
+
+  ctx.textAlign = alignRight ? "right" : "left";
+  ctx.fillStyle = p.color;
+  ctx.fillText(label, x, rawY);
+  ctx.textAlign = "left";
+}
+
+function drawFittedText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  fontSize: number,
+  fontFamily: string
+): void {
+  let size = fontSize;
+  do {
+    ctx.font = `400 ${size}px ${fontFamily}`;
+    if (ctx.measureText(text).width <= maxWidth) break;
+    size -= 4;
+  } while (size >= 44);
+  ctx.fillText(text, x, y);
 }
 
 function wrapText(
