@@ -1,6 +1,9 @@
-import { CATEGORY_COLORS, normalizeCategory } from "@/config/categories";
+import { CATEGORY_COLORS, CATEGORY_NAMES, normalizeCategory } from "@/config/categories";
 import { computeNebulaLayout } from "@/lib/nebulaLayout";
-import LogoVerticalAsset from "@/assets/Logo Verticale.svg";
+// Raster asset used by the FAB (blue parrot). PNG is the safe path for
+// canvas drawImage on Safari/WebKit — the SVG codepath with a 9-arg source
+// rect was unreliable and was falling back to the wordmark.
+import LogoRasterAsset from "@/assets/Logo.png";
 
 export interface NebulaShareData {
   displayName: string;
@@ -26,6 +29,34 @@ async function loadImage(src: string): Promise<HTMLImageElement> {
     img.onerror = reject;
     img.src = src;
   });
+}
+
+// Lowercase category name → hex, for word-by-word colored rendering in the
+// Pulse text. Case-insensitive lookup, punctuation is stripped from the token.
+const CATEGORY_LOOKUP: Record<string, string> = (() => {
+  const map: Record<string, string> = {};
+  for (const name of CATEGORY_NAMES) {
+    map[name.toLowerCase()] = CATEGORY_COLORS[name];
+  }
+  return map;
+})();
+
+const PULSE_BASE_COLOR = "rgba(255,255,255,0.85)";
+const PULSE_PADDING = 48;
+const PULSE_EYEBROW_ZONE = 62; // dot + eyebrow row
+const PULSE_LINE_HEIGHT = 44;
+const PULSE_RADIUS = 24;
+const PULSE_BODY_FONT = "400 30px Inter, system-ui, sans-serif";
+const PULSE_BODY_FONT_BOLD = "600 30px Inter, system-ui, sans-serif";
+
+function stripPunct(word: string): string {
+  return word.replace(/^[\p{P}\p{S}]+|[\p{P}\p{S}]+$/gu, "");
+}
+
+function categoryColorForWord(word: string): string | null {
+  const stripped = stripPunct(word).toLowerCase();
+  if (!stripped) return null;
+  return CATEGORY_LOOKUP[stripped] ?? null;
 }
 
 async function ensureFonts(): Promise<void> {
@@ -87,10 +118,10 @@ export async function generateNebulaShareImage(
 
   // ---- 1) Current FAB logo at top-right, with conic brand ring ----
   try {
-    const logo = await loadImage(LogoVerticalAsset);
+    const logo = await loadImage(LogoRasterAsset);
     drawFabLogo(ctx, logo, W - MARGIN - 120, MARGIN, 120);
-  } catch {
-    // Fallback: compact wordmark if logo fails to load
+  } catch (err) {
+    console.warn("[nebulaShareImage] logo raster failed, using wordmark fallback", err);
     ctx.fillStyle = "#ffffff";
     ctx.font = "400 42px 'Anton', 'Impact', sans-serif";
     ctx.textAlign = "right";
@@ -134,7 +165,7 @@ export async function generateNebulaShareImage(
 
   // ---- 4) Poster nebula (shared layout, richer visual only for share image) ----
   const NEB_TOP = heroY + 54;
-  const NEB_H = hasPulse ? 790 : 1030;
+  const NEB_H = hasPulse ? 760 : 1030;
   const NEB_W = W;
   const layout = computeNebulaLayout(countsForLayout, NEB_W, NEB_H, {
     minRadius: hasPulse ? 28 : 32,
@@ -150,12 +181,14 @@ export async function generateNebulaShareImage(
 
   // ---- 5) Weekly Pulse card (optional) ----
   const pulseTop = NEB_TOP + NEB_H + (hasPulse ? 28 : 0);
+  let pulseBottom = pulseTop;
   if (hasPulse) {
-    drawPulseCard(ctx, data.pulseText!.trim(), MARGIN, pulseTop, W - MARGIN * 2);
+    pulseBottom = drawPulseCard(ctx, data.pulseText!.trim(), MARGIN, pulseTop, W - MARGIN * 2);
   }
 
   // ---- 6) Footer: hairline + wordmark + tagline ----
-  const FOOTER_TOP = H - 160;
+  // Ensure at least 60px of air between Pulse card and the footer hairline.
+  const FOOTER_TOP = Math.max(H - 160, pulseBottom + 60);
   ctx.strokeStyle = "rgba(255,255,255,0.10)";
   ctx.lineWidth = 1;
   ctx.beginPath();
