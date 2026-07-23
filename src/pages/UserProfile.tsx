@@ -38,15 +38,17 @@ export const UserProfile = () => {
     queryFn: async () => {
       if (!paramValue) return null;
       if (isUuidParam) return paramValue;
-      const { data } = await supabase
-        .from("public_profiles")
-        .select("id")
-        .ilike("username", paramValue)
-        .maybeSingle();
-      return data?.id ?? null;
+      // Use the SECURITY DEFINER RPC — deterministic and grant-independent.
+      const { data, error } = await (supabase as any).rpc(
+        "resolve_profile_handle",
+        { p_handle: paramValue }
+      );
+      if (error) throw error;
+      return (data as string | null) ?? null;
     },
     enabled: !!paramValue,
     staleTime: 5 * 60 * 1000,
+    retry: 1,
   });
   const userId = (resolvedId ?? undefined) as string | undefined;
 
