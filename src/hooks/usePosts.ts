@@ -366,6 +366,7 @@ export const usePosts = () => {
 
       return (data || []).map((post: any) => ({
         id: post.id,
+        slug: post.slug ?? null,
         author: post.author,
         content: post.content,
         title: post.title,

@@ -38,6 +38,7 @@ export const Post = () => {
         };
         return {
           id: raw.id,
+          slug: raw.slug ?? null,
           author: normalizedAuthor,
           title: raw.title,
           body_text: (raw as any).body_text,
