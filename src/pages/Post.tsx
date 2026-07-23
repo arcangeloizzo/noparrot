@@ -188,6 +188,7 @@ export const Post = () => {
 
       return {
         id: data.id,
+        slug: (data as any).slug ?? null,
         author: data.author,
         title: (data as any).title,
         body_text: (data as any).body_text,
