@@ -35,6 +35,7 @@ import { Saved } from "./pages/Saved";
 import NotFound from "./pages/NotFound";
 import ShareTargetHandler from "./pages/ShareTargetHandler";
 import OAuthConsent from "./pages/OAuthConsent";
+import ShareRedirect from "./pages/ShareRedirect";
 
 // queryClient moved below with config
 
@@ -144,6 +145,7 @@ function NavigationRecovery() {
                     <Route path="/search" element={<Search />} />
                     <Route path="/saved" element={<Saved />} />
                     <Route path="/_share-target" element={<ShareTargetHandler />} />
+                    <Route path="/s/:type/:id" element={<ShareRedirect />} />
                     <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
                     {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                     <Route path="*" element={<NotFound />} />
