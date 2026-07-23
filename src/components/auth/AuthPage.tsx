@@ -732,8 +732,46 @@ export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: 
               <p className="text-xs text-muted-foreground">Per iscriverti devi avere almeno 16 anni</p>
             </div>
 
-            <Input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
-            <Input type="password" placeholder="Conferma password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={6} />
+            <Input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={PASSWORD_POLICY.minLength} />
+            <Input type="password" placeholder="Conferma password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={PASSWORD_POLICY.minLength} />
+
+            {password.length > 0 && (
+              <div
+                style={{
+                  background: "rgba(255,255,255,0.03)",
+                  border: "1px solid rgba(255,255,255,0.06)",
+                  borderRadius: 14,
+                  padding: "10px 12px",
+                }}
+              >
+                <div
+                  style={{
+                    fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+                    fontSize: 9.5,
+                    letterSpacing: "0.16em",
+                    textTransform: "uppercase",
+                    color: "rgba(255,255,255,0.55)",
+                    marginBottom: 8,
+                  }}
+                >
+                  Requisiti
+                </div>
+                <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>
+                  {checkPassword(password).checks.map((c) => (
+                    <li key={c.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: c.ok ? "#06B6D4" : "rgba(255,255,255,0.6)" }}>
+                      {c.ok ? <Check size={14} strokeWidth={2.5} /> : <Circle size={14} strokeWidth={1.6} />}
+                      <span>{c.label}</span>
+                    </li>
+                  ))}
+                  {confirmPassword.length > 0 && (
+                    <li style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: password === confirmPassword ? "#06B6D4" : "rgba(255,255,255,0.6)" }}>
+                      {password === confirmPassword ? <Check size={14} strokeWidth={2.5} /> : <Circle size={14} strokeWidth={1.6} />}
+                      <span>Le due password coincidono</span>
+                    </li>
+                  )}
+                </ul>
+              </div>
+            )}
 
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? "Caricamento..." : "Avanti"}
