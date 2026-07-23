@@ -1,23 +1,22 @@
 // Supabase Edge Function: share
-// Generates dynamic OpenGraph HTML for shared NoParrot links
-// Supports: post, il_punto, challenge, profile
-// 
-// WORKAROUND: Supabase Edge Functions with --no-verify-jwt force
-// Content-Type: text/plain, which prevents crawlers from parsing OG tags.
-// Solution: Upload the HTML to Supabase Storage (which serves correct Content-Type)
-// and redirect the crawler to that Storage URL.
+// Serves dynamic OpenGraph HTML for shared NoParrot links.
+// Supports: post, il_punto, challenge, profile.
+//
+// The response is HTML with an explicit `Content-Type: text/html; charset=utf-8`
+// header so browsers execute the meta redirect instead of showing source and
+// crawlers parse OG tags without mojibake.
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+};
 
-const APP_URL = 'https://noparrot.lovable.app';
-const STORAGE_BUCKET = 'share-previews';
+const DEFAULT_APP_URL = 'https://noparrot.lovable.app';
+// Configurable via secret (e.g. preview deployments). Falls back to production.
+const APP_URL = (Deno.env.get('PUBLIC_APP_URL') ?? DEFAULT_APP_URL).replace(/\/+$/, '');
 
-// Escape HTML entities to prevent XSS in meta tags
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, '&amp;')
@@ -27,15 +26,13 @@ function escapeHtml(str: string): string {
     .replace(/'/g, '&#039;');
 }
 
-// Truncate text to a max length, adding ellipsis if needed
 function truncate(text: string, maxLen: number): string {
   if (!text) return '';
   const clean = text.replace(/\s+/g, ' ').trim();
   if (clean.length <= maxLen) return clean;
-  return clean.substring(0, maxLen).trim() + '…';
+  return clean.substring(0, maxLen).trim() + '\u2026';
 }
 
-// Build the full HTML with OG meta tags + redirect
 function buildOgHtml({
   title,
   description,
@@ -60,32 +57,32 @@ function buildOgHtml({
   return `<!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8"/>
+  <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>${safeTitle} — ${siteName}</title>
+  <title>${safeTitle} \u2014 ${siteName}</title>
   <meta name="description" content="${safeDesc}"/>
+  <link rel="canonical" href="${safeUrl}"/>
 
-  <!-- OpenGraph -->
   <meta property="og:type" content="article"/>
   <meta property="og:title" content="${safeTitle}"/>
   <meta property="og:description" content="${safeDesc}"/>
   <meta property="og:image" content="${safeImage}"/>
+  <meta property="og:image:width" content="1200"/>
+  <meta property="og:image:height" content="630"/>
   <meta property="og:url" content="${safeUrl}"/>
   <meta property="og:site_name" content="${siteName}"/>
 
-  <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image"/>
   <meta name="twitter:title" content="${safeTitle}"/>
   <meta name="twitter:description" content="${safeDesc}"/>
   <meta name="twitter:image" content="${safeImage}"/>
 
-  <!-- Redirect real users immediately -->
   <meta http-equiv="refresh" content="0;url=${safeRedirect}"/>
-  <script>window.location.replace("${safeRedirect}");</script>
+  <script>window.location.replace(${JSON.stringify(safeRedirect)});</script>
 </head>
-<body style="background:#0A0E12;color:white;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
+<body style="background:#0E1522;color:white;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
   <div style="text-align:center;">
-    <p>Reindirizzamento a NoParrot...</p>
+    <p>Reindirizzamento a NoParrot\u2026</p>
     <a href="${safeRedirect}" style="color:#0A7AFF;">Clicca qui se non vieni reindirizzato</a>
   </div>
 </body>
@@ -113,21 +110,19 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Default fallback image: brand card
-    const defaultImage = `${APP_URL}/og-default.png`;
-    // Il Punto editorial image
-    const ilPuntoImage = `${APP_URL}/og-ilpunto.png`;
+    // Brand fallback (1200x630, hosted in public/). Never apple-touch-icon.
+    const defaultImage = `${DEFAULT_APP_URL}/og-default.png`;
+    const ilPuntoImage = `${DEFAULT_APP_URL}/og-ilpunto.png`;
 
     let title = 'NoParrot';
     let description = 'Read. Understand. Then share.';
     let image = defaultImage;
     let redirectUrl = APP_URL;
+    let canonicalUrl = APP_URL;
 
-    // ========================================================================
-    // TYPE: il_punto (editorial / daily focus)
-    // ========================================================================
     if (type === 'il_punto') {
       redirectUrl = `${APP_URL}/?focus=${id}`;
+      canonicalUrl = `${DEFAULT_APP_URL}/?focus=${id}`;
       image = ilPuntoImage;
 
       const { data: focus, error } = await supabase
@@ -146,38 +141,36 @@ Deno.serve(async (req) => {
         title = 'Il Punto di Oggi';
         description = 'Approfondimento giornaliero di NoParrot';
       }
-    }
-
-    // ========================================================================
-    // TYPE: post (standard feed post)
-    // ========================================================================
-    else if (type === 'post') {
+    } else if (type === 'post') {
       redirectUrl = `${APP_URL}/post/${id}`;
+      canonicalUrl = `${DEFAULT_APP_URL}/post/${id}`;
 
       const { data: post, error } = await supabase
         .from('posts')
-        .select('title, content, shared_title, preview_img, post_type')
+        .select('title, content, shared_title, preview_img, post_type, post_media(order_idx, media(url, thumbnail_url, type))')
         .eq('id', id)
         .maybeSingle();
 
       if (!error && post) {
-        title = post.title || post.shared_title || 'Post su NoParrot';
-        title = truncate(title, 90);
+        title = truncate(post.title || post.shared_title || 'Post su NoParrot', 90);
         description = truncate(post.content || 'Leggi e condividi su NoParrot', 160);
-        if (post.preview_img) {
-          image = post.preview_img;
-        }
+
+        // Fallback chain: first uploaded media (image or video thumbnail) →
+        // external source preview (preview_img) → brand default.
+        const pm = Array.isArray((post as any).post_media) ? (post as any).post_media : [];
+        pm.sort((a: any, b: any) => (a?.order_idx ?? 0) - (b?.order_idx ?? 0));
+        const firstMedia = pm[0]?.media;
+        const mediaImage = firstMedia?.type === 'image'
+          ? firstMedia?.url
+          : (firstMedia?.thumbnail_url || null);
+        image = mediaImage || post.preview_img || defaultImage;
       } else {
         title = 'Post su NoParrot';
         description = 'Leggi e condividi su NoParrot';
       }
-    }
-
-    // ========================================================================
-    // TYPE: challenge
-    // ========================================================================
-    else if (type === 'challenge') {
+    } else if (type === 'challenge') {
       redirectUrl = `${APP_URL}/post/${id}`;
+      canonicalUrl = `${DEFAULT_APP_URL}/post/${id}`;
 
       const { data: post, error } = await supabase
         .from('posts')
@@ -196,20 +189,14 @@ Deno.serve(async (req) => {
           challenge?.body_text || post.content || 'Mettiti alla prova su NoParrot e verifica le tue conoscenze!',
           160
         );
-        if (post.preview_img) {
-          image = post.preview_img;
-        }
+        if (post.preview_img) image = post.preview_img;
       } else {
         title = 'Challenge su NoParrot';
         description = 'Mettiti alla prova su NoParrot e verifica le tue conoscenze!';
       }
-    }
-
-    // ========================================================================
-    // TYPE: profile
-    // ========================================================================
-    else if (type === 'profile') {
+    } else if (type === 'profile') {
       redirectUrl = `${APP_URL}/profile/${id}`;
+      canonicalUrl = `${DEFAULT_APP_URL}/profile/${id}`;
 
       const { data: profile, error } = await supabase
         .from('profiles')
@@ -221,24 +208,15 @@ Deno.serve(async (req) => {
         const displayName = profile.full_name || profile.username || 'Utente';
         title = `Scopri i contributi di ${displayName} su NoParrot`;
         description = truncate(profile.bio || `Segui ${displayName} su NoParrot`, 160);
-        if (profile.avatar_url) {
-          image = profile.avatar_url;
-        }
+        if (profile.avatar_url) image = profile.avatar_url;
       } else {
         title = 'Profilo su NoParrot';
         description = 'Scopri i contributi di questo utente su NoParrot';
       }
-    }
-
-    // ========================================================================
-    // Fallback
-    // ========================================================================
-    else {
+    } else {
       redirectUrl = `${APP_URL}/?focus=${id}`;
+      canonicalUrl = `${DEFAULT_APP_URL}/?focus=${id}`;
     }
-
-    // Build the canonical URL for this share page
-    const canonicalUrl = `${supabaseUrl}/functions/v1/share?id=${id}&type=${type}`;
 
     const html = buildOgHtml({
       title,
@@ -248,42 +226,11 @@ Deno.serve(async (req) => {
       redirectUrl,
     });
 
-    // ========================================================================
-    // STORAGE WORKAROUND: Supabase Edge Functions with --no-verify-jwt
-    // force Content-Type: text/plain, which breaks OG parsing.
-    // We upload the HTML to Supabase Storage, which serves text/html correctly.
-    // ========================================================================
-    const fileName = `${type}_${id}.html`;
-
-    // Upload to storage (upsert: overwrite if exists)
-    const { error: uploadError } = await supabase.storage
-      .from(STORAGE_BUCKET)
-      .upload(fileName, html, {
-        contentType: 'text/html',
-        upsert: true,
-        cacheControl: '300',
-      });
-
-    if (uploadError) {
-      console.error('[share] Storage upload error:', uploadError);
-      // Fallback: redirect directly to app
-      return new Response(null, {
-        status: 302,
-        headers: { ...corsHeaders, Location: redirectUrl },
-      });
-    }
-
-    // Get public URL for the uploaded HTML
-    const { data: publicUrlData } = supabase.storage
-      .from(STORAGE_BUCKET)
-      .getPublicUrl(fileName);
-
-    // Redirect crawler to the Storage-hosted HTML page
-    return new Response(null, {
-      status: 302,
+    return new Response(html, {
+      status: 200,
       headers: {
         ...corsHeaders,
-        Location: publicUrlData.publicUrl,
+        'Content-Type': 'text/html; charset=utf-8',
         'Cache-Control': 'public, max-age=300, s-maxage=600',
       },
     });

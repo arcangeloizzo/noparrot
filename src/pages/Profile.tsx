@@ -297,6 +297,7 @@ export const Profile = () => {
                     handle: profile?.username || null,
                     comprehensionCount: summary?.comprehension_count ?? 0,
                     byMacro: cognitiveDensity?.byMacroFlat ?? {},
+                    dominantColor,
                   });
                   const file = new File([blob], 'nebulosa.png', { type: 'image/png' });
                   const shareUrl = `${window.location.origin}/profile/${user?.id ?? ''}`;
