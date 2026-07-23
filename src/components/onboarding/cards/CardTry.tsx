@@ -3,7 +3,7 @@ import { CATEGORY_COLORS } from "@/config/categories";
 import { CardBase } from "./CardBase";
 
 interface CardTryProps {
-  onStartDemo: () => void;
+  onStartDemo: (choice: "article" | "song") => void;
   onSkip: () => void;
 }
 
@@ -117,14 +117,14 @@ export const CardTry = ({ onStartDemo, onSkip }: CardTryProps) => (
           icon={<BookOpen size={22} strokeWidth={1.8} />}
           title="Cos'è NoParrot?"
           meta="Articolo · 2 min di lettura"
-          onClick={onStartDemo}
+          onClick={() => onStartDemo("article")}
         />
         <Crow
           color={CATEGORY_COLORS.Cultura}
           icon={<Music size={22} strokeWidth={1.8} />}
           title="Another Brick in the Wall"
           meta="Pink Floyd · The Wall · 1979"
-          onClick={onStartDemo}
+          onClick={() => onStartDemo("song")}
         />
         <button
           onClick={onSkip}
