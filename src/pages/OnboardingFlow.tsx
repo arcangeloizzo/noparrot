@@ -2,42 +2,31 @@ import { useState, useEffect } from "react";
 import { SplashScreen } from "@/components/onboarding/SplashScreen";
 import { OnboardingFeed } from "@/components/onboarding/OnboardingFeed";
 import { AuthPage } from "@/components/auth/AuthPage";
-import ConsentScreen from "@/pages/ConsentScreen";
 import { DemoGateFlow } from "@/pages/DemoGateFlow";
 
 interface OnboardingFlowProps {
   onComplete: () => void;
 }
 
-type OnboardingStep = "splash" | "slides" | "demo" | "consent" | "auth";
-
-// Reset consent flag to ensure ConsentScreen is always shown during onboarding
-const resetConsentFlag = () => {
-  localStorage.removeItem("noparrot-consent-completed");
-};
+type OnboardingStep = "splash" | "slides" | "demo" | "auth";
 
 export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   const [currentStep, setCurrentStep] = useState<OnboardingStep>("splash");
+  const [demoChoice, setDemoChoice] = useState<"article" | "song" | null>(null);
 
-  // Reset consent flag when onboarding starts
+  // Consent now lives inside AuthPage step 3 — reset the legacy flag so any
+  // downstream code that still checks it does not skip the new step.
   useEffect(() => {
-    resetConsentFlag();
+    localStorage.removeItem("noparrot-consent-completed");
   }, []);
 
   const handleSplashComplete = () => {
     setCurrentStep("slides");
   };
 
-  const handleSlidesComplete = () => {
-    setCurrentStep("demo");
-  };
-
   const handleDemoComplete = () => {
-    // Both success and skip lead to consent then auth
-    setCurrentStep("consent");
-  };
-
-  const handleConsentComplete = () => {
+    // Both success and skip lead directly to auth. Consent is collected as
+    // Step 3 of the registration inside AuthPage.
     setCurrentStep("auth");
   };
 
@@ -48,17 +37,23 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
     case "slides":
       return (
         <OnboardingFeed
-          onComplete={handleSlidesComplete}
-          onSkip={() => setCurrentStep("consent")}
-          onStartDemo={handleSlidesComplete}
+          onComplete={() => setCurrentStep("auth")}
+          onSkip={() => setCurrentStep("auth")}
+          onStartDemo={(choice) => {
+            setDemoChoice(choice);
+            setCurrentStep("demo");
+          }}
         />
       );
       
     case "demo":
-      return <DemoGateFlow onComplete={handleDemoComplete} onSkip={handleDemoComplete} />;
-    
-    case "consent":
-      return <ConsentScreen onComplete={handleConsentComplete} />;
+      return (
+        <DemoGateFlow
+          initialChoice={demoChoice ?? "article"}
+          onComplete={handleDemoComplete}
+          onSkip={handleDemoComplete}
+        />
+      );
     
     case "auth":
       return <AuthPage initialMode="signup" />;

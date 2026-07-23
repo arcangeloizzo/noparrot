@@ -8,7 +8,7 @@ import { CardTry } from "./cards/CardTry";
 interface OnboardingFeedProps {
   onComplete: () => void;
   onSkip: () => void;
-  onStartDemo: () => void;
+  onStartDemo: (choice: "article" | "song") => void;
 }
 
 const TOTAL = 4;
