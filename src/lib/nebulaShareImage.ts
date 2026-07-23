@@ -373,11 +373,18 @@ function drawFabLogo(
   ctx.beginPath();
   ctx.arc(cx, cy, radius - 10, 0, Math.PI * 2);
   ctx.clip();
-  // Use the 5-arg drawImage (no source crop): reliable across Safari/WebKit
-  // and preserves the intrinsic PNG frame of the FAB logo.
+  // Preserve intrinsic aspect ratio (fit-contain inside the clip circle)
+  // so non-square rasters don't get vertically squashed.
   const inset = 10;
-  const drawSize = size - inset * 2;
-  ctx.drawImage(logo, x + inset, y + inset, drawSize, drawSize);
+  const boxSize = size - inset * 2;
+  const iw = logo.naturalWidth || logo.width || 1;
+  const ih = logo.naturalHeight || logo.height || 1;
+  const scale = Math.min(boxSize / iw, boxSize / ih);
+  const drawW = iw * scale;
+  const drawH = ih * scale;
+  const drawX = x + inset + (boxSize - drawW) / 2;
+  const drawY = y + inset + (boxSize - drawH) / 2;
+  ctx.drawImage(logo, drawX, drawY, drawW, drawH);
   ctx.restore();
 }
 
