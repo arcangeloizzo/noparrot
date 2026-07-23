@@ -14,7 +14,7 @@ const corsHeaders = {
   'x-share-version': '3',
 };
 
-const DEFAULT_APP_URL = 'https://noparrot.lovable.app';
+const DEFAULT_APP_URL = 'https://noparrot.app';
 // Configurable via secret (e.g. preview deployments). Falls back to production.
 const APP_URL = (Deno.env.get('PUBLIC_APP_URL') ?? DEFAULT_APP_URL).replace(/\/+$/, '');
 
