@@ -30,9 +30,15 @@ export const Post = () => {
         if (error) throw error;
         if (!raw) throw new Error('Post not found');
         const byType = (raw.reactions_by_type || {}) as Record<string, number>;
+        const normalizedAuthor = raw.author ?? {
+          id: raw.author_id ?? 'deleted',
+          username: 'utente',
+          full_name: 'Utente',
+          avatar_url: null,
+        };
         return {
           id: raw.id,
-          author: raw.author,
+          author: normalizedAuthor,
           title: raw.title,
           body_text: (raw as any).body_text,
           content: raw.content,
