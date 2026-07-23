@@ -9,11 +9,14 @@
  *   `https://noparrot.app/s`
  * so shared links carry the branded domain in previews.
  */
-export const SHARE_BASE =
-  'https://nwmpstvoutkjshhhtmrk.supabase.co/functions/v1/share';
+/**
+ * Cloudflare Worker route on `share.noparrot.app/s/*` proxies to the
+ * Supabase share edge function and serves crawlers proper text/html OG.
+ */
+export const SHARE_BASE = 'https://share.noparrot.app/s';
 
 export type ShareType = 'post' | 'profile' | 'challenge' | 'il_punto';
 
 /** Build the canonical share URL for a given entity. */
 export const buildShareUrl = (type: ShareType, id: string): string =>
-  `${SHARE_BASE}?id=${encodeURIComponent(id)}&type=${type}`;
+  `${SHARE_BASE}/${type}/${encodeURIComponent(id)}`;
