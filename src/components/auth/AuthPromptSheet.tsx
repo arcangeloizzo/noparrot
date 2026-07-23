@@ -28,7 +28,8 @@ export const AuthPromptSheet = ({ open, onClose }: AuthPromptSheetProps) => {
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
       <SheetContent
         side="bottom"
-        className="border-none p-0"
+        className="border-none p-0 z-[80]"
+        onOpenAutoFocus={(e) => e.preventDefault()}
         style={{
           background: "rgba(14, 21, 34, 0.86)",
           backdropFilter: "blur(26px) saturate(160%)",
