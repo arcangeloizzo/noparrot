@@ -3,8 +3,9 @@ import { computeNebulaLayout } from "@/lib/nebulaLayout";
 // Raster asset used by the FAB (blue parrot). PNG is the safe path for
 // canvas drawImage on Safari/WebKit — the SVG codepath with a 9-arg source
 // rect was unreliable and was falling back to the wordmark.
-// Square parrot-only raster (512×512), safe for the circular FAB clip.
-import LogoRasterAsset from "@/assets/parrot-logo.png";
+// Use the current brand mark (Logo.png) — same asset the FAB renders at
+// runtime; the previous parrot-logo.png was the old silhouette.
+import LogoRasterAsset from "@/assets/Logo.png";
 
 export interface NebulaShareData {
   displayName: string;
