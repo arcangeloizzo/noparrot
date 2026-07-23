@@ -34,6 +34,14 @@ function truncate(text: string, maxLen: number): string {
   return clean.substring(0, maxLen).trim() + '\u2026';
 }
 
+function sumActionBreakdown(value: unknown): number {
+  if (!value || typeof value !== 'object') return 0;
+  return Object.values(value as Record<string, unknown>).reduce(
+    (sum, item) => sum + Number(item || 0),
+    0
+  );
+}
+
 function buildOgHtml({
   title,
   description,
@@ -199,16 +207,31 @@ Deno.serve(async (req) => {
       redirectUrl = `${APP_URL}/profile/${id}`;
       canonicalUrl = `${DEFAULT_APP_URL}/profile/${id}`;
 
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('username, full_name, bio, avatar_url')
-        .eq('id', id)
+      const { data: summary, error } = await supabase
+        .rpc('get_public_profile_summary', { p_user_id: id })
         .maybeSingle();
 
-      if (!error && profile) {
+      if (!error && summary) {
+        const profile = summary as any;
         const displayName = profile.full_name || profile.username || 'Utente';
-        title = `Scopri i contributi di ${displayName} su NoParrot`;
-        description = truncate(profile.bio || `Segui ${displayName} su NoParrot`, 160);
+        const comprehensionCount = Number(profile.comprehension_count || 0);
+        const territories = Array.isArray(profile.cognitive_density)
+          ? profile.cognitive_density
+              .map((item: any) => ({
+                name: item?.macro_category,
+                count: sumActionBreakdown(item?.action_breakdown),
+                density: Number(item?.density || 0),
+              }))
+              .filter((item: any) => item.name)
+              .sort((a: any, b: any) => (b.count || b.density) - (a.count || a.density))
+              .slice(0, 3)
+              .map((item: any) => item.name)
+          : [];
+
+        title = `${displayName} · ${comprehensionCount} cose comprese — NoParrot`;
+        description = territories.length > 0
+          ? `Esplora i suoi territori: ${territories.join(', ')}`
+          : truncate(profile.bio || `Esplora il profilo di ${displayName} su NoParrot`, 160);
         if (profile.avatar_url) image = profile.avatar_url;
       } else {
         title = 'Profilo su NoParrot';
@@ -232,7 +255,7 @@ Deno.serve(async (req) => {
       headers: {
         ...corsHeaders,
         'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'public, max-age=300, s-maxage=600',
+        'Cache-Control': 'no-store, max-age=0',
       },
     });
   } catch (err) {
