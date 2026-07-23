@@ -95,6 +95,7 @@ import { PeoplePicker } from "@/components/share/PeoplePicker";
 import { Post, useQuotedPost, useDeletePost } from "@/hooks/usePosts";
 import { useToggleReaction } from "@/hooks/usePosts";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAuthPrompt } from "@/hooks/useAuthPrompt";
 // Removed use-toast
 import { toast } from "sonner";
 import { TOASTS } from "@/constants/toast-messages";
