@@ -52,6 +52,7 @@ interface CommentsDrawerProps {
 
 export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId }: CommentsDrawerProps) => {
   const { user } = useAuth();
+  const { requireAuth } = useAuthPrompt();
   
   // [FIX] Consider the WHOLE carousel: concat all extracted_text (order_idx) and
   // compare the aggregate against the unified MIN_EXTRACTED_CHARS threshold.
@@ -192,6 +193,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
   }, [isOpen]);
 
   const handleSubmit = async () => {
+    if (!requireAuth()) return;
     if ((!newComment.trim() && uploadedMedia.length === 0) || addComment.isPending || addFocusComment.isPending || isProcessing) return;
 
     const linkUrl = extractFirstUrl(newComment);
