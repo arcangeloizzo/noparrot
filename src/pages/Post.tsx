@@ -15,17 +15,31 @@ export const Post = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
   // Fetch post with same structure as feed. Guests use a public RPC.
   const { data: post, isLoading, error } = useQuery<PostType>({
     queryKey: ['post', postId, user?.id ?? 'guest'],
     queryFn: async () => {
       if (!postId) throw new Error('Post ID is required');
 
+      // If the URL param is a slug (not a UUID), resolve it to the post id first.
+      let resolvedId = postId;
+      if (!UUID_RE.test(postId)) {
+        const { data: rid, error: rerr } = await (supabase as any).rpc(
+          'resolve_post_slug',
+          { p_slug: postId }
+        );
+        if (rerr) throw rerr;
+        if (!rid) throw new Error('Post not found');
+        resolvedId = rid as string;
+      }
+
       // -------- GUEST PATH: RPC returns already-shaped public payload --------
       if (!user) {
         const { data: raw, error } = await (supabase as any).rpc(
           'get_public_post',
-          { p_id: postId }
+          { p_id: resolvedId }
         );
         if (error) throw error;
         if (!raw) throw new Error('Post not found');
@@ -176,7 +190,7 @@ export const Post = () => {
             )
           )
         `)
-        .eq('id', postId)
+        .eq('id', resolvedId)
         .single();
 
       if (error) throw error;
