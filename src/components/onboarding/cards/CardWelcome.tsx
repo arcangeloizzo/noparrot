@@ -1,15 +1,22 @@
-import parrotLogo from "@/assets/parrot-logo.png";
 import { CardBase } from "./CardBase";
+import { LogoVertical } from "@/components/ui/LogoVertical";
 
 export const CardWelcome = () => (
   <CardBase
     eyebrow={
       <>
-        <img
-          src={parrotLogo}
-          alt=""
-          style={{ width: 26, height: 26, objectFit: "contain", display: "block" }}
-        />
+        <span
+          style={{
+            width: 26,
+            height: 26,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          <LogoVertical hideText={true} className="w-full h-full" />
+        </span>
         <span>Benvenuto su NoParrot</span>
       </>
     }
