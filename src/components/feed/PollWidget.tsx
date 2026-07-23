@@ -7,6 +7,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
 import { PollVotersSheet } from "./PollVotersSheet";
+import { useAuth } from "@/contexts/AuthContext";
+import { useAuthPrompt } from "@/hooks/useAuthPrompt";
 
 interface PollWidgetProps {
   poll: PollData;
@@ -17,6 +19,8 @@ interface PollWidgetProps {
 
 const PollWidgetInner = ({ poll, postId, readOnly = false, onVoteAttempt }: PollWidgetProps) => {
   const votePoll = useVotePoll();
+  const { user } = useAuth();
+  const { requireAuth } = useAuthPrompt();
   const [pendingOptionId, setPendingOptionId] = useState<string | null>(null);
   const [votersOpen, setVotersOpen] = useState(false);
 
@@ -25,6 +29,7 @@ const PollWidgetInner = ({ poll, postId, readOnly = false, onVoteAttempt }: Poll
 
   const handleVote = async (optionId: string) => {
     if (readOnly || poll.is_expired || votePoll.isPending) return;
+    if (!user) { requireAuth(); return; }
 
     if (onVoteAttempt) {
       setPendingOptionId(optionId);
