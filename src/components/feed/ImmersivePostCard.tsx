@@ -3528,7 +3528,7 @@ const ImmersivePostCardInner = ({
           onShareToFriend={handleShareToFriend}
           onShareNatively={async () => {
             const shareType = post.post_type === 'challenge' ? 'challenge' : 'post';
-            const shareUrl = buildShareUrl(shareType, post.id);
+            const shareUrl = buildShareUrl(shareType, post.id, (post as any).slug);
             const shareData = {
               title: post.title || post.shared_title || 'Post su NoParrot',
               text: post.content?.substring(0, 100) || '',
