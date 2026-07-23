@@ -330,7 +330,9 @@ export const Profile = () => {
                     dominantColor,
                   });
                   const file = new File([blob], 'nebulosa.png', { type: 'image/png' });
-                  const shareUrl = `${window.location.origin}/profile/${user?.id ?? ''}`;
+                  const handle = (profile?.username || '').trim();
+                  const shareIdentifier = handle || user?.id || '';
+                  const shareUrl = `${window.location.origin}/profile/${shareIdentifier}`;
                   const nav: any = navigator;
                   if (nav.canShare?.({ files: [file] })) {
                     await nav.share({
