@@ -26,6 +26,7 @@ import { it } from "date-fns/locale";
 import { useCardLayout } from "@/contexts/CardLayoutContext";
 import { CategoryChip } from "@/components/ui/category-chip";
 import { getCategoryColor } from "@/config/categories";
+import { buildShareUrl } from "@/config/share";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/ui/logo";
 import { VoicePlayer } from "@/components/media/VoicePlayer";
