@@ -272,12 +272,7 @@ export const FeedCard = ({
   // Share handlers
   const handleShareClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!user) {
-      toast.warning(TOASTS.AUTH_REQUIRED.description, {
-        action: TOASTS.AUTH_REQUIRED.action
-      });
-      return;
-    }
+    if (!requireAuth()) return;
     setShowShareSheet(true);
   };
 
