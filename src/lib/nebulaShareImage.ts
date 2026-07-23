@@ -7,6 +7,10 @@ export interface NebulaShareData {
   handle?: string | null;
   comprehensionCount: number;
   byMacro: Record<string, number>; // macro -> count/density
+  /** Optional integer territory counts, preferred for labels and layout. */
+  byMacroCounts?: Record<string, number>;
+  /** Plain-text weekly Pulse narrative. */
+  pulseText?: string | null;
   /** Dominant territory hex color for the gradient. Optional. */
   dominantColor?: string;
 }
@@ -30,6 +34,7 @@ async function ensureFonts(): Promise<void> {
       (document as any).fonts?.load?.("80px Anton"),
       (document as any).fonts?.load?.("200px Anton"),
       (document as any).fonts?.load?.("40px Anton"),
+      (document as any).fonts?.load?.("30px Inter"),
       (document as any).fonts?.load?.("28px 'JetBrains Mono'"),
       (document as any).fonts?.load?.("22px 'JetBrains Mono'"),
       (document as any).fonts?.load?.("24px 'JetBrains Mono'"),
@@ -126,13 +131,16 @@ export async function generateNebulaShareImage(
   ctx.font = "700 28px 'JetBrains Mono', ui-monospace, monospace";
   ctx.fillText("COMPRESE", labelX, heroY - 8);
 
+  const hasPulse = Boolean(data.pulseText?.trim());
+  const countsForLayout = normalizeCounts(data.byMacroCounts, data.byMacro);
+
   // ---- 4) Real nebula (shared layout) ----
-  const NEB_TOP = heroY + 60;
-  const NEB_H = 800;
+  const NEB_TOP = heroY + 44;
+  const NEB_H = hasPulse ? 700 : 800;
   const NEB_W = W;
-  const layout = computeNebulaLayout(data.byMacro || {}, NEB_W, NEB_H, {
-    minRadius: 26,
-    maxRadius: 110,
+  const layout = computeNebulaLayout(countsForLayout, NEB_W, NEB_H, {
+    minRadius: hasPulse ? 22 : 26,
+    maxRadius: hasPulse ? 96 : 110,
   });
 
   ctx.save();
@@ -176,9 +184,9 @@ export async function generateNebulaShareImage(
     .filter((p) => p.count > 0)
     .sort((a, b) => b.count - a.count);
 
-  const LEG_TOP = NEB_TOP + NEB_H + 20;
+  const LEG_TOP = NEB_TOP + NEB_H + 8;
   const COL_W = (W - MARGIN * 2) / 2;
-  const ROW_H = 44;
+  const ROW_H = hasPulse ? 40 : 44;
   ctx.font = "500 24px 'JetBrains Mono', ui-monospace, monospace";
 
   active.forEach((p, i) => {
@@ -197,10 +205,19 @@ export async function generateNebulaShareImage(
     ctx.fillText(p.name.toUpperCase(), x + 34, y);
 
     ctx.fillStyle = "rgba(255,255,255,0.45)";
-    ctx.fillText(String(p.count), x + COL_W - 60, y);
+    ctx.textAlign = "right";
+    ctx.fillText(String(Math.round(p.count)), x + COL_W - 28, y);
+    ctx.textAlign = "left";
   });
 
-  // ---- 6) Footer: hairline + wordmark + tagline ----
+  // ---- 6) Weekly Pulse card (optional) ----
+  const legendRows = Math.ceil(active.length / 2);
+  const legendBottom = LEG_TOP + Math.max(legendRows, 1) * ROW_H;
+  if (hasPulse) {
+    drawPulseCard(ctx, data.pulseText!.trim(), MARGIN, legendBottom + 34, W - MARGIN * 2);
+  }
+
+  // ---- 7) Footer: hairline + wordmark + tagline ----
   const FOOTER_TOP = H - 160;
   ctx.strokeStyle = "rgba(255,255,255,0.10)";
   ctx.lineWidth = 1;
@@ -225,6 +242,109 @@ export async function generateNebulaShareImage(
       0.92
     );
   });
+}
+
+function normalizeCounts(
+  byMacroCounts: Record<string, number> | undefined,
+  byMacro: Record<string, number>
+): Record<string, number> {
+  const source = byMacroCounts && Object.keys(byMacroCounts).length > 0 ? byMacroCounts : byMacro;
+  const normalized: Record<string, number> = {};
+  Object.entries(source || {}).forEach(([key, value]) => {
+    const normalizedKey = normalizeCategory(key) ?? key;
+    normalized[normalizedKey] = (normalized[normalizedKey] || 0) + Math.max(0, Math.round(Number(value) || 0));
+  });
+  return normalized;
+}
+
+function drawPulseCard(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  width: number
+): void {
+  const padding = 48;
+  const radius = 24;
+  const cardHeight = 300;
+
+  roundedRect(ctx, x, y, width, cardHeight, radius);
+  ctx.fillStyle = "rgba(26,35,54,0.65)";
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.09)";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.fillStyle = "#22C55E";
+  ctx.beginPath();
+  ctx.arc(x + padding + 8, y + padding - 6, 8, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.font = "700 22px 'JetBrains Mono', ui-monospace, monospace";
+  ctx.fillStyle = "rgba(255,255,255,0.48)";
+  ctx.textAlign = "left";
+  ctx.fillText("PULSE DELLA SETTIMANA", x + padding + 30, y + padding);
+
+  ctx.font = "400 30px Inter, system-ui, sans-serif";
+  ctx.fillStyle = "rgba(255,255,255,0.85)";
+  const lines = wrapText(ctx, text, width - padding * 2, 5);
+  const lineHeight = 45;
+  lines.forEach((line, i) => {
+    ctx.fillText(line, x + padding, y + padding + 62 + i * lineHeight);
+  });
+}
+
+function wrapText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+  maxLines: number
+): string[] {
+  const words = text.replace(/\s+/g, " ").trim().split(" ");
+  const lines: string[] = [];
+  let current = "";
+
+  for (const word of words) {
+    const next = current ? `${current} ${word}` : word;
+    if (ctx.measureText(next).width <= maxWidth) {
+      current = next;
+      continue;
+    }
+    if (current) lines.push(current);
+    current = word;
+    if (lines.length === maxLines) break;
+  }
+  if (current && lines.length < maxLines) lines.push(current);
+
+  if (lines.length === maxLines) {
+    let last = lines[maxLines - 1];
+    while (last.length > 0 && ctx.measureText(`${last}…`).width > maxWidth) {
+      last = last.slice(0, -1).trimEnd();
+    }
+    lines[maxLines - 1] = `${last}…`;
+  }
+  return lines;
+}
+
+function roundedRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number
+): void {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
 }
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } {

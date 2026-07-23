@@ -59,6 +59,22 @@ export const Profile = () => {
   // Nebulosa derivata (RPC) — sostituisce profiles.cognitive_density
   const { data: cognitiveDensity } = useCognitiveDensity(user?.id);
 
+  const { data: pulseShareData } = useQuery<{ narrative?: string }>({
+    queryKey: ["pulse-narrative-share", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("generate-pulse-narrative", {
+        body: { force_refresh: false },
+      });
+      if (error) throw error;
+      return data as { narrative?: string };
+    },
+    enabled: !!user,
+    staleTime: 12 * 60 * 60 * 1000,
+    gcTime: 24 * 60 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    retry: 1,
+  });
+
   const { data: summary } = useQuery({
     queryKey: ['profile-summary', user?.id],
     queryFn: async () => {
@@ -273,6 +289,18 @@ export const Profile = () => {
     }
     return (best && CATEGORY_COLORS[best]) || "#A78BFA";
   })();
+  const byMacroCounts = (() => {
+    const rows = cognitiveDensity?.rows ?? [];
+    const counts: Record<string, number> = {};
+    rows.forEach((row) => {
+      const key = normalizeCategory(row.macro_category) ?? row.macro_category;
+      counts[key] = Object.values(row.action_breakdown || {}).reduce(
+        (sum, value) => sum + Number(value || 0),
+        0
+      );
+    });
+    return counts;
+  })();
   const displayHandle = getDisplayUsername(profile?.username || '');
 
   return (
@@ -297,6 +325,8 @@ export const Profile = () => {
                     handle: profile?.username || null,
                     comprehensionCount: summary?.comprehension_count ?? 0,
                     byMacro: cognitiveDensity?.byMacroFlat ?? {},
+                    byMacroCounts,
+                    pulseText: pulseShareData?.narrative ?? null,
                     dominantColor,
                   });
                   const file = new File([blob], 'nebulosa.png', { type: 'image/png' });
