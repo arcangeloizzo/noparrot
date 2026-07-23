@@ -333,6 +333,14 @@ export const UserProfile = () => {
   }
 
   if (resolvingId && !userId) {
+    if (resolveTimedOut) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-3">
+          <div className="text-foreground font-semibold">Impossibile caricare il profilo</div>
+          <Button variant="outline" size="sm" onClick={() => window.location.reload()}>Riprova</Button>
+        </div>
+      );
+    }
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-muted-foreground">Caricamento profilo...</div>
