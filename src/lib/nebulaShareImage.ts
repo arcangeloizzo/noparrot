@@ -3,7 +3,8 @@ import { computeNebulaLayout } from "@/lib/nebulaLayout";
 // Raster asset used by the FAB (blue parrot). PNG is the safe path for
 // canvas drawImage on Safari/WebKit — the SVG codepath with a 9-arg source
 // rect was unreliable and was falling back to the wordmark.
-import LogoRasterAsset from "@/assets/Logo.png";
+// Square parrot-only raster (512×512), safe for the circular FAB clip.
+import LogoRasterAsset from "@/assets/parrot-logo.png";
 
 export interface NebulaShareData {
   displayName: string;
@@ -44,10 +45,11 @@ const CATEGORY_LOOKUP: Record<string, string> = (() => {
 const PULSE_BASE_COLOR = "rgba(255,255,255,0.85)";
 const PULSE_PADDING = 48;
 const PULSE_EYEBROW_ZONE = 62; // dot + eyebrow row
-const PULSE_LINE_HEIGHT = 44;
+const PULSE_LINE_HEIGHT = 50;
 const PULSE_RADIUS = 24;
-const PULSE_BODY_FONT = "400 30px Inter, system-ui, sans-serif";
-const PULSE_BODY_FONT_BOLD = "600 30px Inter, system-ui, sans-serif";
+const PULSE_BODY_FONT = "400 34px Inter, system-ui, sans-serif";
+const PULSE_BODY_FONT_BOLD = "600 34px Inter, system-ui, sans-serif";
+const PULSE_DESCENT_ALLOWANCE = 12;
 
 function stripPunct(word: string): string {
   return word.replace(/^[\p{P}\p{S}]+|[\p{P}\p{S}]+$/gu, "");
@@ -65,7 +67,7 @@ async function ensureFonts(): Promise<void> {
       (document as any).fonts?.load?.("80px Anton"),
       (document as any).fonts?.load?.("200px Anton"),
       (document as any).fonts?.load?.("40px Anton"),
-      (document as any).fonts?.load?.("30px Inter"),
+      (document as any).fonts?.load?.("34px Inter"),
       (document as any).fonts?.load?.("28px 'JetBrains Mono'"),
       (document as any).fonts?.load?.("22px 'JetBrains Mono'"),
       (document as any).fonts?.load?.("24px 'JetBrains Mono'"),
@@ -240,7 +242,10 @@ function drawPulseCard(
   // Measure body first so the card grows to fit.
   ctx.font = PULSE_BODY_FONT;
   const lines = wrapColoredText(ctx, text, width - padding * 2, 6);
-  const bodyHeight = lines.length * PULSE_LINE_HEIGHT;
+  const bodyHeight =
+    lines.length > 0
+      ? (lines.length - 1) * PULSE_LINE_HEIGHT + PULSE_DESCENT_ALLOWANCE
+      : 0;
   const cardHeight = padding + PULSE_EYEBROW_ZONE + bodyHeight + padding;
 
   roundedRect(ctx, x, y, width, cardHeight, radius);
