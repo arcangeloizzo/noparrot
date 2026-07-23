@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Post as PostType } from '@/hooks/usePosts';
 import { useAuth } from '@/contexts/AuthContext';
 import { ImmersivePostCard } from '@/components/feed/ImmersivePostCard';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { addBreadcrumb } from '@/lib/crashBreadcrumbs';
 
 export const Post = () => {
@@ -261,6 +261,18 @@ export const Post = () => {
     enabled: !!postId,
   });
 
+  // Safety timeout: never let the guest/user page hang forever on
+  // "Caricamento…". After 10s without a resolution show the error state.
+  const [loadTimedOut, setLoadTimedOut] = useState(false);
+  useEffect(() => {
+    if (!isLoading) {
+      setLoadTimedOut(false);
+      return;
+    }
+    const t = setTimeout(() => setLoadTimedOut(true), 10_000);
+    return () => clearTimeout(t);
+  }, [isLoading]);
+
   const handleBack = () => {
     if (window.history.length <= 2) {
       navigate('/', { replace: true });
@@ -269,7 +281,7 @@ export const Post = () => {
     }
   };
 
-  if (isLoading) {
+  if (isLoading && !loadTimedOut) {
     return (
       <div className="h-[100dvh] w-full flex items-center justify-center bg-[#1F3347]">
         <div className="text-white/60 text-lg">Caricamento...</div>
@@ -277,7 +289,7 @@ export const Post = () => {
     );
   }
 
-  if (error || !post) {
+  if (error || !post || loadTimedOut) {
     return (
       <div className="h-[100dvh] w-full flex flex-col bg-[#1F3347]">
         <div className="fixed top-4 left-4 z-50 safe-area-inset-top">
@@ -290,8 +302,16 @@ export const Post = () => {
         </div>
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center text-white/60">
-            <p className="text-xl mb-2">Post non trovato</p>
-            <p className="text-sm">Il post potrebbe essere stato rimosso</p>
+            <p className="text-xl mb-2">{loadTimedOut ? "Impossibile caricare il post" : "Post non trovato"}</p>
+            <p className="text-sm mb-4">{loadTimedOut ? "Riprova tra un momento." : "Il post potrebbe essere stato rimosso"}</p>
+            {loadTimedOut && (
+              <button
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white text-sm"
+              >
+                Riprova
+              </button>
+            )}
           </div>
         </div>
       </div>
