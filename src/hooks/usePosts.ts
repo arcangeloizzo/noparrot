@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export interface Post {
   id: string;
+  slug?: string | null;
   author: {
     id: string;
     username: string;
