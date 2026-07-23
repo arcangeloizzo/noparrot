@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { SplashScreen } from "@/components/onboarding/SplashScreen";
-import { OnboardingSlides } from "@/components/onboarding/OnboardingSlides";
+import { OnboardingFeed } from "@/components/onboarding/OnboardingFeed";
 import { AuthPage } from "@/components/auth/AuthPage";
 import ConsentScreen from "@/pages/ConsentScreen";
 import { DemoGateFlow } from "@/pages/DemoGateFlow";
@@ -44,9 +44,15 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   switch (currentStep) {
     case "splash":
       return <SplashScreen onComplete={handleSplashComplete} />;
-    
+
     case "slides":
-      return <OnboardingSlides onComplete={handleSlidesComplete} />;
+      return (
+        <OnboardingFeed
+          onComplete={handleSlidesComplete}
+          onSkip={() => setCurrentStep("consent")}
+          onStartDemo={handleSlidesComplete}
+        />
+      );
       
     case "demo":
       return <DemoGateFlow onComplete={handleDemoComplete} onSkip={handleDemoComplete} />;
