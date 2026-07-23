@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -38,17 +38,31 @@ export const UserProfile = () => {
     queryFn: async () => {
       if (!paramValue) return null;
       if (isUuidParam) return paramValue;
-      const { data } = await supabase
-        .from("public_profiles")
-        .select("id")
-        .ilike("username", paramValue)
-        .maybeSingle();
-      return data?.id ?? null;
+      // Use the SECURITY DEFINER RPC — deterministic and grant-independent.
+      const { data, error } = await (supabase as any).rpc(
+        "resolve_profile_handle",
+        { p_handle: paramValue }
+      );
+      if (error) throw error;
+      return (data as string | null) ?? null;
     },
     enabled: !!paramValue,
     staleTime: 5 * 60 * 1000,
+    retry: 1,
   });
   const userId = (resolvedId ?? undefined) as string | undefined;
+
+  // Safety timeout: if the resolver hangs for more than 10s, expose a
+  // retryable error state instead of an infinite "Caricamento profilo…".
+  const [resolveTimedOut, setResolveTimedOut] = useState(false);
+  useEffect(() => {
+    if (!resolvingId) {
+      setResolveTimedOut(false);
+      return;
+    }
+    const t = setTimeout(() => setResolveTimedOut(true), 10_000);
+    return () => clearTimeout(t);
+  }, [resolvingId]);
 
   const [showNebulaExpanded, setShowNebulaExpanded] = useState(false);
   const [diaryFilter, setDiaryFilter] = useState<DiaryFilterType>('all');
@@ -319,6 +333,14 @@ export const UserProfile = () => {
   }
 
   if (resolvingId && !userId) {
+    if (resolveTimedOut) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-3">
+          <div className="text-foreground font-semibold">Impossibile caricare il profilo</div>
+          <Button variant="outline" size="sm" onClick={() => window.location.reload()}>Riprova</Button>
+        </div>
+      );
+    }
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-muted-foreground">Caricamento profilo...</div>

@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuth } from '@/contexts/AuthContext';
+import { useAuthPrompt } from '@/hooks/useAuthPrompt';
 import { MentionText } from './MentionText';
 
 interface Challenger {
@@ -67,6 +68,7 @@ const COLOR_URGENCY = '#FF8A3D';
 
 export const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, onRespond, onPostAction }) => {
     const { user } = useAuth();
+    const { requireAuth } = useAuthPrompt();
     const [hasVoted, setHasVoted] = useState(!!challenge.hasVotedObj);
     const [votedResponseId, setVotedResponseId] = useState<string | null>(null);
     const [localVotesFor, setLocalVotesFor] = useState(challenge.votes_for || 0);
@@ -99,7 +101,8 @@ export const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, onRespo
     }, [challenge.expires_at, isExpired]);
 
     const handleVote = async (stance: 'for' | 'against') => {
-        if (!user || hasVoted || isExpired) return;
+        if (hasVoted || isExpired) return;
+        if (!requireAuth()) return;
         setHasVoted(true);
         if (stance === 'for') setLocalVotesFor(p => p + 1);
         else setLocalVotesAgainst(p => p + 1);
@@ -119,7 +122,8 @@ export const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, onRespo
     };
 
     const handleArgVote = async (responseId: string) => {
-        if (!user || hasVoted || isExpired) return;
+        if (hasVoted || isExpired) return;
+        if (!requireAuth()) return;
         setHasVoted(true);
         setVotedResponseId(responseId);
         try {

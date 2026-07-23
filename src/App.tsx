@@ -8,6 +8,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CardLayoutProvider } from "@/contexts/CardLayoutContext";
+import { AuthPromptProvider } from "@/hooks/useAuthPrompt";
 import { AppErrorBoundary } from "@/components/debug/AppErrorBoundary";
 import { AppLifecycleHandler } from "@/components/AppLifecycleHandler";
 import { useStableViewportHeight } from "@/hooks/useStableViewportHeight";
@@ -120,6 +121,7 @@ function NavigationRecovery() {
                 <NavigationRecovery />
                 <AppLifecycleHandler />
                 <BrowserRouter>
+                  <AuthPromptProvider>
                   {/* Global elements */}
                   <OnboardingTutorial />
                   
@@ -150,6 +152,7 @@ function NavigationRecovery() {
                     {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                     <Route path="*" element={<NotFound />} />
                   </Routes>
+                  </AuthPromptProvider>
                 </BrowserRouter>
               </TooltipProvider>
             </CardLayoutProvider>

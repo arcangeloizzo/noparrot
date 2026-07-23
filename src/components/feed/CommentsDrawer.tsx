@@ -7,6 +7,7 @@ import { useComments, useAddComment, useDeleteComment } from '@/hooks/useComment
 import { useFocusComments, useAddFocusComment, useDeleteFocusComment } from '@/hooks/useFocusComments';
 import { useCommentReactions } from '@/hooks/useCommentReactions';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAuthPrompt } from '@/hooks/useAuthPrompt';
 import { formatDistanceToNow } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { Post } from '@/hooks/usePosts';
@@ -51,6 +52,7 @@ interface CommentsDrawerProps {
 
 export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId }: CommentsDrawerProps) => {
   const { user } = useAuth();
+  const { requireAuth } = useAuthPrompt();
   
   // [FIX] Consider the WHOLE carousel: concat all extracted_text (order_idx) and
   // compare the aggregate against the unified MIN_EXTRACTED_CHARS threshold.
@@ -191,6 +193,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
   }, [isOpen]);
 
   const handleSubmit = async () => {
+    if (!requireAuth()) return;
     if ((!newComment.trim() && uploadedMedia.length === 0) || addComment.isPending || addFocusComment.isPending || isProcessing) return;
 
     const linkUrl = extractFirstUrl(newComment);
@@ -793,8 +796,20 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                   <textarea
                     ref={textareaRef}
                     value={newComment}
-                    onChange={handleTextChange}
+                    onChange={(e) => {
+                      if (!requireAuth()) {
+                        textareaRef.current?.blur();
+                        return;
+                      }
+                      handleTextChange(e);
+                    }}
                     onFocus={() => {
+                      // Guests must sign in before writing anything.
+                      if (!user) {
+                        requireAuth();
+                        textareaRef.current?.blur();
+                        return;
+                      }
                       // [UX FIX] Bypass gate choice if user is the post author
                       // Author doesn't need to pass gate on their own content
                       if (user?.id === post.author?.id) {

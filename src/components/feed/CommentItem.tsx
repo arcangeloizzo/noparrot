@@ -13,6 +13,7 @@ import { MediaGallery } from '@/components/media/MediaGallery';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAuthPrompt } from '@/hooks/useAuthPrompt';
 import {
   Tooltip,
   TooltipContent,
@@ -63,6 +64,7 @@ export const CommentItem = ({
   commentKind = 'post'
 }: CommentItemProps) => {
   const { user } = useAuth();
+  const { requireAuth } = useAuthPrompt();
   const navigate = useNavigate();
   
   // Use correct hooks based on commentKind
@@ -102,10 +104,7 @@ export const CommentItem = ({
       userId: user?.id
     });
 
-    if (!user) {
-      toast.error('Devi effettuare il login');
-      return;
-    }
+    if (!requireAuth()) return;
     
     setIsLiking(true);
     haptics.light();

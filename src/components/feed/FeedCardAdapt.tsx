@@ -49,6 +49,7 @@ import { Post, useQuotedPost, useDeletePost } from "@/hooks/usePosts";
 import { useToggleReaction } from "@/hooks/usePosts";
 import { useChallengeResponses } from "@/hooks/useChallengeResponses";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAuthPrompt } from "@/hooks/useAuthPrompt";
 import { detectPlatformFromUrl } from "@/components/media/utils/mediaUtils";
 import { AnalysisOverlay } from "@/components/ui/AnalysisOverlay";
 import { cn, getDisplayUsername, decodeHTMLEntities } from "@/lib/utils";
@@ -86,6 +87,7 @@ export const FeedCard = ({
   onQuoteShare
 }: FeedCardProps) => {
   const { user } = useAuth();
+  const { requireAuth } = useAuthPrompt();
   const navigate = useNavigate();
   const toggleReaction = useToggleReaction();
   const deletePost = useDeletePost();
@@ -272,12 +274,7 @@ export const FeedCard = ({
   // Share handlers
   const handleShareClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!user) {
-      toast.warning(TOASTS.AUTH_REQUIRED.description, {
-        action: TOASTS.AUTH_REQUIRED.action
-      });
-      return;
-    }
+    if (!requireAuth()) return;
     setShowShareSheet(true);
   };
 
