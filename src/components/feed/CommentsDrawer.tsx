@@ -7,6 +7,7 @@ import { useComments, useAddComment, useDeleteComment } from '@/hooks/useComment
 import { useFocusComments, useAddFocusComment, useDeleteFocusComment } from '@/hooks/useFocusComments';
 import { useCommentReactions } from '@/hooks/useCommentReactions';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAuthPrompt } from '@/hooks/useAuthPrompt';
 import { formatDistanceToNow } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { Post } from '@/hooks/usePosts';
