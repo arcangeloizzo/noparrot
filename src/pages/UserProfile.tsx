@@ -20,13 +20,35 @@ import { useUserComprehensionCount } from "@/hooks/useUserComprehensionCount";
 import { useNebulaFilter } from "@/hooks/useNebulaFilter";
 import { DiarioFilterChip } from "@/components/profile/DiarioFilterChip";
 import { normalizeCategory } from "@/config/categories";
+import { buildShareUrl } from "@/config/share";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const UserProfile = () => {
-  const { userId } = useParams();
+  const { userId: paramValue } = useParams();
   const { user: currentUser } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  // Accept both UUIDs and usernames as :userId. Resolve username → id once.
+  const isUuidParam = !!paramValue && UUID_RE.test(paramValue);
+  const { data: resolvedId, isLoading: resolvingId } = useQuery({
+    queryKey: ["profile-id-lookup", paramValue],
+    queryFn: async () => {
+      if (!paramValue) return null;
+      if (isUuidParam) return paramValue;
+      const { data } = await supabase
+        .from("public_profiles")
+        .select("id")
+        .ilike("username", paramValue)
+        .maybeSingle();
+      return data?.id ?? null;
+    },
+    enabled: !!paramValue,
+    staleTime: 5 * 60 * 1000,
+  });
+  const userId = (resolvedId ?? undefined) as string | undefined;
 
   const [showNebulaExpanded, setShowNebulaExpanded] = useState(false);
   const [diaryFilter, setDiaryFilter] = useState<DiaryFilterType>('all');
@@ -291,9 +313,26 @@ export const UserProfile = () => {
     setShowConnections(true);
   };
 
-  if (!userId) {
+  if (!paramValue) {
     navigate('/');
     return null;
+  }
+
+  if (resolvingId && !userId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-muted-foreground">Caricamento profilo...</div>
+      </div>
+    );
+  }
+
+  if (!userId) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-3">
+        <div className="text-foreground font-semibold">Profilo non trovato</div>
+        <Button variant="outline" size="sm" onClick={() => navigate('/')}>Torna alla home</Button>
+      </div>
+    );
   }
 
   if (userId === currentUser?.id) {
@@ -336,8 +375,9 @@ export const UserProfile = () => {
               variant="ghost"
               size="icon"
               onClick={async () => {
-                const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-                const shareUrl = `${supabaseUrl}/functions/v1/share?id=${userId}&type=profile`;
+                const handle = (profile?.username || '').trim();
+                const shareIdentifier = handle || userId;
+                const shareUrl = buildShareUrl('profile', shareIdentifier);
                 const shareData = {
                   title: `Scopri i contributi di ${displayName} su NoParrot`,
                   text: profile?.bio?.substring(0, 100) || `Segui ${displayName} su NoParrot`,
