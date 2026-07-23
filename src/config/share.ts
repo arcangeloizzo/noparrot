@@ -17,6 +17,17 @@ export const SHARE_BASE = 'https://share.noparrot.app/s';
 
 export type ShareType = 'post' | 'profile' | 'challenge' | 'il_punto';
 
-/** Build the canonical share URL for a given entity. */
-export const buildShareUrl = (type: ShareType, id: string): string =>
-  `${SHARE_BASE}/${type}/${encodeURIComponent(id)}`;
+/**
+ * Build the canonical share URL for a given entity.
+ * Prefers a human-readable identifier (post slug, profile username) when provided;
+ * falls back to the UUID id otherwise. Shared links are permanent — the slug
+ * assigned to a post at creation is what should be embedded here.
+ */
+export const buildShareUrl = (
+  type: ShareType,
+  id: string,
+  slug?: string | null,
+): string => {
+  const identifier = slug && slug.trim() ? slug.trim() : id;
+  return `${SHARE_BASE}/${type}/${encodeURIComponent(identifier)}`;
+};

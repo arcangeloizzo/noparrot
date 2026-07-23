@@ -1920,6 +1920,7 @@ export type Database = {
           shared_title: string | null
           shared_url: string | null
           shares_count: number | null
+          slug: string | null
           sources: Json | null
           stance: string | null
           title: string | null
@@ -1957,6 +1958,7 @@ export type Database = {
           shared_title?: string | null
           shared_url?: string | null
           shares_count?: number | null
+          slug?: string | null
           sources?: Json | null
           stance?: string | null
           title?: string | null
@@ -1994,6 +1996,7 @@ export type Database = {
           shared_title?: string | null
           shared_url?: string | null
           shares_count?: number | null
+          slug?: string | null
           sources?: Json | null
           stance?: string | null
           title?: string | null
@@ -2770,6 +2773,10 @@ export type Database = {
           username: string
         }[]
       }
+      generate_post_slug: {
+        Args: { p_content: string; p_id: string; p_title: string }
+        Returns: string
+      }
       get_diary_entries: {
         Args: {
           p_cursor?: string
@@ -2872,6 +2879,8 @@ export type Database = {
       is_valid_username: { Args: { username: string }; Returns: boolean }
       normalize_category: { Args: { raw: string }; Returns: string }
       refresh_user_cognitive_density: { Args: never; Returns: undefined }
+      resolve_post_slug: { Args: { p_slug: string }; Returns: string }
+      slugify_text: { Args: { input: string }; Returns: string }
       update_last_seen: { Args: never; Returns: undefined }
       user_can_react_to_message: {
         Args: { _message_id: string; _user_id: string }

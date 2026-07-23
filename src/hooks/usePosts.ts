@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export interface Post {
   id: string;
+  slug?: string | null;
   author: {
     id: string;
     username: string;
@@ -181,6 +182,7 @@ export const usePosts = () => {
         .from('posts') as any)
         .select(`
           id,
+          slug,
           author_id,
           content,
           topic_tag,
@@ -364,6 +366,7 @@ export const usePosts = () => {
 
       return (data || []).map((post: any) => ({
         id: post.id,
+        slug: post.slug ?? null,
         author: post.author,
         content: post.content,
         title: post.title,
@@ -904,6 +907,7 @@ export const useQuotedPost = (quotedPostId: string | null) => {
         .from('posts')
         .select(`
           id,
+          slug,
           content,
           title,
           created_at,

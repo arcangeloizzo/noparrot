@@ -11,7 +11,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'x-share-version': '4',
+  'x-share-version': '5',
 };
 
 const DEFAULT_APP_URL = 'https://noparrot.app';
@@ -157,18 +157,36 @@ Deno.serve(async (req) => {
         description = 'Approfondimento giornaliero di NoParrot';
       }
     } else if (type === 'post') {
-      redirectUrl = `${APP_URL}/post/${id}`;
-      canonicalUrl = `${APP_URL}/post/${id}`;
-
-      const { data: post, error } = await supabase
+      // Accept both UUID and slug. Resolve to a row and prefer the slug in the
+      // redirect / canonical for human-friendly URLs.
+      const postQuery = supabase
         .from('posts')
-        .select('title, content, shared_title, preview_img, post_type, post_media(order_idx, media(url, thumbnail_url, type))')
-        .eq('id', id)
-        .maybeSingle();
+        .select('id, slug, title, content, shared_title, preview_img, post_type, author:profiles!author_id(full_name, username), post_media(order_idx, media(url, thumbnail_url, type))');
+      const { data: post, error } = UUID_RE.test(id)
+        ? await postQuery.eq('id', id).maybeSingle()
+        : await postQuery.eq('slug', id).maybeSingle();
+
+      const postSlug = (post as any)?.slug || null;
+      const postId = (post as any)?.id || id;
+      const humanId = postSlug && postSlug.trim() ? postSlug : postId;
+      redirectUrl = `${APP_URL}/post/${humanId}`;
+      canonicalUrl = `${APP_URL}/post/${humanId}`;
 
       if (!error && post) {
+        const author = Array.isArray((post as any).author)
+          ? (post as any).author[0]
+          : (post as any).author;
+        const authorName: string | null =
+          author?.full_name || author?.username || null;
         title = truncate(post.title || post.shared_title || 'Post su NoParrot', 90);
-        description = truncate(post.content || 'Leggi e condividi su NoParrot', 160);
+        const excerpt = truncate(post.content || '', 140);
+        if (authorName) {
+          description = excerpt
+            ? `di ${authorName} · ${excerpt}`
+            : `di ${authorName} su NoParrot`;
+        } else {
+          description = excerpt || 'Leggi e condividi su NoParrot';
+        }
 
         // Fallback chain: first uploaded media (image or video thumbnail) →
         // external source preview (preview_img) → brand default.
@@ -184,14 +202,15 @@ Deno.serve(async (req) => {
         description = 'Leggi e condividi su NoParrot';
       }
     } else if (type === 'challenge') {
-      redirectUrl = `${APP_URL}/post/${id}`;
-      canonicalUrl = `${APP_URL}/post/${id}`;
-
-      const { data: post, error } = await supabase
+      const chQuery = supabase
         .from('posts')
-        .select('title, content, preview_img, challenges(thesis, title, body_text)')
-        .eq('id', id)
-        .maybeSingle();
+        .select('id, slug, title, content, preview_img, challenges(thesis, title, body_text)');
+      const { data: post, error } = UUID_RE.test(id)
+        ? await chQuery.eq('id', id).maybeSingle()
+        : await chQuery.eq('slug', id).maybeSingle();
+      const humanId = (post as any)?.slug || (post as any)?.id || id;
+      redirectUrl = `${APP_URL}/post/${humanId}`;
+      canonicalUrl = `${APP_URL}/post/${humanId}`;
 
       if (!error && post) {
         const challenge = Array.isArray(post.challenges)
